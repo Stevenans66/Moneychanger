@@ -70,6 +70,8 @@
 #include <memory>
 
 
+#define DEMO_SERVER_NYM "otqHAZTKobdWCon2FL7T3thYfTAvoJr9Ck8"
+
 template class opentxs::Pimpl<opentxs::network::zeromq::PairEventCallback>;
 
 template class std::shared_ptr<const opentxs::OTPayment>;
@@ -84,7 +86,6 @@ bool Moneychanger::is_base64(QString string)
     }
     return false;
 }
-
 
 /**
  * Constructor & Destructor
@@ -174,6 +175,8 @@ Moneychanger::Moneychanger(const opentxs::api::client::Manager& manager, QWidget
         std::chrono::seconds(20),
         [this]()->void{ ot_.Sync().Refresh(); },
         (std::chrono::seconds(std::time(nullptr))));
+
+    check_pairing();
 
     //SQLite database
     // This can be moved very easily into a different class
@@ -448,6 +451,29 @@ void Moneychanger::process_widget_update(
     const QString qstrMsg = QString::fromStdString(str_msg);
 
     emit opentxsWidgetUpdated(qstrMsg);
+}
+
+void Moneychanger::check_pairing() const
+{
+    if (default_nym_id.isEmpty()) {
+
+        return;
+    }
+
+    const auto nymID = opentxs::Identifier::Factory(default_nym_id.toStdString());
+    const auto demoNymID = opentxs::Identifier::Factory(std::string(DEMO_SERVER_NYM));
+
+    if (nymID->empty()) {
+
+        return;
+    }
+
+    const auto& pair = ot_.Pair();
+    auto paired = pair.IssuerList(nymID, false);
+
+    if (0 == paired.count(demoNymID)) {
+        pair.AddIssuer(nymID, demoNymID, "");
+    }
 }
 
 // RETRIEVE NYM INTERMEDIARY FILES
@@ -1224,6 +1250,8 @@ void Moneychanger::bootTray()
             const QString qstrNymId = QString::fromStdString(str_id);
 //          mc_nymmanager_dialog(qstrNymId);
             emit newNymAdded(qstrNymId);
+
+            check_pairing();
         }
     }
     // ----------------------------------------------------------------------------
