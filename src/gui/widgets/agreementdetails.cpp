@@ -284,164 +284,167 @@ void MTAgreementDetails::FavorLeftSideForIDs()
 
 void MTAgreementDetails::refresh(QString strID, QString strName)
 {
-    if ((NULL != ui) && !strID.isEmpty())
-    {
-        QWidget * pHeaderWidget  = MTEditDetails::CreateDetailHeaderWidget(m_Type, strID, strName, "", "", ":/icons/icons/smart_contract_64.png", false);
+//    if ((NULL != ui) && !strID.isEmpty())
+//    {
+//        QWidget * pHeaderWidget  = MTEditDetails::CreateDetailHeaderWidget(m_Type, strID, strName, "", "", ":/icons/icons/smart_contract_64.png", false);
 
-        pHeaderWidget->setObjectName(QString("DetailHeader")); // So the stylesheet doesn't get applied to all its sub-widgets.
+//        pHeaderWidget->setObjectName(QString("DetailHeader")); // So the stylesheet doesn't get applied to all its sub-widgets.
 
-        if (m_pHeaderWidget)
-        {
-            ui->verticalLayout->removeWidget(m_pHeaderWidget);
+//        if (m_pHeaderWidget)
+//        {
+//            ui->verticalLayout->removeWidget(m_pHeaderWidget);
 
-            m_pHeaderWidget->setParent(NULL);
-            m_pHeaderWidget->disconnect();
-            m_pHeaderWidget->deleteLater();
+//            m_pHeaderWidget->setParent(NULL);
+//            m_pHeaderWidget->disconnect();
+//            m_pHeaderWidget->deleteLater();
 
-            m_pHeaderWidget = NULL;
-        }
-        ui->verticalLayout->insertWidget(0, pHeaderWidget);
-        m_pHeaderWidget = pHeaderWidget;
-        // ----------------------------------
-        ui->lineEditID  ->setText(strID);
-        ui->lineEditName->setText(strName);
-        // --------------------------
-        // Look up a copy of the smart contract from the local database.
-        //
-        int nTemplateID = strID.toInt();
-        // ------------------------------------------
-        if (nTemplateID > 0)
-            m_qstrTemplate = MTContactHandler::getInstance()->GetSmartContract(nTemplateID);
-        else
-            m_qstrTemplate = QString("");
-        // ------------------------------------------
-        if (!m_qstrTemplate.isEmpty())
-        {
-            std::string str_template = m_qstrTemplate.toStdString();
-            // ----------------------------------
+//            m_pHeaderWidget = NULL;
+//        }
+//        ui->verticalLayout->insertWidget(0, pHeaderWidget);
+//        m_pHeaderWidget = pHeaderWidget;
+//        // ----------------------------------
+//        ui->lineEditID  ->setText(strID);
+//        ui->lineEditName->setText(strName);
+//        // --------------------------
+//        // Look up a copy of the smart contract from the local database.
+//        //
+//        int nTemplateID = strID.toInt();
+//        // ------------------------------------------
+//        if (nTemplateID > 0)
+//            m_qstrTemplate = MTContactHandler::getInstance()->GetSmartContract(nTemplateID);
+//        else
+//            m_qstrTemplate = QString("");
+//        // ------------------------------------------
+//        if (!m_qstrTemplate.isEmpty())
+//        {
+//            std::string str_template = m_qstrTemplate.toStdString();
+//            // ----------------------------------
 
-            // Show stuff, and populate it?
+//            // Show stuff, and populate it?
 
-            if (m_pPlainTextEdit)
-                m_pPlainTextEdit->setPlainText(m_qstrTemplate);
-            // ------------------------------------------------
-            std::string contract_id = Moneychanger::It()->OT().Exec().CalculateContractID(str_template);
-            ui->lineEditContractID->setText(QString::fromStdString(contract_id));
-            // ------------------------------------------------
-            time64_t dateFrom = Moneychanger::It()->OT().Exec().Instrmnt_GetValidFrom(str_template);
-            time64_t dateTo   = Moneychanger::It()->OT().Exec().Instrmnt_GetValidTo(str_template);
+//            if (m_pPlainTextEdit)
+//                m_pPlainTextEdit->setPlainText(m_qstrTemplate);
+//            // ------------------------------------------------
+//            std::string contract_id = ot.Exec().CalculateContractID(str_template);
+//            ui->lineEditContractID->setText(QString::fromStdString(contract_id));
+//            // ------------------------------------------------
+//            time64_t dateFrom = ot.Exec().Instrmnt_GetValidFrom(str_template);
+//            time64_t dateTo   = ot.Exec().Instrmnt_GetValidTo(str_template);
 
-            m_dateTimeValidFrom = QDateTime::fromTime_t(dateFrom);
-            m_dateTimeValidTo   = QDateTime::fromTime_t(dateTo);
+//            m_dateTimeValidFrom = QDateTime::fromTime_t(dateFrom);
+//            m_dateTimeValidTo   = QDateTime::fromTime_t(dateTo);
 
-            ui->dateTimeEditValidFrom->blockSignals(true);
-            ui->dateTimeEditValidFrom->setDateTime(m_dateTimeValidFrom);
-            ui->dateTimeEditValidFrom->blockSignals(false);
+//            ui->dateTimeEditValidFrom->blockSignals(true);
+//            ui->dateTimeEditValidFrom->setDateTime(m_dateTimeValidFrom);
+//            ui->dateTimeEditValidFrom->blockSignals(false);
 
-            ui->dateTimeEditValidTo  ->blockSignals(true);
-            ui->dateTimeEditValidTo  ->setDateTime(m_dateTimeValidTo);
-            ui->dateTimeEditValidTo  ->blockSignals(false);
+//            ui->dateTimeEditValidTo  ->blockSignals(true);
+//            ui->dateTimeEditValidTo  ->setDateTime(m_dateTimeValidTo);
+//            ui->dateTimeEditValidTo  ->blockSignals(false);
 
-            bool bSpecifyAsset = Moneychanger::It()->OT().Exec().Smart_AreAssetTypesSpecified(str_template);
-            bool bSpecifyNym   = Moneychanger::It()->OT().Exec().Smart_ArePartiesSpecified(str_template);
-            // ------------------------------------------------
-            if (0 == dateFrom)
-            {
-                ui->radioButtonValidFrom1->blockSignals(true);
-                ui->radioButtonValidFrom1->setChecked(true);
-                ui->radioButtonValidFrom1->blockSignals(false);
+//            bool bSpecifyAsset = ot.Exec().Smart_AreAssetTypesSpecified(str_template);
+//            bool bSpecifyNym   = ot.Exec().Smart_ArePartiesSpecified(str_template);
+//            // ------------------------------------------------
+//            if (0 == dateFrom)
+//            {
+//                ui->radioButtonValidFrom1->blockSignals(true);
+//                ui->radioButtonValidFrom1->setChecked(true);
+//                ui->radioButtonValidFrom1->blockSignals(false);
 
-                ui->dateTimeEditValidFrom->setEnabled(false);
-            }
-            else
-            {
-                ui->radioButtonValidFrom2->blockSignals(true);
-                ui->radioButtonValidFrom2->setChecked(true);
-                ui->radioButtonValidFrom2->blockSignals(false);
+//                ui->dateTimeEditValidFrom->setEnabled(false);
+//            }
+//            else
+//            {
+//                ui->radioButtonValidFrom2->blockSignals(true);
+//                ui->radioButtonValidFrom2->setChecked(true);
+//                ui->radioButtonValidFrom2->blockSignals(false);
 
-                ui->dateTimeEditValidFrom->setEnabled(true);
-            }
-            // ------------------------------------------------
-            if (0 == dateTo)
-            {
-                ui->radioButtonValidTo1->blockSignals(true);
-                ui->radioButtonValidTo1->setChecked(true);
-                ui->radioButtonValidTo1->blockSignals(false);
+//                ui->dateTimeEditValidFrom->setEnabled(true);
+//            }
+//            // ------------------------------------------------
+//            if (0 == dateTo)
+//            {
+//                ui->radioButtonValidTo1->blockSignals(true);
+//                ui->radioButtonValidTo1->setChecked(true);
+//                ui->radioButtonValidTo1->blockSignals(false);
 
-                ui->dateTimeEditValidTo->setEnabled(false);
-            }
-            else
-            {
-                ui->radioButtonValidTo2->blockSignals(true);
-                ui->radioButtonValidTo2->setChecked(true);
-                ui->radioButtonValidTo2->blockSignals(false);
+//                ui->dateTimeEditValidTo->setEnabled(false);
+//            }
+//            else
+//            {
+//                ui->radioButtonValidTo2->blockSignals(true);
+//                ui->radioButtonValidTo2->setChecked(true);
+//                ui->radioButtonValidTo2->blockSignals(false);
 
-                ui->dateTimeEditValidTo->setEnabled(true);
-            }
-            // ------------------------------------------------
-            ui->checkBoxSpecifyAsset->blockSignals(true);
-            ui->checkBoxSpecifyAsset->setChecked(bSpecifyAsset);
-            ui->checkBoxSpecifyAsset->blockSignals(false);
-            // ------------------------------------------------
-            ui->checkBoxSpecifyNym->blockSignals(true);
-            ui->checkBoxSpecifyNym->setChecked(bSpecifyNym);
-            ui->checkBoxSpecifyNym->blockSignals(false);
-            // ------------------------------------------------
-            PopulateBylaws();
-            PopulateParties();
-            // --------------------------
-            FavorLeftSideForIDs();
-            // --------------------------
+//                ui->dateTimeEditValidTo->setEnabled(true);
+//            }
+//            // ------------------------------------------------
+//            ui->checkBoxSpecifyAsset->blockSignals(true);
+//            ui->checkBoxSpecifyAsset->setChecked(bSpecifyAsset);
+//            ui->checkBoxSpecifyAsset->blockSignals(false);
+//            // ------------------------------------------------
+//            ui->checkBoxSpecifyNym->blockSignals(true);
+//            ui->checkBoxSpecifyNym->setChecked(bSpecifyNym);
+//            ui->checkBoxSpecifyNym->blockSignals(false);
+//            // ------------------------------------------------
+//            PopulateBylaws();
+//            PopulateParties();
+//            // --------------------------
+//            FavorLeftSideForIDs();
+//            // --------------------------
 
-        }
-        else
-        {
-           // Otherwise do nothing, since everything was already cleared? Or hide some stuff here?
+//        }
+//        else
+//        {
+//           // Otherwise do nothing, since everything was already cleared? Or hide some stuff here?
 
-            ui->lineEditContractID->setText("");
+//            ui->lineEditContractID->setText("");
 
-            time64_t dateFrom = 0;
-            time64_t dateTo   = 0;
+//            time64_t dateFrom = 0;
+//            time64_t dateTo   = 0;
 
-            m_dateTimeValidFrom = QDateTime::fromTime_t(dateFrom);
-            m_dateTimeValidTo   = QDateTime::fromTime_t(dateTo);
+//            m_dateTimeValidFrom = QDateTime::fromTime_t(dateFrom);
+//            m_dateTimeValidTo   = QDateTime::fromTime_t(dateTo);
 
-            ui->dateTimeEditValidFrom->blockSignals(true);
-            ui->dateTimeEditValidFrom->setDateTime(m_dateTimeValidFrom);
-            ui->dateTimeEditValidFrom->blockSignals(false);
-            ui->dateTimeEditValidFrom->setEnabled(false);
+//            ui->dateTimeEditValidFrom->blockSignals(true);
+//            ui->dateTimeEditValidFrom->setDateTime(m_dateTimeValidFrom);
+//            ui->dateTimeEditValidFrom->blockSignals(false);
+//            ui->dateTimeEditValidFrom->setEnabled(false);
 
-            ui->dateTimeEditValidTo  ->blockSignals(true);
-            ui->dateTimeEditValidTo  ->setDateTime(m_dateTimeValidTo);
-            ui->dateTimeEditValidTo  ->blockSignals(false);
-            ui->dateTimeEditValidTo  ->setEnabled(false);
+//            ui->dateTimeEditValidTo  ->blockSignals(true);
+//            ui->dateTimeEditValidTo  ->setDateTime(m_dateTimeValidTo);
+//            ui->dateTimeEditValidTo  ->blockSignals(false);
+//            ui->dateTimeEditValidTo  ->setEnabled(false);
 
-            ui->radioButtonValidFrom1->blockSignals(true);
-            ui->radioButtonValidFrom1->setChecked(true);
-            ui->radioButtonValidFrom1->blockSignals(false);
-            ui->radioButtonValidTo1->blockSignals(true);
-            ui->radioButtonValidTo1->setChecked(true);
-            ui->radioButtonValidTo1->blockSignals(false);
-            // ------------------------------------------------
-            ui->checkBoxSpecifyAsset->blockSignals(true);
-            ui->checkBoxSpecifyAsset->setChecked(true);
-            ui->checkBoxSpecifyAsset->blockSignals(false);
-            // ------------------------------------------------
-            ui->checkBoxSpecifyNym->blockSignals(true);
-            ui->checkBoxSpecifyNym->setChecked(true);
-            ui->checkBoxSpecifyNym->blockSignals(false);
-            // ------------------------------------------------
-            ClearBylaws();
-            ClearParties();
-        }
-        // ------------------------------------------
-    }
+//            ui->radioButtonValidFrom1->blockSignals(true);
+//            ui->radioButtonValidFrom1->setChecked(true);
+//            ui->radioButtonValidFrom1->blockSignals(false);
+//            ui->radioButtonValidTo1->blockSignals(true);
+//            ui->radioButtonValidTo1->setChecked(true);
+//            ui->radioButtonValidTo1->blockSignals(false);
+//            // ------------------------------------------------
+//            ui->checkBoxSpecifyAsset->blockSignals(true);
+//            ui->checkBoxSpecifyAsset->setChecked(true);
+//            ui->checkBoxSpecifyAsset->blockSignals(false);
+//            // ------------------------------------------------
+//            ui->checkBoxSpecifyNym->blockSignals(true);
+//            ui->checkBoxSpecifyNym->setChecked(true);
+//            ui->checkBoxSpecifyNym->blockSignals(false);
+//            // ------------------------------------------------
+//            ClearBylaws();
+//            ClearParties();
+//        }
+//        // ------------------------------------------
+//    }
 }
 
 
 
 void MTAgreementDetails::PopulateBylaws()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     ClearBylawMap();
 
     if (m_qstrTemplate.isEmpty())
@@ -449,11 +452,11 @@ void MTAgreementDetails::PopulateBylaws()
     // ----------------------------------
     std::string str_template = m_qstrTemplate.toStdString();
     // ----------------------------------
-    const int32_t nCount = Moneychanger::It()->OT().Exec().Smart_GetBylawCount(str_template);
+    const int32_t nCount = ot.Exec().Smart_GetBylawCount(str_template);
 
     for (int32_t nIndex = 0; nIndex < nCount; ++nIndex)
     {
-        std::string str_bylaw = Moneychanger::It()->OT().Exec().Smart_GetBylawByIndex(str_template, nIndex);
+        std::string str_bylaw = ot.Exec().Smart_GetBylawByIndex(str_template, nIndex);
 
         m_mapBylaws.insert(QString::fromStdString(str_bylaw), QString::fromStdString(str_bylaw));
     }
@@ -463,6 +466,9 @@ void MTAgreementDetails::PopulateBylaws()
 
 void MTAgreementDetails::PopulateBylawGrid()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (m_qstrTemplate.isEmpty())
         return;
     // ----------------------------------
@@ -479,11 +485,11 @@ void MTAgreementDetails::PopulateBylawGrid()
     {
         QString qstrName           = it_top.key();
         std::string str_name       = qstrName.toStdString();
-        std::string str_lang       = Moneychanger::It()->OT().Exec().Bylaw_GetLanguage(str_template, str_name);
-        int32_t     nVariableCount = Moneychanger::It()->OT().Exec().Bylaw_GetVariableCount(str_template, str_name);
-        int32_t     nClauseCount   = Moneychanger::It()->OT().Exec().Bylaw_GetClauseCount(str_template, str_name);
-        int32_t     nHookCount     = Moneychanger::It()->OT().Exec().Bylaw_GetHookCount(str_template, str_name);
-        int32_t     nCallbackCount = Moneychanger::It()->OT().Exec().Bylaw_GetCallbackCount(str_template, str_name);
+        std::string str_lang       = ot.Exec().Bylaw_GetLanguage(str_template, str_name);
+        int32_t     nVariableCount = ot.Exec().Bylaw_GetVariableCount(str_template, str_name);
+        int32_t     nClauseCount   = ot.Exec().Bylaw_GetClauseCount(str_template, str_name);
+        int32_t     nHookCount     = ot.Exec().Bylaw_GetHookCount(str_template, str_name);
+        int32_t     nCallbackCount = ot.Exec().Bylaw_GetCallbackCount(str_template, str_name);
         // -----------------------------------------------------------------------
         QLabel * pLabelName          = new QLabel(QString::fromStdString(str_name));
         QLabel * pLabelLanguage      = new QLabel(QString::fromStdString(str_lang));
@@ -685,66 +691,69 @@ void MTAgreementDetails::RefreshAgentDetails(int nRow)
 
 void MTAgreementDetails::RefreshAccountDetails(int nRow)
 {
-    std::string party_name;
+//    std::string party_name;
 
-    if (ui->tableWidgetParties->currentRow() >= 0)
-    {
-        if (m_qstrTemplate.isEmpty())
-            return;
-        // ----------------------------------
-        std::string str_template = m_qstrTemplate.toStdString();
-        // ----------------------------------
-        QWidget * widget = ui->tableWidgetParties->cellWidget(ui->tableWidgetParties->currentRow(), 0); // 0 is column for the name.
-        QLabel  * label  = dynamic_cast<QLabel*>(widget);
+//    if (ui->tableWidgetParties->currentRow() >= 0)
+//    {
+//        if (m_qstrTemplate.isEmpty())
+//            return;
+//        // ----------------------------------
+//        std::string str_template = m_qstrTemplate.toStdString();
+//        // ----------------------------------
+//        QWidget * widget = ui->tableWidgetParties->cellWidget(ui->tableWidgetParties->currentRow(), 0); // 0 is column for the name.
+//        QLabel  * label  = dynamic_cast<QLabel*>(widget);
 
-        if (NULL != label)
-        {
-            party_name = label->text().toStdString();
-            // ---------------------------------------
-            if (nRow >= 0)
-            {
-                QListWidgetItem * item = ui->listWidgetAccounts->item(nRow);
+//        if (NULL != label)
+//        {
+//            party_name = label->text().toStdString();
+//            // ---------------------------------------
+//            if (nRow >= 0)
+//            {
+//                QListWidgetItem * item = ui->listWidgetAccounts->item(nRow);
 
-                if (NULL != item)
-                {
-                    std::string str_name = item->text().toStdString();
+//                if (NULL != item)
+//                {
+//                    std::string str_name = item->text().toStdString();
 
-                    ui->lineEditAccountName->setText(QString::fromStdString(str_name));
+//                    ui->lineEditAccountName->setText(QString::fromStdString(str_name));
 
-                    ui->groupBoxAssetType->setVisible(ui->checkBoxSpecifyAsset->isChecked());
+//                    ui->groupBoxAssetType->setVisible(ui->checkBoxSpecifyAsset->isChecked());
 
-                    if (ui->checkBoxSpecifyAsset->isChecked())
-                    {
-                        std::string str_asset = Moneychanger::It()->OT().Exec().Party_GetAcctInstrumentDefinitionID(str_template, party_name, str_name);
-                        ui->lineEditAssetID->setText(QString::fromStdString(str_asset));
-                        ui->lineEditAssetName->setText(QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_Name(str_asset)));
-                    }
-                    else
-                    {
-                        ui->lineEditAssetID->setText(QString(""));
-                        ui->lineEditAssetName->setText(QString(""));
-                    }
+//                    if (ui->checkBoxSpecifyAsset->isChecked())
+//                    {
+//                        std::string str_asset = ot.Exec().Party_GetAcctInstrumentDefinitionID(str_template, party_name, str_name);
+//                        ui->lineEditAssetID->setText(QString::fromStdString(str_asset));
+//                        ui->lineEditAssetName->setText(QString::fromStdString(ot.Exec().GetAssetType_Name(str_asset)));
+//                    }
+//                    else
+//                    {
+//                        ui->lineEditAssetID->setText(QString(""));
+//                        ui->lineEditAssetName->setText(QString(""));
+//                    }
 
-                    ui->pushButtonDeleteAccount->setEnabled(true);
-                }
-            }
-            else
-            {
-                ui->lineEditAccountName->setText(QString(""));
+//                    ui->pushButtonDeleteAccount->setEnabled(true);
+//                }
+//            }
+//            else
+//            {
+//                ui->lineEditAccountName->setText(QString(""));
 
-                ui->groupBoxAssetType->setVisible(ui->checkBoxSpecifyAsset->isChecked());
+//                ui->groupBoxAssetType->setVisible(ui->checkBoxSpecifyAsset->isChecked());
 
-                ui->lineEditAssetID->setText(QString(""));
-                ui->lineEditAssetName->setText(QString(""));
+//                ui->lineEditAssetID->setText(QString(""));
+//                ui->lineEditAssetName->setText(QString(""));
 
-                ui->pushButtonDeleteAccount->setEnabled(false);
-            }
-        }
-    }
+//                ui->pushButtonDeleteAccount->setEnabled(false);
+//            }
+//        }
+//    }
 }
 
 void MTAgreementDetails::RefreshVariableDetails(int nRow)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     std::string bylaw_name;
 
     if (ui->tableWidgetBylaws->currentRow() >= 0)
@@ -771,9 +780,9 @@ void MTAgreementDetails::RefreshVariableDetails(int nRow)
 
                     ui->lineEditVariableName->setText(QString::fromStdString(str_name));
 
-                    std::string str_type     = Moneychanger::It()->OT().Exec().Variable_GetType    (str_template, bylaw_name, str_name);
-                    std::string str_access   = Moneychanger::It()->OT().Exec().Variable_GetAccess  (str_template, bylaw_name, str_name);
-                    std::string str_contents = Moneychanger::It()->OT().Exec().Variable_GetContents(str_template, bylaw_name, str_name);
+                    std::string str_type     = ot.Exec().Variable_GetType    (str_template, bylaw_name, str_name);
+                    std::string str_access   = ot.Exec().Variable_GetAccess  (str_template, bylaw_name, str_name);
+                    std::string str_contents = ot.Exec().Variable_GetContents(str_template, bylaw_name, str_name);
 
                     if (0 == str_access.compare("constant"))
                         ui->comboBoxVariableAccess->setCurrentIndex(0);
@@ -825,6 +834,9 @@ void MTAgreementDetails::RefreshVariableDetails(int nRow)
 
 void MTAgreementDetails::RefreshClauseDetails(int nRow)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     std::string bylaw_name;
 
     ui->pushButtonCancel->setEnabled(false);
@@ -854,7 +866,7 @@ void MTAgreementDetails::RefreshClauseDetails(int nRow)
 
                     ui->lineEditClauseName->setText(QString::fromStdString(str_name));
 
-                    std::string str_script = Moneychanger::It()->OT().Exec().Clause_GetContents(str_template, bylaw_name, str_name);
+                    std::string str_script = ot.Exec().Clause_GetContents(str_template, bylaw_name, str_name);
 
                     ui->plainTextEditScript->blockSignals(true);
                     ui->plainTextEditScript->setPlainText(QString::fromStdString(str_script));
@@ -1012,16 +1024,19 @@ QWidget * MTAgreementDetails::createSingleHookWidget(std::string & bylaw_name, s
 
 QWidget * MTAgreementDetails::createHookGroupWidget(std::string & str_template, std::string & bylaw_name, std::string & hook_name)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     QWidget     * pBox = new QWidget;
     QVBoxLayout * vbox = new QVBoxLayout;
 
     vbox->setContentsMargins(1, 1, 1, 1);
     // -----------------------------------------------------------------
-    int32_t nClauseCount = Moneychanger::It()->OT().Exec().Hook_GetClauseCount(str_template, bylaw_name, hook_name);
+    int32_t nClauseCount = ot.Exec().Hook_GetClauseCount(str_template, bylaw_name, hook_name);
 
     for (int32_t ii = 0; ii < nClauseCount; ++ii)
     {
-        std::string clause_name = Moneychanger::It()->OT().Exec().Hook_GetClauseAtIndex(str_template, bylaw_name, hook_name, ii);
+        std::string clause_name = ot.Exec().Hook_GetClauseAtIndex(str_template, bylaw_name, hook_name, ii);
 
         QWidget * pWidget = createSingleHookWidget(bylaw_name, hook_name, clause_name);
 
@@ -1038,6 +1053,9 @@ QWidget * MTAgreementDetails::createHookGroupWidget(std::string & str_template, 
 
 void MTAgreementDetails::on_btnHookDelete_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (m_qstrTemplate.isEmpty() || m_pOwner->m_qstrCurrentID.isEmpty())
         return;
 
@@ -1075,7 +1093,7 @@ void MTAgreementDetails::on_btnHookDelete_clicked()
 
             if (NULL != pWidget)
             {
-                std::string strTempResult = Moneychanger::It()->OT().Exec().SmartContract_RemoveHook(str_template, str_lawyer_id,
+                std::string strTempResult = ot.Exec().SmartContract_RemoveHook(str_template, str_lawyer_id,
                                                                                                 bylaw_name, hook_name, clause_name);
 
                 if (!strTempResult.empty()) // Let's remove it from the GUI, too, then, and save it to the database as well.
@@ -1111,6 +1129,9 @@ void MTAgreementDetails::on_btnHookDelete_clicked()
 
 void MTAgreementDetails::RefreshCallbackDetails(int nRow)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     std::string bylaw_name;
 
     if (ui->tableWidgetBylaws->currentRow() >= 0)
@@ -1137,7 +1158,7 @@ void MTAgreementDetails::RefreshCallbackDetails(int nRow)
 
                     ui->lineEditCallbackName->setText(QString::fromStdString(str_name));
 
-                    std::string str_clause = Moneychanger::It()->OT().Exec().Callback_GetClause(str_template, bylaw_name, str_name);
+                    std::string str_clause = ot.Exec().Callback_GetClause(str_template, bylaw_name, str_name);
 
                     ui->lineEditCallbackClause->setText(QString::fromStdString(str_clause));
 
@@ -1158,6 +1179,9 @@ void MTAgreementDetails::RefreshCallbackDetails(int nRow)
 
 void MTAgreementDetails::RefreshBylawDetails(int nRow)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     std::string bylaw_name;
 
     if (nRow >= 0)
@@ -1174,7 +1198,7 @@ void MTAgreementDetails::RefreshBylawDetails(int nRow)
         {
             bylaw_name = label->text().toStdString();
 
-            QString qstrLanguage = QString::fromStdString(Moneychanger::It()->OT().Exec().Bylaw_GetLanguage(str_template, bylaw_name));
+            QString qstrLanguage = QString::fromStdString(ot.Exec().Bylaw_GetLanguage(str_template, bylaw_name));
 
             ui->lineEditBylawName->setText(QString::fromStdString(bylaw_name));
             ui->lineEditLanguage->setText(qstrLanguage);
@@ -1203,6 +1227,9 @@ void MTAgreementDetails::RefreshBylawDetails(int nRow)
 
 void MTAgreementDetails::RefreshPartyDetails(int nRow)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     std::string party_name;
 
     if (nRow >= 0)
@@ -1226,7 +1253,7 @@ void MTAgreementDetails::RefreshPartyDetails(int nRow)
 
             if (ui->checkBoxSpecifyNym->isChecked())
             {
-                QString qstrPartyNymID = QString::fromStdString(Moneychanger::It()->OT().Exec().Party_GetID(str_template, party_name));
+                QString qstrPartyNymID = QString::fromStdString(ot.Exec().Party_GetID(str_template, party_name));
                 ui->lineEditPartyNymID->setText(qstrPartyNymID);
             }
             else
@@ -1255,15 +1282,18 @@ void MTAgreementDetails::RefreshPartyDetails(int nRow)
 
 void MTAgreementDetails::RefreshAgents(std::string str_template, std::string str_party)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     ui->listWidgetAgents->blockSignals(true);
     // -----------------------------------
     ui->listWidgetAgents->clear();
     // -----------------------------------
-    const int32_t nCount = Moneychanger::It()->OT().Exec().Party_GetAgentCount(str_template, str_party);
+    const int32_t nCount = ot.Exec().Party_GetAgentCount(str_template, str_party);
 
     for (int32_t ii = 0; ii < nCount; ++ii)
     {
-        std::string str_agent = Moneychanger::It()->OT().Exec().Party_GetAgentNameByIndex(str_template, str_party, ii);
+        std::string str_agent = ot.Exec().Party_GetAgentNameByIndex(str_template, str_party, ii);
 
         if (!str_agent.empty())
         {
@@ -1287,15 +1317,18 @@ void MTAgreementDetails::RefreshAgents(std::string str_template, std::string str
 
 void MTAgreementDetails::RefreshAccounts(std::string str_template, std::string str_party)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     ui->listWidgetAccounts->blockSignals(true);
     // -----------------------------------
     ui->listWidgetAccounts->clear();
     // -----------------------------------
-    const int32_t nCount = Moneychanger::It()->OT().Exec().Party_GetAcctCount(str_template, str_party);
+    const int32_t nCount = ot.Exec().Party_GetAcctCount(str_template, str_party);
 
     for (int32_t ii = 0; ii < nCount; ++ii)
     {
-        std::string str_acct = Moneychanger::It()->OT().Exec().Party_GetAcctNameByIndex(str_template, str_party, ii);
+        std::string str_acct = ot.Exec().Party_GetAcctNameByIndex(str_template, str_party, ii);
 
         if (!str_acct.empty())
         {
@@ -1319,15 +1352,18 @@ void MTAgreementDetails::RefreshAccounts(std::string str_template, std::string s
 
 void MTAgreementDetails::RefreshVariables(std::string str_template, std::string str_bylaw)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     ui->listWidgetVariables->blockSignals(true);
     // -----------------------------------
     ui->listWidgetVariables->clear();
     // -----------------------------------
-    const int32_t nCount = Moneychanger::It()->OT().Exec().Bylaw_GetVariableCount(str_template, str_bylaw);
+    const int32_t nCount = ot.Exec().Bylaw_GetVariableCount(str_template, str_bylaw);
 
     for (int32_t ii = 0; ii < nCount; ++ii)
     {
-        std::string str_name = Moneychanger::It()->OT().Exec().Variable_GetNameByIndex(str_template, str_bylaw, ii);
+        std::string str_name = ot.Exec().Variable_GetNameByIndex(str_template, str_bylaw, ii);
 
         if (!str_name.empty())
         {
@@ -1351,15 +1387,18 @@ void MTAgreementDetails::RefreshVariables(std::string str_template, std::string 
 
 void MTAgreementDetails::RefreshClauses(std::string str_template, std::string str_bylaw)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     ui->listWidgetClauses->blockSignals(true);
     // -----------------------------------
     ui->listWidgetClauses->clear();
     // -----------------------------------
-    const int32_t nCount = Moneychanger::It()->OT().Exec().Bylaw_GetClauseCount(str_template, str_bylaw);
+    const int32_t nCount = ot.Exec().Bylaw_GetClauseCount(str_template, str_bylaw);
 
     for (int32_t ii = 0; ii < nCount; ++ii)
     {
-        std::string str_name = Moneychanger::It()->OT().Exec().Clause_GetNameByIndex(str_template, str_bylaw, ii);
+        std::string str_name = ot.Exec().Clause_GetNameByIndex(str_template, str_bylaw, ii);
 
         if (!str_name.empty())
         {
@@ -1383,17 +1422,20 @@ void MTAgreementDetails::RefreshClauses(std::string str_template, std::string st
 
 void MTAgreementDetails::RefreshHooks(std::string str_template, std::string str_bylaw)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     ui->listWidgetHooks->blockSignals(true);
     // -----------------------------------
     ui->listWidgetHooks->clear();
     // -----------------------------------
     std::map<std::string, std::string> string_map;
 
-    const int32_t nCount = Moneychanger::It()->OT().Exec().Bylaw_GetHookCount(str_template, str_bylaw);
+    const int32_t nCount = ot.Exec().Bylaw_GetHookCount(str_template, str_bylaw);
 
     for (int32_t ii = 0; ii < nCount; ++ii)
     {
-        std::string str_name = Moneychanger::It()->OT().Exec().Hook_GetNameByIndex(str_template, str_bylaw, ii);
+        std::string str_name = ot.Exec().Hook_GetNameByIndex(str_template, str_bylaw, ii);
 
         if (!str_name.empty())
         {
@@ -1428,15 +1470,18 @@ void MTAgreementDetails::RefreshHooks(std::string str_template, std::string str_
 
 void MTAgreementDetails::RefreshCallbacks(std::string str_template, std::string str_bylaw)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     ui->listWidgetCallbacks->blockSignals(true);
     // -----------------------------------
     ui->listWidgetCallbacks->clear();
     // -----------------------------------
-    const int32_t nCount = Moneychanger::It()->OT().Exec().Bylaw_GetCallbackCount(str_template, str_bylaw);
+    const int32_t nCount = ot.Exec().Bylaw_GetCallbackCount(str_template, str_bylaw);
 
     for (int32_t ii = 0; ii < nCount; ++ii)
     {
-        std::string str_name = Moneychanger::It()->OT().Exec().Callback_GetNameByIndex(str_template, str_bylaw, ii);
+        std::string str_name = ot.Exec().Callback_GetNameByIndex(str_template, str_bylaw, ii);
 
         if (!str_name.empty())
         {
@@ -1532,6 +1577,9 @@ void MTAgreementDetails::ClearAccounts()
 
 void MTAgreementDetails::PopulateParties()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     ClearPartyMap();
 
     if (m_qstrTemplate.isEmpty())
@@ -1539,11 +1587,11 @@ void MTAgreementDetails::PopulateParties()
     // ----------------------------------
     std::string str_template = m_qstrTemplate.toStdString();
     // ----------------------------------
-    const int32_t nCount = Moneychanger::It()->OT().Exec().Smart_GetPartyCount(str_template);
+    const int32_t nCount = ot.Exec().Smart_GetPartyCount(str_template);
 
     for (int32_t nIndex = 0; nIndex < nCount; ++nIndex)
     {
-        std::string str_party = Moneychanger::It()->OT().Exec().Smart_GetPartyByIndex(str_template, nIndex);
+        std::string str_party = ot.Exec().Smart_GetPartyByIndex(str_template, nIndex);
 
         m_mapParties.insert(QString::fromStdString(str_party), QString::fromStdString(str_party));
     }
@@ -1553,6 +1601,9 @@ void MTAgreementDetails::PopulateParties()
 
 void MTAgreementDetails::PopulatePartyGrid()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (m_qstrTemplate.isEmpty())
         return;
     // ----------------------------------
@@ -1571,8 +1622,8 @@ void MTAgreementDetails::PopulatePartyGrid()
     {
         QString     qstrName      = it_top.key();
         std::string str_name      = qstrName.toStdString();
-        int32_t     nAgentCount   = Moneychanger::It()->OT().Exec().Party_GetAgentCount(str_template, str_name);
-        int32_t     nAccountCount = Moneychanger::It()->OT().Exec().Party_GetAcctCount(str_template, str_name);
+        int32_t     nAgentCount   = ot.Exec().Party_GetAgentCount(str_template, str_name);
+        int32_t     nAccountCount = ot.Exec().Party_GetAcctCount(str_template, str_name);
         // -----------------------------------------------------------------------
         QLabel * pLabelName         = new QLabel(QString::fromStdString(str_name));
         QLabel * pLabelAgentCount   = new QLabel(QString("%1").arg(nAgentCount));
@@ -1629,6 +1680,9 @@ void MTAgreementDetails::PopulatePartyGrid()
 
 void MTAgreementDetails::AddButtonClicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     QString qstrLawyerID = m_pOwner->GetLawyerID();
 
     if (qstrLawyerID.isEmpty())
@@ -1755,7 +1809,7 @@ void MTAgreementDetails::AddButtonClicked()
             time64_t tDate1   = 0;  // 0 means "replace the 0 with the current time."
             time64_t tDate2   = 0;  // 0 means "never expires."
 
-            std::string str_template = Moneychanger::It()->OT().Exec().Create_SmartContract(qstrNymID.toStdString(), tDate1, tDate2, bSpecifyAssets, bSpecifyParties);
+            std::string str_template = ot.Exec().Create_SmartContract(qstrNymID.toStdString(), tDate1, tDate2, bSpecifyAssets, bSpecifyParties);
 
             if (str_template.empty())
             {
@@ -1793,48 +1847,48 @@ void MTAgreementDetails::AddButtonClicked()
 
 void MTAgreementDetails::ImportContract(QString qstrContents)
 {
-    if (qstrContents.isEmpty())
-    {
-        QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
-            tr("Failed importing: contract is empty."));
-        return;
-    }
-    // ------------------------------------------------------
-    else
-    {
-        auto strContract = opentxs::String::Factory(qstrContents.toStdString());
+//    if (qstrContents.isEmpty())
+//    {
+//        QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
+//            tr("Failed importing: contract is empty."));
+//        return;
+//    }
+//    // ------------------------------------------------------
+//    else
+//    {
+//        auto strContract = opentxs::String::Factory(qstrContents.toStdString());
 
-        auto pScriptable{Moneychanger::It()->OT().Factory().Scriptable(  strContract)};
-        opentxs::OTSmartContract * pSmartContract = (false == bool(pScriptable)) ? nullptr : dynamic_cast<opentxs::OTSmartContract*>(pScriptable.get());
+//        auto pScriptable{ot.Factory().Scriptable(  strContract)};
+//        opentxs::OTSmartContract * pSmartContract = (false == bool(pScriptable)) ? nullptr : dynamic_cast<opentxs::OTSmartContract*>(pScriptable.get());
 
-        if (nullptr == pSmartContract)
-        {
-            QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
-                tr("Failed importing: Unable to load the contract up as a smart contract."));
-            return;
-        }
-        // --------------------------------------------
-        int nTemplateID = MTContactHandler::getInstance()->CreateSmartContractTemplate(qstrContents);
+//        if (nullptr == pSmartContract)
+//        {
+//            QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
+//                tr("Failed importing: Unable to load the contract up as a smart contract."));
+//            return;
+//        }
+//        // --------------------------------------------
+//        int nTemplateID = MTContactHandler::getInstance()->CreateSmartContractTemplate(qstrContents);
 
-        if (nTemplateID <= 0)
-        {
-            QMessageBox::warning(this, tr("Failed creating smart contract"),
-                                 tr("Failed trying to create smart contract."));
-            return;
-        }
-        // -------------------------------------------------------
-        // else (Successfully created the new Template...)
-        // Now let's add this template to the Map, and refresh the dialog,
-        // and then set the new template as the current one.
-        //
-        QString qstrTemplateID = QString("%1").arg(nTemplateID);
+//        if (nTemplateID <= 0)
+//        {
+//            QMessageBox::warning(this, tr("Failed creating smart contract"),
+//                                 tr("Failed trying to create smart contract."));
+//            return;
+//        }
+//        // -------------------------------------------------------
+//        // else (Successfully created the new Template...)
+//        // Now let's add this template to the Map, and refresh the dialog,
+//        // and then set the new template as the current one.
+//        //
+//        QString qstrTemplateID = QString("%1").arg(nTemplateID);
 
-        m_pOwner->m_map.insert(qstrTemplateID, QString(tr("New Smart Contract")));
-        m_pOwner->SetPreSelected(qstrTemplateID);
-        // ------------------------------------------------
-        emit RefreshRecordsAndUpdateMenu();
-        // ------------------------------------------------
-    } // if (!qstrContractID.isEmpty())
+//        m_pOwner->m_map.insert(qstrTemplateID, QString(tr("New Smart Contract")));
+//        m_pOwner->SetPreSelected(qstrTemplateID);
+//        // ------------------------------------------------
+//        emit RefreshRecordsAndUpdateMenu();
+//        // ------------------------------------------------
+//    } // if (!qstrContractID.isEmpty())
 }
 
 
@@ -1995,6 +2049,9 @@ QString  MTAgreementDetails::GetCustomTabName(int nTab)
 
 void MTAgreementDetails::on_pushButtonNewBylaw_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (m_qstrTemplate.isEmpty() || m_pOwner->m_qstrCurrentID.isEmpty())
         return;
 
@@ -2011,7 +2068,7 @@ void MTAgreementDetails::on_pushButtonNewBylaw_clicked()
     QString qstrNewName("");
 
     int nCurrentComboIndex = ui->comboBoxBylaw->currentIndex();
-    int nBylawCount        = Moneychanger::It()->OT().Exec().Smart_GetBylawCount(str_template);
+    int nBylawCount        = ot.Exec().Smart_GetBylawCount(str_template);
     // ------------------------------------------------
     if ((nCurrentComboIndex >= 0) && (nCurrentComboIndex <= 4))
     {
@@ -2146,7 +2203,7 @@ void MTAgreementDetails::on_pushButtonNewBylaw_clicked()
         {
         case 0: // Bylaw
         {
-            strSmartResult = Moneychanger::It()->OT().Exec().SmartContract_AddBylaw(str_template, str_lawyer_id, qstrNewName.toStdString());
+            strSmartResult = ot.Exec().SmartContract_AddBylaw(str_template, str_lawyer_id, qstrNewName.toStdString());
             break;
         }
         case 1: // Variable
@@ -2189,7 +2246,7 @@ void MTAgreementDetails::on_pushButtonNewBylaw_clicked()
                 return;
             }
             // ----------------------------------------------
-            strSmartResult = Moneychanger::It()->OT().Exec().SmartContract_AddVariable(str_template, str_lawyer_id,
+            strSmartResult = ot.Exec().SmartContract_AddVariable(str_template, str_lawyer_id,
                                                                                   bylaw_name, qstrNewName.toStdString(),
                                                                                   qstrAccess.toStdString(), qstrType.toStdString(),
                                                                                   qstrValue.toStdString());
@@ -2210,7 +2267,7 @@ void MTAgreementDetails::on_pushButtonNewBylaw_clicked()
             // --------------------------
             QString qstrScript("// script code goes here");
 
-            strSmartResult = Moneychanger::It()->OT().Exec().SmartContract_AddClause(str_template, str_lawyer_id,
+            strSmartResult = ot.Exec().SmartContract_AddClause(str_template, str_lawyer_id,
                                                                                 bylaw_name, qstrNewName.toStdString(),
                                                                                 qstrScript.toStdString());
             break;
@@ -2245,13 +2302,13 @@ void MTAgreementDetails::on_pushButtonNewBylaw_clicked()
 
             int boxResult = QMessageBox::Cancel;
 
-            if ( (0 == Moneychanger::It()->OT().Exec().Bylaw_GetClauseCount(str_template, bylaw_name)) ||
+            if ( (0 == ot.Exec().Bylaw_GetClauseCount(str_template, bylaw_name)) ||
                  (QMessageBox::Yes == (boxResult = msgBox.exec())) )
             {
                 qstrClauseName = qstrNewName.right(qstrNewName.length() - 4); // Remove the "hook" or "cron" prefix and add "on" to derive the clause name.
                 qstrClauseName = QString("on%1").arg(qstrClauseName);
 
-                std::string strTempResult = Moneychanger::It()->OT().Exec().SmartContract_AddClause(str_template, str_lawyer_id,
+                std::string strTempResult = ot.Exec().SmartContract_AddClause(str_template, str_lawyer_id,
                                                                                                bylaw_name, qstrClauseName.toStdString(),
                                                                                                qstrScript.toStdString());
                 if (!strTempResult.empty())
@@ -2272,12 +2329,12 @@ void MTAgreementDetails::on_pushButtonNewBylaw_clicked()
                 // -----------------------------------------------
                 mapIDName & the_map = theChooser.m_map;
                 // -----------------------------------------------
-                const int32_t the_count = Moneychanger::It()->OT().Exec().Bylaw_GetClauseCount(str_template, bylaw_name);
+                const int32_t the_count = ot.Exec().Bylaw_GetClauseCount(str_template, bylaw_name);
                 // -----------------------------------------------
                 for (int32_t ii = 0; ii < the_count; ++ii)
                 {
 
-                    QString OT_id = QString::fromStdString(Moneychanger::It()->OT().Exec().Clause_GetNameByIndex(str_template, bylaw_name, ii));
+                    QString OT_id = QString::fromStdString(ot.Exec().Clause_GetNameByIndex(str_template, bylaw_name, ii));
                     QString OT_name = OT_id;
                     // -----------------------------------------------
                     if (!OT_id.isEmpty())
@@ -2298,13 +2355,13 @@ void MTAgreementDetails::on_pushButtonNewBylaw_clicked()
             // --------------------------------------------------------
             // If the hook/clause association already exists, we'll just remove it first.
             //
-            std::string strTempResult = Moneychanger::It()->OT().Exec().SmartContract_RemoveHook(str_template, str_lawyer_id,
+            std::string strTempResult = ot.Exec().SmartContract_RemoveHook(str_template, str_lawyer_id,
                                                                                             bylaw_name, qstrNewName.toStdString(),
                                                                                             qstrClauseName.toStdString());
             if (!strTempResult.empty())
                 str_template = strTempResult;
             // ---------------------------------------------------------
-            strSmartResult = Moneychanger::It()->OT().Exec().SmartContract_AddHook(str_template, str_lawyer_id,
+            strSmartResult = ot.Exec().SmartContract_AddHook(str_template, str_lawyer_id,
                                                                               bylaw_name, qstrNewName.toStdString(),
                                                                               qstrClauseName.toStdString());
             break;
@@ -2326,7 +2383,7 @@ void MTAgreementDetails::on_pushButtonNewBylaw_clicked()
             // contract. If it is, we pop up a message and return. Otherwise we can just
             // create the clause ourselves.
             //
-            std::string str_clause = Moneychanger::It()->OT().Exec().Callback_GetClause(str_template, bylaw_name, qstrNewName.toStdString());
+            std::string str_clause = ot.Exec().Callback_GetClause(str_template, bylaw_name, qstrNewName.toStdString());
 
             if (!str_clause.empty())
             {
@@ -2340,13 +2397,13 @@ void MTAgreementDetails::on_pushButtonNewBylaw_clicked()
             QString qstrClauseName = qstrNewName.right(qstrNewName.length() - 9); // Remove the "callback_" prefix to derive the clause name.
             QString qstrScript("return false;");
 
-            std::string strTempResult = Moneychanger::It()->OT().Exec().SmartContract_AddClause(str_template, str_lawyer_id,
+            std::string strTempResult = ot.Exec().SmartContract_AddClause(str_template, str_lawyer_id,
                                                                                            bylaw_name, qstrClauseName.toStdString(),
                                                                                            qstrScript.toStdString());
             if (!strTempResult.empty())
                 str_template = strTempResult;
             // -------------------------------
-            strSmartResult = Moneychanger::It()->OT().Exec().SmartContract_AddCallback(str_template, str_lawyer_id,
+            strSmartResult = ot.Exec().SmartContract_AddCallback(str_template, str_lawyer_id,
                                                                                   bylaw_name, qstrNewName.toStdString(),
                                                                                   qstrClauseName.toStdString());
             break;
@@ -2380,6 +2437,9 @@ void MTAgreementDetails::on_pushButtonAddVariable_clicked()
 
 void MTAgreementDetails::on_pushButtonDeleteVariable_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (m_qstrTemplate.isEmpty() || m_pOwner->m_qstrCurrentID.isEmpty())
         return;
 
@@ -2431,7 +2491,7 @@ void MTAgreementDetails::on_pushButtonDeleteVariable_clicked()
     if (QMessageBox::Yes != reply)
         return;
     // ------------------------------
-    std::string strTempResult = Moneychanger::It()->OT().Exec().SmartContract_RemoveVariable(str_template, str_lawyer_id, bylaw_name, str_name);
+    std::string strTempResult = ot.Exec().SmartContract_RemoveVariable(str_template, str_lawyer_id, bylaw_name, str_name);
 
     if (!strTempResult.empty())
     {
@@ -2455,6 +2515,9 @@ void MTAgreementDetails::on_pushButtonAddClause_clicked()
 
 void MTAgreementDetails::on_pushButtonDeleteClause_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (m_qstrTemplate.isEmpty() || m_pOwner->m_qstrCurrentID.isEmpty())
         return;
 
@@ -2506,7 +2569,7 @@ void MTAgreementDetails::on_pushButtonDeleteClause_clicked()
     if (QMessageBox::Yes != reply)
         return;
     // ------------------------------
-    std::string strTempResult = Moneychanger::It()->OT().Exec().SmartContract_RemoveClause(str_template, str_lawyer_id, bylaw_name, str_name);
+    std::string strTempResult = ot.Exec().SmartContract_RemoveClause(str_template, str_lawyer_id, bylaw_name, str_name);
 
     if (!strTempResult.empty())
     {
@@ -2539,6 +2602,9 @@ void MTAgreementDetails::on_pushButtonAddCallback_clicked()
 
 void MTAgreementDetails::on_pushButtonDeleteCallback_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (m_qstrTemplate.isEmpty() || m_pOwner->m_qstrCurrentID.isEmpty())
         return;
 
@@ -2590,7 +2656,7 @@ void MTAgreementDetails::on_pushButtonDeleteCallback_clicked()
     if (QMessageBox::Yes != reply)
         return;
     // ------------------------------
-    std::string strTempResult = Moneychanger::It()->OT().Exec().SmartContract_RemoveCallback(str_template, str_lawyer_id, bylaw_name, str_name);
+    std::string strTempResult = ot.Exec().SmartContract_RemoveCallback(str_template, str_lawyer_id, bylaw_name, str_name);
 
     if (!strTempResult.empty())
     {
@@ -2614,6 +2680,9 @@ void MTAgreementDetails::on_pushButtonAddAccount_clicked()
 
 void MTAgreementDetails::on_pushButtonDeleteAccount_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (m_qstrTemplate.isEmpty() || m_pOwner->m_qstrCurrentID.isEmpty())
         return;
 
@@ -2665,7 +2734,7 @@ void MTAgreementDetails::on_pushButtonDeleteAccount_clicked()
     if (QMessageBox::Yes != reply)
         return;
     // ------------------------------
-    std::string strTempResult = Moneychanger::It()->OT().Exec().SmartContract_RemoveAccount(str_template, str_lawyer_id, party_name, str_name);
+    std::string strTempResult = ot.Exec().SmartContract_RemoveAccount(str_template, str_lawyer_id, party_name, str_name);
 
     if (!strTempResult.empty())
     {
@@ -2681,6 +2750,9 @@ void MTAgreementDetails::on_pushButtonDeleteAccount_clicked()
 
 void MTAgreementDetails::on_pushButtonDeleteParty_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (m_qstrTemplate.isEmpty() || m_pOwner->m_qstrCurrentID.isEmpty())
         return;
 
@@ -2717,7 +2789,7 @@ void MTAgreementDetails::on_pushButtonDeleteParty_clicked()
     if (QMessageBox::Yes != reply)
         return;
     // ------------------------------
-    std::string strTempResult = Moneychanger::It()->OT().Exec().SmartContract_RemoveParty(str_template, str_lawyer_id, party_name);
+    std::string strTempResult = ot.Exec().SmartContract_RemoveParty(str_template, str_lawyer_id, party_name);
 
     if (!strTempResult.empty())
     {
@@ -2733,6 +2805,9 @@ void MTAgreementDetails::on_pushButtonDeleteParty_clicked()
 
 void MTAgreementDetails::on_pushButtonDeleteBylaw_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (m_qstrTemplate.isEmpty() || m_pOwner->m_qstrCurrentID.isEmpty())
         return;
 
@@ -2769,7 +2844,7 @@ void MTAgreementDetails::on_pushButtonDeleteBylaw_clicked()
     if (QMessageBox::Yes != reply)
         return;
     // ------------------------------
-    std::string strTempResult = Moneychanger::It()->OT().Exec().SmartContract_RemoveBylaw(str_template, str_lawyer_id, bylaw_name);
+    std::string strTempResult = ot.Exec().SmartContract_RemoveBylaw(str_template, str_lawyer_id, bylaw_name);
 
     if (!strTempResult.empty())
     {
@@ -2785,164 +2860,164 @@ void MTAgreementDetails::on_pushButtonDeleteBylaw_clicked()
 
 void MTAgreementDetails::on_pushButtonNewParty_clicked()
 {
-    if (m_qstrTemplate.isEmpty() || m_pOwner->m_qstrCurrentID.isEmpty())
-        return;
+//    if (m_qstrTemplate.isEmpty() || m_pOwner->m_qstrCurrentID.isEmpty())
+//        return;
 
-    std::string str_template = m_qstrTemplate.toStdString();
-    int nTemplateID = m_pOwner->m_qstrCurrentID.toInt();
-    // ------------------------------------------------
-    QString qstrLawyerID = m_pOwner->GetLawyerID();
+//    std::string str_template = m_qstrTemplate.toStdString();
+//    int nTemplateID = m_pOwner->m_qstrCurrentID.toInt();
+//    // ------------------------------------------------
+//    QString qstrLawyerID = m_pOwner->GetLawyerID();
 
-    if (qstrLawyerID.isEmpty())
-        return;
+//    if (qstrLawyerID.isEmpty())
+//        return;
 
-    std::string str_lawyer_id = qstrLawyerID.toStdString();
-    // ------------------------------------------------
-    QString qstrNewName("");
+//    std::string str_lawyer_id = qstrLawyerID.toStdString();
+//    // ------------------------------------------------
+//    QString qstrNewName("");
 
-    int nCurrentComboIndex = ui->comboBoxParty->currentIndex();
-    // ------------------------------------------------
-    if ((nCurrentComboIndex >= 0) && (nCurrentComboIndex <= 2))
-    {
-        MTGetStringDialog nameDlg(this, tr("Enter a Name:"));
+//    int nCurrentComboIndex = ui->comboBoxParty->currentIndex();
+//    // ------------------------------------------------
+//    if ((nCurrentComboIndex >= 0) && (nCurrentComboIndex <= 2))
+//    {
+//        MTGetStringDialog nameDlg(this, tr("Enter a Name:"));
 
-        switch (nCurrentComboIndex)
-        {
-        case 0:
-            nameDlg.setWindowTitle(tr("New Party"));
-            break;
-        case 1:
-            nameDlg.setWindowTitle(tr("New Agent"));
-            break;
-        case 2:
-            nameDlg.setWindowTitle(tr("New Account"));
-            break;
-        }
-        // --------------
-        if (QDialog::Accepted == nameDlg.exec())
-        {
-            qstrNewName = nameDlg.GetOutputString();
-        }
-        else
-            return;
-    }
-    else
-        return;
-    // ---------------------------------------------
-    if (!qstrNewName.isEmpty())
-    {
-        std::string strSmartResult;
+//        switch (nCurrentComboIndex)
+//        {
+//        case 0:
+//            nameDlg.setWindowTitle(tr("New Party"));
+//            break;
+//        case 1:
+//            nameDlg.setWindowTitle(tr("New Agent"));
+//            break;
+//        case 2:
+//            nameDlg.setWindowTitle(tr("New Account"));
+//            break;
+//        }
+//        // --------------
+//        if (QDialog::Accepted == nameDlg.exec())
+//        {
+//            qstrNewName = nameDlg.GetOutputString();
+//        }
+//        else
+//            return;
+//    }
+//    else
+//        return;
+//    // ---------------------------------------------
+//    if (!qstrNewName.isEmpty())
+//    {
+//        std::string strSmartResult;
 
-        switch (nCurrentComboIndex)
-        {
-        case 0:
-        {
-            std::string strParty = "party_"+qstrNewName.toStdString();
-            std::string strAgent = "agent_"+qstrNewName.toStdString();
+//        switch (nCurrentComboIndex)
+//        {
+//        case 0:
+//        {
+//            std::string strParty = "party_"+qstrNewName.toStdString();
+//            std::string strAgent = "agent_"+qstrNewName.toStdString();
 
-            QString qstrPartyNymID;
+//            QString qstrPartyNymID;
 
-            if (ui->checkBoxSpecifyNym->isChecked())
-            {
-                MTGetStringDialog stringDlg(this, tr("Paste a NymID:"));
+//            if (ui->checkBoxSpecifyNym->isChecked())
+//            {
+//                MTGetStringDialog stringDlg(this, tr("Paste a NymID:"));
 
-                stringDlg.setWindowTitle(tr("New Party"));
+//                stringDlg.setWindowTitle(tr("New Party"));
 
-                if (QDialog::Accepted == stringDlg.exec())
-                    qstrPartyNymID = stringDlg.GetOutputString();
-                else
-                    return;
-             }
+//                if (QDialog::Accepted == stringDlg.exec())
+//                    qstrPartyNymID = stringDlg.GetOutputString();
+//                else
+//                    return;
+//             }
 
-            strSmartResult = Moneychanger::It()->OT().Exec().SmartContract_AddParty(str_template, str_lawyer_id, qstrPartyNymID.toStdString(),
-                                                                               strParty, strAgent);
-            break;
-        }
-        case 1:
-        {
-            QMessageBox::information(this, tr("Coming soon"), tr("No need to add agents until we have corporations working."));
-            return;
-        }
-        case 2:
-        {
-            int nCurrentIndex = ui->tableWidgetParties->currentRow();
+//            strSmartResult = ot.Exec().SmartContract_AddParty(str_template, str_lawyer_id, qstrPartyNymID.toStdString(),
+//                                                                               strParty, strAgent);
+//            break;
+//        }
+//        case 1:
+//        {
+//            QMessageBox::information(this, tr("Coming soon"), tr("No need to add agents until we have corporations working."));
+//            return;
+//        }
+//        case 2:
+//        {
+//            int nCurrentIndex = ui->tableWidgetParties->currentRow();
 
-            if (nCurrentIndex < 0)
-                return;
+//            if (nCurrentIndex < 0)
+//                return;
 
-            QWidget * widget = ui->tableWidgetParties->cellWidget(nCurrentIndex, 0); // 0 is column for the name.
-            QLabel  * label  = dynamic_cast<QLabel*>(widget);
+//            QWidget * widget = ui->tableWidgetParties->cellWidget(nCurrentIndex, 0); // 0 is column for the name.
+//            QLabel  * label  = dynamic_cast<QLabel*>(widget);
 
-            if (NULL == label)
-                return;
+//            if (NULL == label)
+//                return;
 
-            std::string party_name = label->text().toStdString();
-            if (party_name.empty())
-                return;
+//            std::string party_name = label->text().toStdString();
+//            if (party_name.empty())
+//                return;
 
-            std::string strAcct = "acct_"+qstrNewName.toStdString();
-            std::string strType("");
-            // -------------------------------
-            if (ui->checkBoxSpecifyAsset->isChecked())
-            {
-                // -------------------------------------------
-                // Select from Asset Types in local wallet.
-                //
-                DlgChooser theChooser(this);
-                // -----------------------------------------------
-                mapIDName & the_map = theChooser.m_map;
-                // -----------------------------------------------
-                const int32_t the_count = Moneychanger::It()->OT().Exec().GetAssetTypeCount();
-                // -----------------------------------------------
-                for (int32_t ii = 0; ii < the_count; ++ii)
-                {
-                    QString OT_id = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_ID(ii));
-                    QString OT_name("");
-                    // -----------------------------------------------
-                    if (!OT_id.isEmpty())
-                    {
-                        OT_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_Name(OT_id.toStdString()));
-                        // -----------------------------------------------
-                        the_map.insert(OT_id, OT_name);
-                    }
-                 }
-                // -----------------------------------------------
-                theChooser.setWindowTitle(tr("Select the Asset Type"));
-                // -----------------------------------------------
-                if (theChooser.exec() == QDialog::Accepted)
-                {
-                    if (!theChooser.m_qstrCurrentID.isEmpty())
-                    {
-                        strType = theChooser.m_qstrCurrentID.toStdString();
-                    }
-                }
-            }
+//            std::string strAcct = "acct_"+qstrNewName.toStdString();
+//            std::string strType("");
+//            // -------------------------------
+//            if (ui->checkBoxSpecifyAsset->isChecked())
+//            {
+//                // -------------------------------------------
+//                // Select from Asset Types in local wallet.
+//                //
+//                DlgChooser theChooser(this);
+//                // -----------------------------------------------
+//                mapIDName & the_map = theChooser.m_map;
+//                // -----------------------------------------------
+//                const int32_t the_count = ot.Exec().GetAssetTypeCount();
+//                // -----------------------------------------------
+//                for (int32_t ii = 0; ii < the_count; ++ii)
+//                {
+//                    QString OT_id = QString::fromStdString(ot.Exec().GetAssetType_ID(ii));
+//                    QString OT_name("");
+//                    // -----------------------------------------------
+//                    if (!OT_id.isEmpty())
+//                    {
+//                        OT_name = QString::fromStdString(ot.Exec().GetAssetType_Name(OT_id.toStdString()));
+//                        // -----------------------------------------------
+//                        the_map.insert(OT_id, OT_name);
+//                    }
+//                 }
+//                // -----------------------------------------------
+//                theChooser.setWindowTitle(tr("Select the Asset Type"));
+//                // -----------------------------------------------
+//                if (theChooser.exec() == QDialog::Accepted)
+//                {
+//                    if (!theChooser.m_qstrCurrentID.isEmpty())
+//                    {
+//                        strType = theChooser.m_qstrCurrentID.toStdString();
+//                    }
+//                }
+//            }
 
-            strSmartResult = Moneychanger::It()->OT().Exec().SmartContract_AddAccount(str_template,
-                                                           str_lawyer_id,
-                                                           party_name,	// The Party's NAME as referenced in the smart contract.
-                                                           // ----------------------------------------
-                                                           strAcct,         // The Account's name as referenced in the smart contract
-                                                           strType);        // Asset type for the account.
+//            strSmartResult = ot.Exec().SmartContract_AddAccount(str_template,
+//                                                           str_lawyer_id,
+//                                                           party_name,	// The Party's NAME as referenced in the smart contract.
+//                                                           // ----------------------------------------
+//                                                           strAcct,         // The Account's name as referenced in the smart contract
+//                                                           strType);        // Asset type for the account.
 
-            break;
-        }
-        }
-        // ------------------------------------------------
-        if (strSmartResult.empty())
-            return;
+//            break;
+//        }
+//        }
+//        // ------------------------------------------------
+//        if (strSmartResult.empty())
+//            return;
 
-        int nTemplateID = m_pOwner->m_qstrCurrentID.toInt();
-        bool bWritten = MTContactHandler::getInstance()->SetValueByID(nTemplateID, QString::fromStdString(strSmartResult),
-                                                                      QString("template_contents"), QString("smart_contract"), QString("template_id"));
-        // ------------------------------------------------
-        if (bWritten)
-        {
-            m_qstrTemplate = QString::fromStdString(strSmartResult);
-            emit RefreshRecordsAndUpdateMenu();
-        }
-        // ------------------------------------------------
-    }
+//        int nTemplateID = m_pOwner->m_qstrCurrentID.toInt();
+//        bool bWritten = MTContactHandler::getInstance()->SetValueByID(nTemplateID, QString::fromStdString(strSmartResult),
+//                                                                      QString("template_contents"), QString("smart_contract"), QString("template_id"));
+//        // ------------------------------------------------
+//        if (bWritten)
+//        {
+//            m_qstrTemplate = QString::fromStdString(strSmartResult);
+//            emit RefreshRecordsAndUpdateMenu();
+//        }
+//        // ------------------------------------------------
+//    }
 }
 
 
@@ -3000,6 +3075,9 @@ void MTAgreementDetails::on_comboBoxVariableType_currentIndexChanged(int index)
 
 void MTAgreementDetails::on_pushButtonSave_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     ui->pushButtonCancel->setEnabled(false);
     ui->pushButtonSave  ->setEnabled(false);
 
@@ -3036,7 +3114,7 @@ void MTAgreementDetails::on_pushButtonSave_clicked()
                     // ------------------------------------------
                     QString qstrScript = ui->plainTextEditScript->toPlainText();
 
-                    std::string strTemp = Moneychanger::It()->OT().Exec().SmartContract_UpdateClause(str_template,
+                    std::string strTemp = ot.Exec().SmartContract_UpdateClause(str_template,
                                                                                                 qstrLawyerID.toStdString(),
                                                                                                 bylaw_name,
                                                                                                 str_name,
@@ -3074,6 +3152,9 @@ void MTAgreementDetails::on_pushButtonSave_clicked()
 
 void MTAgreementDetails::on_pushButtonCancel_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     ui->pushButtonCancel->setEnabled(false);
     ui->pushButtonSave  ->setEnabled(false);
 
@@ -3102,7 +3183,7 @@ void MTAgreementDetails::on_pushButtonCancel_clicked()
                 if (NULL != item)
                 {
                     std::string str_name   = item->text().toStdString();
-                    std::string str_script = Moneychanger::It()->OT().Exec().Clause_GetContents(str_template, bylaw_name, str_name);
+                    std::string str_script = ot.Exec().Clause_GetContents(str_template, bylaw_name, str_name);
 
                     ui->plainTextEditScript->blockSignals(true);
                     ui->plainTextEditScript->setPlainText(QString::fromStdString(str_script));
@@ -3235,42 +3316,42 @@ void MTAgreementDetails::onGroupButtonValidToClicked(int nButton)
 
 void MTAgreementDetails::SaveDates()
 {
-    if (m_qstrTemplate.isEmpty() || m_pOwner->m_qstrCurrentID.isEmpty())
-        return;
+//    if (m_qstrTemplate.isEmpty() || m_pOwner->m_qstrCurrentID.isEmpty())
+//        return;
 
-    std::string str_template = m_qstrTemplate.toStdString();
-    int nTemplateID = m_pOwner->m_qstrCurrentID.toInt();
-    // ------------------------------------------------
-    QString qstrLawyerID = m_pOwner->GetLawyerID();
+//    std::string str_template = m_qstrTemplate.toStdString();
+//    int nTemplateID = m_pOwner->m_qstrCurrentID.toInt();
+//    // ------------------------------------------------
+//    QString qstrLawyerID = m_pOwner->GetLawyerID();
 
-    if (qstrLawyerID.isEmpty())
-        return;
+//    if (qstrLawyerID.isEmpty())
+//        return;
 
-    std::string str_lawyer_id = qstrLawyerID.toStdString();
-    // ------------------------------------------------
-    time64_t validFrom = m_dateTimeValidFrom.toTime_t();
-    time64_t validTo   = m_dateTimeValidTo  .toTime_t();
-    // ------------------------------------------------------
-    std::string strTempResult = Moneychanger::It()->OT().Exec().SmartContract_SetDates(str_template, str_lawyer_id, validFrom, validTo);
+//    std::string str_lawyer_id = qstrLawyerID.toStdString();
+//    // ------------------------------------------------
+//    time64_t validFrom = m_dateTimeValidFrom.toTime_t();
+//    time64_t validTo   = m_dateTimeValidTo  .toTime_t();
+//    // ------------------------------------------------------
+//    std::string strTempResult = ot.Exec().SmartContract_SetDates(str_template, str_lawyer_id, validFrom, validTo);
 
-    if (!strTempResult.empty())
-    {
-        bool bWritten = MTContactHandler::getInstance()->SetValueByID(nTemplateID, QString::fromStdString(strTempResult),
-                                                                      QString("template_contents"), QString("smart_contract"), QString("template_id"));
-        // ------------------------------------------------
-        if (bWritten)
-        {
-            m_qstrTemplate = QString::fromStdString(strTempResult);
-            if (m_pPlainTextEdit)
-                m_pPlainTextEdit->setPlainText(m_qstrTemplate);
+//    if (!strTempResult.empty())
+//    {
+//        bool bWritten = MTContactHandler::getInstance()->SetValueByID(nTemplateID, QString::fromStdString(strTempResult),
+//                                                                      QString("template_contents"), QString("smart_contract"), QString("template_id"));
+//        // ------------------------------------------------
+//        if (bWritten)
+//        {
+//            m_qstrTemplate = QString::fromStdString(strTempResult);
+//            if (m_pPlainTextEdit)
+//                m_pPlainTextEdit->setPlainText(m_qstrTemplate);
 
-            if (!m_qstrTemplate.isEmpty())
-            {
-                std::string contract_id = Moneychanger::It()->OT().Exec().CalculateContractID(strTempResult);
-                ui->lineEditContractID->setText(QString::fromStdString(contract_id));
-            }
-        }
-    }
+//            if (!m_qstrTemplate.isEmpty())
+//            {
+//                std::string contract_id = ot.Exec().CalculateContractID(strTempResult);
+//                ui->lineEditContractID->setText(QString::fromStdString(contract_id));
+//            }
+//        }
+//    }
 }
 
 void MTAgreementDetails::on_dateTimeEditValidFrom_dateTimeChanged(const QDateTime &dateTime)

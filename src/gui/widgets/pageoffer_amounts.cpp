@@ -43,6 +43,9 @@ PageOffer_Amounts::PageOffer_Amounts(QWidget *parent) :
 
 bool PageOffer_Amounts::isComplete() const
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     const bool bIsMarketOrder = field("isMarketOrder").toBool();
 
     if (bIsMarketOrder)
@@ -60,7 +63,8 @@ bool PageOffer_Amounts::isComplete() const
     std::string str_asset = (field("InstrumentDefinitionID").toString()).toStdString();
     std::string str_price = qstrPrice.toStdString();
 
-    int64_t lAmount = Moneychanger::It()->OT().Exec().StringToAmount(str_asset, str_price);
+    const auto assetId = ot.Factory().UnitID(str_asset);
+    int64_t lAmount = Moneychanger::stringToAmount(assetId, str_price);
 
     if (lAmount < 1)
         return false;
@@ -70,6 +74,9 @@ bool PageOffer_Amounts::isComplete() const
 
 void PageOffer_Amounts::on_lineEditPrice_textChanged(const QString &arg1)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     // ----------------------------------------------
     QString qstrCurrencyID = field("CurrencyID").toString();
     const std::string str_currency(qstrCurrencyID.toStdString());
@@ -77,9 +84,10 @@ void PageOffer_Amounts::on_lineEditPrice_textChanged(const QString &arg1)
     QString qstrPrice = arg1;
     std::string str_price = qstrPrice.toStdString();
     // ----------------------------------------------
-    int64_t lPrice = Moneychanger::It()->OT().Exec().StringToAmount(str_currency, str_price);
+    const auto currencyId = ot.Factory().UnitID(str_currency);
+    auto lPrice = Moneychanger::stringToAmount(currencyId, str_price);
 
-    std::string str_final(Moneychanger::It()->OT().Exec().FormatAmount(str_currency, lPrice));
+    std::string str_final( Moneychanger::formatAmount(currencyId, lPrice));
     QString qstrFinal(QString::fromStdString(str_final));
 
     ui->labelCalculatedPrice->setText(qstrFinal);
@@ -90,6 +98,9 @@ void PageOffer_Amounts::on_lineEditPrice_textChanged(const QString &arg1)
 
 void PageOffer_Amounts::on_lineEditQuantity_textChanged(const QString &arg1)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     QString qstrCombo    = ui->comboBox->currentText();
     QString qstrQuantity = arg1;
 
@@ -97,13 +108,14 @@ void PageOffer_Amounts::on_lineEditQuantity_textChanged(const QString &arg1)
     // ----------------------------------------------
     QString qstrInstrumentDefinitionID = field("InstrumentDefinitionID").toString();
     const std::string str_asset(qstrInstrumentDefinitionID.toStdString());
+    const auto assetId = ot.Factory().UnitID(str_asset);
     // ----------------------------------------------
     if (!qstrCombo.isEmpty())
     {
-        int64_t lCombo  = Moneychanger::It()->OT().Exec().StringToAmount(str_asset, qstrCombo.toStdString());
+        auto lCombo = Moneychanger::stringToAmount(assetId, qstrCombo.toStdString());
         int64_t lResult = (lQuantity * lCombo);
 
-        std::string str_result = Moneychanger::It()->OT().Exec().FormatAmount(str_asset, lResult);
+        std::string str_result = Moneychanger::formatAmount(assetId, lResult);
 
         ui->lineEditTotal->setText(QString::fromStdString(str_result));
     }
@@ -111,6 +123,9 @@ void PageOffer_Amounts::on_lineEditQuantity_textChanged(const QString &arg1)
 
 void PageOffer_Amounts::on_comboBox_currentIndexChanged(const QString &arg1)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     QString qstrPer(QString("%1 %2").arg(tr("per")).arg(arg1));
     ui->labelPer->setText(qstrPer);
     // -------------------------------------------------
@@ -121,13 +136,14 @@ void PageOffer_Amounts::on_comboBox_currentIndexChanged(const QString &arg1)
     // ----------------------------------------------
     QString qstrInstrumentDefinitionID = field("InstrumentDefinitionID").toString();
     const std::string str_asset(qstrInstrumentDefinitionID.toStdString());
+    const auto assetId = ot.Factory().UnitID(str_asset);
     // ----------------------------------------------
     if (!qstrCombo.isEmpty())
     {
-        int64_t lCombo  = Moneychanger::It()->OT().Exec().StringToAmount(str_asset, qstrCombo.toStdString());
+        auto lCombo = Moneychanger::stringToAmount(assetId, qstrCombo.toStdString());
         int64_t lResult = (lQuantity * lCombo);
 
-        std::string str_result = Moneychanger::It()->OT().Exec().FormatAmount(str_asset, lResult);
+        std::string str_result = Moneychanger::formatAmount(assetId, lResult);
 
         ui->lineEditTotal->setText(QString::fromStdString(str_result));
     }
@@ -189,6 +205,9 @@ void PageOffer_Amounts::RadioChanged()
 
 void PageOffer_Amounts::initializePage()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     const bool bIsBid = field("bid").toBool();
 
     if (bIsBid)
@@ -212,6 +231,7 @@ void PageOffer_Amounts::initializePage()
     // ----------------------------------------------
     QString qstrInstrumentDefinitionID = field("InstrumentDefinitionID").toString();
     const std::string str_asset(qstrInstrumentDefinitionID.toStdString());
+    const auto assetId = ot.Factory().UnitID(str_asset);
     // ----------------------------------------------
     // Populate the Combo Box
     //
@@ -229,9 +249,9 @@ void PageOffer_Amounts::initializePage()
 
         const std::string str_input(strTemp->Get());
 
-        int64_t lAmount = Moneychanger::It()->OT().Exec().StringToAmount(str_asset, str_input);
+        auto lAmount = Moneychanger::stringToAmount(assetId, str_input);
 
-        std::string str_formatted = Moneychanger::It()->OT().Exec().FormatAmount(str_asset, lAmount);
+        std::string str_formatted = Moneychanger::formatAmount(assetId, lAmount);
         QString qstrFormatted(QString::fromStdString(str_formatted));
 
         QVariant qvarVal(static_cast<qlonglong>(lAmount));

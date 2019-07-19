@@ -858,7 +858,7 @@ void Messages::RefreshTree()
 //                        {
 //                            qstrMethodName = tr("Notary");
 //                            // ------------------------------
-//                            QString qstrTemp = QString::fromStdString(Moneychanger::It()->OT().Exec().GetServer_Name(qstrViaTransport.toStdString()));
+//                            QString qstrTemp = QString::fromStdString(ot.Exec().GetServer_Name(qstrViaTransport.toStdString()));
 //                            if (!qstrTemp.isEmpty())
 //                                qstrTransportName = qstrTemp;
 //                        }
@@ -971,6 +971,9 @@ void Messages::on_tableViewSent_customContextMenuRequested(const QPoint &pos)
 
 void Messages::tableViewPopupMenu(const QPoint &pos, QTableView * pTableView, MessagesProxyModel * pProxyModel)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     QPointer<ModelMessages> pModel = DBHandler::getInstance()->getMessageModel();
 
     if (!pModel)
@@ -1291,7 +1294,8 @@ void Messages::tableViewPopupMenu(const QPoint &pos, QTableView * pTableView, Me
             return;
         // Below this point we're guaranteed that there's a NymID.
         // ---------------------------------------------------
-        const auto contactId = Moneychanger::It()->OT().Contacts().ContactID(opentxs::Identifier::Factory(qstrNymId.toStdString()));
+        const auto nymId = ot.Factory().NymID(qstrNymId.toStdString());
+        const auto contactId = ot.Contacts().ContactID(nymId);
 
         if (!contactId->empty())
         {
@@ -1428,6 +1432,9 @@ void Messages::tableViewDoubleClicked(const QModelIndex &index, MessagesProxyMod
 
 void Messages::on_toolButtonReply_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     QPointer<ModelMessages> pModel = DBHandler::getInstance()->getMessageModel();
 
     if (!pModel)
@@ -1513,16 +1520,17 @@ void Messages::on_toolButtonReply_clicked()
             // That means we can try to see if there's an opentxs contact associated with the
             // recipient's Nym Id, and if so, we can check Can_Message...
             //
-            const auto otherContactId = Moneychanger::It()->OT().Contacts().ContactID(opentxs::Identifier::Factory(otherNymID.toStdString()));
-            const auto     strOtherContactId = opentxs::String::Factory(otherContactId);
-            const std::string         str_other_contact_id(strOtherContactId->Get());
+            const auto otherNymId = ot.Factory().NymID(otherNymID.toStdString());
+            const auto myNymId = ot.Factory().NymID(myNymID.toStdString());
+
+            const auto otherContactId = ot.Contacts().ContactID(otherNymId);
+            const std::string         str_other_contact_id(otherContactId->str());
             const QString             qstrOtherContactId(str_other_contact_id.empty() ? QString("") : QString::fromStdString(str_other_contact_id));
             // ---------------------------------------
             if (!str_other_contact_id.empty()) // An opentxs contact was found for the recipient Nym.
             {
                 if (opentxs::Messagability::READY ==
-                    Moneychanger::It()->OT().Sync().CanMessage(opentxs::Identifier::Factory(myNymID.toStdString()),
-                                                               opentxs::Identifier::Factory(str_other_contact_id)))
+                    ot.OTX().CanMessage(myNymId, otherContactId))
                 {
                     bCanMessage = true;
                     compose_window->setInitialRecipientContactID(qstrOtherContactId, otherAddress);

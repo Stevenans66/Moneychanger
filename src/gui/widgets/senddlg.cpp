@@ -21,10 +21,12 @@
 
 
 // ----------------------------------------------------------------------
-bool MTSendDlg::sendCash(int64_t amount, QString toNymId, QString toContactId, QString fromAcctId, QString note)
+bool MTSendDlg::sendCash(int64_t amount, QString qstrToNymId, QString qstrToContactId, QString qstrFromAcctId, QString note)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
     // ------------------------------------------------------------
-    if (fromAcctId.isEmpty()) {
+    if (qstrFromAcctId.isEmpty()) {
         qDebug() << QString("Cannot send cash from an unknown account id, aborting.");
         return false;
     }
@@ -33,7 +35,7 @@ bool MTSendDlg::sendCash(int64_t amount, QString toNymId, QString toContactId, Q
         return false;
     }
     // ------------------------------------------------------------
-    if (toContactId.isEmpty())
+    if (qstrToContactId.isEmpty())
     {
         qDebug() << "Cannot send cash to an empty contact id, aborting.";
         // todo: someday we will allow this, by popping up a dialog so the
@@ -42,9 +44,9 @@ bool MTSendDlg::sendCash(int64_t amount, QString toNymId, QString toContactId, Q
         return false;
     }
     // --------------------------------
-    if (toNymId.isEmpty())
+    if (qstrToNymId.isEmpty())
     {
-        if (!toContactId.isEmpty())
+        if (!qstrToContactId.isEmpty())
         {
             // Need to get nyms (or primary nym, or whatever) for this contact. Here.
             //
@@ -60,7 +62,7 @@ bool MTSendDlg::sendCash(int64_t amount, QString toNymId, QString toContactId, Q
             //
             mapIDName theNymMap;
 
-            if (!MTContactHandler::getInstance()->GetNyms(theNymMap, toContactId.toStdString()))
+            if (!MTContactHandler::getInstance()->GetNyms(theNymMap, qstrToContactId.toStdString()))
             {
                 QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
                                      tr("Sorry, there are no NymIds associated with this opentxs contact. "));
@@ -71,7 +73,7 @@ bool MTSendDlg::sendCash(int64_t amount, QString toNymId, QString toContactId, Q
                 if (theNymMap.size() == 1) // This contact has exactly one Nym, so we'll go with it.
                 {
                     mapIDName::iterator theNymIt = theNymMap.begin();
-                    toNymId = theNymIt.key();
+                    qstrToNymId = theNymIt.key();
 //                  QString qstrNymName = theNymIt.value();
                 }
                 else // There are multiple Nyms to choose from.
@@ -81,7 +83,7 @@ bool MTSendDlg::sendCash(int64_t amount, QString toNymId, QString toContactId, Q
                     theNymChooser.setWindowTitle(tr("Invoicee has multiple Nyms. (Please choose one.)"));
                     // -----------------------------------------------
                     if (theNymChooser.exec() == QDialog::Accepted)
-                        toNymId = theNymChooser.m_qstrCurrentID;
+                        qstrToNymId = theNymChooser.m_qstrCurrentID;
                     else // User must have cancelled.
                         return  false;
                 }
@@ -93,7 +95,7 @@ bool MTSendDlg::sendCash(int64_t amount, QString toNymId, QString toContactId, Q
     // Only way around this is to encrypt them to a passphrase instead.
     // (Which also works, if you try the export cash feature...)
     //
-    if (toNymId.isEmpty()) {
+    if (qstrToNymId.isEmpty()) {
         qDebug() << QString("Cannot send cash to an empty nym id, aborting.");
         return false;
     }
@@ -104,19 +106,26 @@ bool MTSendDlg::sendCash(int64_t amount, QString toNymId, QString toContactId, Q
     if (note.isEmpty())
         note = tr("From the Qt systray app.");
     // ------------------------------------------------------------
-    std::string str_toNymId   (toNymId   .toStdString());
-    std::string str_fromAcctId(fromAcctId.toStdString());
+    std::string str_toNymId   (qstrToNymId   .toStdString());
+    std::string str_fromAcctId(qstrFromAcctId.toStdString());
+
+    const auto toNymId     = ot.Factory().NymID(str_toNymId);
+    const auto fromAcctId  = ot.Factory().Identifier(str_fromAcctId);
+    const auto fromAccount = ot.Wallet().Account(fromAcctId, reason);
     // ------------------------------------------------------------
-    std::string str_fromNymId(Moneychanger::It()->OT().Exec().GetAccountWallet_NymID      (str_fromAcctId));
-    std::string str_NotaryID (Moneychanger::It()->OT().Exec().GetAccountWallet_NotaryID   (str_fromAcctId));
-    std::string str_InstrumentDefinitionID  (Moneychanger::It()->OT().Exec().GetAccountWallet_InstrumentDefinitionID(str_fromAcctId));
+    const auto & fromNymId = fromAccount.get().GetNymID();
+    std::string str_fromNymId = fromNymId.str();
+    const auto & notaryId = fromAccount.get().GetPurportedNotaryID();
+    std::string str_NotaryID (notaryId.str());
+    const auto & unitId = fromAccount.get().GetInstrumentDefinitionID();
+    std::string str_InstrumentDefinitionID(unitId.str());
     // --------------------------------
-    if (   toContactId.isEmpty()
+    const auto toContactId = ot.Factory().Identifier(qstrToContactId.toStdString());
+    if (   qstrToContactId.isEmpty()
         || str_fromNymId.empty()
         ||  (opentxs::Messagability::READY !=
-             Moneychanger::It()->OT().Sync()
-             .CanMessage(opentxs::Identifier::Factory(str_fromNymId),
-                         opentxs::Identifier::Factory(toContactId.toStdString()))))
+            ot.OTX()
+             .CanMessage(fromNymId, toContactId)))
     {
         QMessageBox::warning(this, tr("Not yet messageable"),
                              tr("This contact is not yet messageable. However, "
@@ -162,7 +171,7 @@ bool MTSendDlg::sendCash(int64_t amount, QString toNymId, QString toContactId, Q
     // ------------------------------------------------------------
     int64_t SignedAmount = amount;
     qDebug() << QString("Withdrawing cash:\n Server:'%1'\n Nym:'%2'\n Acct:'%3'\n ToNym:'%4'\n Amount:'%5'\n Note:'%6'").
-          arg(str_NotaryID.c_str()).arg(str_fromNymId.c_str()).arg(str_fromAcctId.c_str()).arg(toNymId).arg(SignedAmount).arg(note);
+          arg(str_NotaryID.c_str()).arg(str_fromNymId.c_str()).arg(str_fromAcctId.c_str()).arg(qstrToNymId).arg(SignedAmount).arg(note);
     // ------------------------------------------------------------
     // Below code is wrong because we cannot assume the server ID.
     // (That's why it's commented out)
@@ -173,7 +182,7 @@ bool MTSendDlg::sendCash(int64_t amount, QString toNymId, QString toContactId, Q
 //        MTSpinner theSpinner;
 //        // NOTE: We don't retrieve the account files in the case of success, because the
 //        // below function already does all that internally.
-//        bReturnValue = Moneychanger::It()->OT().Cash().withdraw_and_send_cash(str_fromAcctId, str_toNymId, SignedAmount);
+//        bReturnValue = ot.Cash().withdraw_and_send_cash(str_fromAcctId, str_toNymId, SignedAmount);
 //    }
 //    // ------------------------------------------------------------
 //    if (!bReturnValue)
@@ -181,65 +190,68 @@ bool MTSendDlg::sendCash(int64_t amount, QString toNymId, QString toContactId, Q
 //    // ------------------------------------------------------------
 //    return bReturnValue;
 
+
+
+    // Come back to this. Right now just getting the app to build with latest OT API.
     // New way:
-    if (canMessage_)
-    {
-        // Need to get the actual purses withdrawn so I can send
-        // them below.
+//    if (canMessage_)
+//    {
+//        // Need to get the actual purses withdrawn so I can send
+//        // them below.
 
-        std::shared_ptr<const opentxs::Purse> pRecipientPurse;
-        std::shared_ptr<const opentxs::Purse> pSenderPurse;
+//        std::shared_ptr<const opentxs::Purse> pRecipientPurse;
+//        std::shared_ptr<const opentxs::Purse> pSenderPurse;
 
-        bool bReturnValue = false;
-        {
-            MTSpinner theSpinner;
-            // NOTE: We don't retrieve the account files in the case of success, because the
-            // below function already does all that internally.
-            bReturnValue = Moneychanger::It()->OT().Cash().withdraw_and_export_cash(
-                                str_fromAcctId,
-                                str_toNymId,
-                                SignedAmount,
-                                pRecipientPurse,
-                                pSenderPurse);
-                              //bool bPasswordProtected=false
-        }
-        if (!bReturnValue)
-        {
-            qDebug() << QString("Failed to withdraw_and_export_cash from account/purse.");
-            return false;
-        }
-        // ------------------------------------------------------------
-        const auto bgthreadId
-        {Moneychanger::It()->OT().Sync().
-            PayContactCash(opentxs::Identifier::Factory(str_fromNymId),
-                       opentxs::Identifier::Factory(toContactId.toStdString()),
-                       pRecipientPurse,
-                       pSenderPurse
-                       )};
+//        bool bReturnValue = false;
+//        {
+//            MTSpinner theSpinner;
+//            // NOTE: We don't retrieve the account files in the case of success, because the
+//            // below function already does all that internally.
+//            bReturnValue = ot.Cash().withdraw_and_export_cash(
+//                                str_fromAcctId,
+//                                str_toNymId,
+//                                SignedAmount,
+//                                pRecipientPurse,
+//                                pSenderPurse);
+//                              //bool bPasswordProtected=false
+//        }
+//        if (!bReturnValue)
+//        {
+//            qDebug() << QString("Failed to withdraw_and_export_cash from account/purse.");
+//            return false;
+//        }
+//        // ------------------------------------------------------------
+//        const auto bgthreadId
+//        {ot.OTX().
+//            PayContactCash(opentxs::Identifier::Factory(str_fromNymId),
+//                       opentxs::Identifier::Factory(qstrToContactId.toStdString()),
+//                       pRecipientPurse,
+//                       pSenderPurse
+//                       )};
 
-        // Instead of MessageContact we use PayContactCash, so that it does
-        // a send_user_instrument (with purses) instead of a send_user_message.
-        // Note that the sender's and recipient's copies of the purse are
-        // different, since each has his own copy that's encrypted to his own
-        // public key. (So for example, if the recipient's copy were erroneously
-        // placed in the sender's outbox, the sender wouldn't even be able to
-        // read it.)
-        //
-        const auto status = Moneychanger::It()->OT().Sync().Status(bgthreadId);
+//        // Instead of MessageContact we use PayContactCash, so that it does
+//        // a send_user_instrument (with purses) instead of a send_user_message.
+//        // Note that the sender's and recipient's copies of the purse are
+//        // different, since each has his own copy that's encrypted to his own
+//        // public key. (So for example, if the recipient's copy were erroneously
+//        // placed in the sender's outbox, the sender wouldn't even be able to
+//        // read it.)
+//        //
+//        const auto status =ot.OTX().Status(bgthreadId);
 
-        const bool bAddToGUI = (opentxs::ThreadStatus::FINISHED_SUCCESS == status) ||
-                               (opentxs::ThreadStatus::RUNNING == status);
-        if (bAddToGUI) { // This means it's queued, not actually sent to the notary yet.
-            //const bool bUseGrayText = (opentxs::ThreadStatus::FINISHED_SUCCESS != status);
-            qDebug() << QString("Success in queueing cash for sending.");
-            return true;
-        }
-        else
-        {
-            qDebug() << QString("Failed trying to queue cash for sending.");
-        }
-        return false;
-    }
+//        const bool bAddToGUI = (opentxs::ThreadStatus::FINISHED_SUCCESS == status) ||
+//                               (opentxs::ThreadStatus::RUNNING == status);
+//        if (bAddToGUI) { // This means it's queued, not actually sent to the notary yet.
+//            //const bool bUseGrayText = (opentxs::ThreadStatus::FINISHED_SUCCESS != status);
+//            qDebug() << QString("Success in queueing cash for sending.");
+//            return true;
+//        }
+//        else
+//        {
+//            qDebug() << QString("Failed trying to queue cash for sending.");
+//        }
+//        return false;
+//    }
 #endif // OT_CASH
 
     return false;
@@ -369,292 +381,298 @@ bool Cash::withdraw_and_send_cash(
 
 bool MTSendDlg::sendCashierCheque(int64_t amount, QString toNymId, QString toContactId, QString fromAcctId, QString note)
 {
-    QString nsChequeType = QString("voucher");
-    // ------------------------------------------------------------
-    if (fromAcctId.isEmpty()) {
-        qDebug() << QString("Cannot send %1 from an unknown account id, aborting.").arg(nsChequeType);
-        return false;
-    }
-    if (amount <= 0) {
-        qDebug() << QString("Why send 0 (or less) units? Aborting send %1.").arg(nsChequeType);
-        return false;
-    }
-    if (amount > Moneychanger::rawAcctBalance(fromAcctId)) {
-        qDebug() << QString("Aborting send %1: Amount is larger than account balance.").arg(nsChequeType);
-        return false;
-    }
-    // ------------------------------------------------------------
-    // Perhaps the sender wishes to leave the payee Nym blank, so that
-    // ANYONE could deposit this voucher, and not just a specific person.
-    // Fair enough.
-    //
-    // But even so, he still needs a Contact ID or he won't have
-    // anyone to SEND the message that contains the voucher!
-    //
-    // Therefore by this point, we MUST have a Contact Id, even if the NymID
-    // remains blank. (Alternately, we could just pop up the voucher in a dialog
-    // so the user, in that case, can just copy it and send out-of-band.)
-    //
-    if (toContactId.isEmpty())
-    {
-        qDebug() << "Cannot send funds to an empty contact id, aborting.";
-        // todo: someday we will allow this, by popping up a dialog so the
-        // user can copy the voucher and send it out-of-band.
-        //
-        return false;
-    }
-    // --------------------------------
-    if (toNymId.isEmpty())
-    {
-        if (!toContactId.isEmpty())
-        {
-            // Need to get nyms (or primary nym, or whatever) for this contact. Here.
-            //
-            // Todo: We really don't need to find the "to Nym" at this point.
-            // Instead we could just ask the user here if he wants to leave
-            // the payee field blank. Only if the user says "No" do we then
-            // do the below code and choose a Nym as the payee.
+//    const auto & ot = Moneychanger::It()->OT();
+//    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
 
-            mapIDName theNymMap;
+//    QString nsChequeType = QString("voucher");
+//    // ------------------------------------------------------------
+//    if (fromAcctId.isEmpty()) {
+//        qDebug() << QString("Cannot send %1 from an unknown account id, aborting.").arg(nsChequeType);
+//        return false;
+//    }
+//    if (amount <= 0) {
+//        qDebug() << QString("Why send 0 (or less) units? Aborting send %1.").arg(nsChequeType);
+//        return false;
+//    }
+//    if (amount > Moneychanger::rawAcctBalance(fromAcctId)) {
+//        qDebug() << QString("Aborting send %1: Amount is larger than account balance.").arg(nsChequeType);
+//        return false;
+//    }
+//    // ------------------------------------------------------------
+//    // Perhaps the sender wishes to leave the payee Nym blank, so that
+//    // ANYONE could deposit this voucher, and not just a specific person.
+//    // Fair enough.
+//    //
+//    // But even so, he still needs a Contact ID or he won't have
+//    // anyone to SEND the message that contains the voucher!
+//    //
+//    // Therefore by this point, we MUST have a Contact Id, even if the NymID
+//    // remains blank. (Alternately, we could just pop up the voucher in a dialog
+//    // so the user, in that case, can just copy it and send out-of-band.)
+//    //
+//    if (toContactId.isEmpty())
+//    {
+//        qDebug() << "Cannot send funds to an empty contact id, aborting.";
+//        // todo: someday we will allow this, by popping up a dialog so the
+//        // user can copy the voucher and send it out-of-band.
+//        //
+//        return false;
+//    }
+//    // --------------------------------
+//    if (toNymId.isEmpty())
+//    {
+//        if (!toContactId.isEmpty())
+//        {
+//            // Need to get nyms (or primary nym, or whatever) for this contact. Here.
+//            //
+//            // Todo: We really don't need to find the "to Nym" at this point.
+//            // Instead we could just ask the user here if he wants to leave
+//            // the payee field blank. Only if the user says "No" do we then
+//            // do the below code and choose a Nym as the payee.
 
-            if (!MTContactHandler::getInstance()->GetNyms(theNymMap, toContactId.toStdString()))
-            {
-                // Again: could choose at this point just to leave the payee
-                // blank on the instrument.
-                //
-                QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
-                                     tr("Sorry, there are no NymIds associated with this opentxs contact. "));
-                return false;
-            }
-            else
-            {
-                if (theNymMap.size() == 1) // This contact has exactly one Nym, so we'll go with it.
-                {
-                    mapIDName::iterator theNymIt = theNymMap.begin();
-                    toNymId = theNymIt.key();
-//                  QString qstrNymName = theNymIt.value();
-                }
-                else // There are multiple Nyms to choose from.
-                {    // TODO: Choose one automatically from the CREDENTIALS!
-                    DlgChooser theNymChooser(this);
-                    theNymChooser.m_map = theNymMap;
-                    theNymChooser.setWindowTitle(tr("Payee has multiple Nyms. (Please choose one.)"));
-                    // -----------------------------------------------
-                    if (theNymChooser.exec() == QDialog::Accepted)
-                        toNymId = theNymChooser.m_qstrCurrentID;
-                    else // User must have cancelled.
-                        return  false;
-                }
-            }
-        }
-    }
-    // ------------------------------------------------------------
-    // todo: someday comment this block out, allowing a blank "to nym"
-    // field. (Like a cheque that any Nym can deposit).
-    //
-    if (toNymId.isEmpty()) {
-        qDebug() << QString("Cannot send %1 to an empty nym id, aborting.").arg(nsChequeType);
-        return false;
-    }
-    // ------------------------------------------------------------
-    if (note.isEmpty())
-        note = tr("From the desktop systray app.");
-    // ------------------------------------------------------------
-    std::string str_toNymId   (toNymId   .toStdString());
-    std::string str_fromAcctId(fromAcctId.toStdString());
-    // ------------------------------------------------------------
-    std::string str_fromNymId(Moneychanger::It()->OT().Exec().GetAccountWallet_NymID   (str_fromAcctId));
-    std::string str_NotaryID (Moneychanger::It()->OT().Exec().GetAccountWallet_NotaryID(str_fromAcctId));
-    // ------------------------------------------------------------
-    int64_t SignedAmount = amount;
-//    qDebug() << QString("Sending %1:\n Server:'%2'\n Nym:'%3'\n Acct:'%4'\n ToNym:'%5'\n Amount:'%6'\n Note:'%7'").
-//                arg(nsChequeType).arg(str_NotaryID.c_str()).arg(str_fromNymId.c_str()).arg(str_fromAcctId.c_str()).
-//                arg(toNymId).arg(SignedAmount).arg(note);
-    // ------------------------------------------------------------
-    const auto notaryID = opentxs::Identifier::Factory(str_NotaryID),
-                  nymID = opentxs::Identifier::Factory(str_fromNymId);
-    if (!Moneychanger::It()->OT().ServerAction().GetTransactionNumbers(nymID, notaryID, 1)) {
-        qDebug() << QString("Failed trying to acquire a transaction number to write the %1 with.").arg(nsChequeType);
-        return false;
-    }
-    // ------------------------------------------------------------
-    // We don't want to go through the trouble of purchasing the voucher
-    // if we can't even send messages to the recipient Contact. So let's
-    // verify that first...
-    //
-    if (   toContactId.isEmpty()
-        || str_fromNymId.empty()
-        ||  (opentxs::Messagability::READY !=
-             Moneychanger::It()->OT().Sync()
-             .CanMessage(opentxs::Identifier::Factory(str_fromNymId),
-                         opentxs::Identifier::Factory(toContactId.toStdString()))))
-    {
-        QMessageBox::warning(this, tr("Not yet messageable"),
-                             tr("This contact is not yet messageable. However, "
-                                "credentials are being requested in the background, "
-                                "so it's worth trying again sometime soon."));
-        return false;
-    }
-    else
-        canMessage_ = true;
-    // --------------------------------
-    const auto fromNymID = opentxs::Identifier::Factory(str_fromNymId),
-            toNymID = opentxs::Identifier::Factory(str_toNymId),
-            acctID = opentxs::Identifier::Factory(str_fromAcctId);
-    std::string strAttempt  = "withdraw_voucher";
-    std::string strResponse;
-    {
-        MTSpinner theSpinner;
+//            mapIDName theNymMap;
 
-        auto action = Moneychanger::It()->OT().ServerAction().WithdrawVoucher(fromNymID, notaryID, acctID,
-        		toNymID, SignedAmount, note.toStdString());
-        strResponse = action->Run();
-    }
+//            if (!MTContactHandler::getInstance()->GetNyms(theNymMap, toContactId.toStdString()))
+//            {
+//                // Again: could choose at this point just to leave the payee
+//                // blank on the instrument.
+//                //
+//                QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
+//                                     tr("Sorry, there are no NymIds associated with this opentxs contact. "));
+//                return false;
+//            }
+//            else
+//            {
+//                if (theNymMap.size() == 1) // This contact has exactly one Nym, so we'll go with it.
+//                {
+//                    mapIDName::iterator theNymIt = theNymMap.begin();
+//                    toNymId = theNymIt.key();
+////                  QString qstrNymName = theNymIt.value();
+//                }
+//                else // There are multiple Nyms to choose from.
+//                {    // TODO: Choose one automatically from the CREDENTIALS!
+//                    DlgChooser theNymChooser(this);
+//                    theNymChooser.m_map = theNymMap;
+//                    theNymChooser.setWindowTitle(tr("Payee has multiple Nyms. (Please choose one.)"));
+//                    // -----------------------------------------------
+//                    if (theNymChooser.exec() == QDialog::Accepted)
+//                        toNymId = theNymChooser.m_qstrCurrentID;
+//                    else // User must have cancelled.
+//                        return  false;
+//                }
+//            }
+//        }
+//    }
+//    // ------------------------------------------------------------
+//    // todo: someday comment this block out, allowing a blank "to nym"
+//    // field. (Like a cheque that any Nym can deposit).
+//    //
+//    if (toNymId.isEmpty()) {
+//        qDebug() << QString("Cannot send %1 to an empty nym id, aborting.").arg(nsChequeType);
+//        return false;
+//    }
+//    // ------------------------------------------------------------
+//    if (note.isEmpty())
+//        note = tr("From the desktop systray app.");
+//    // ------------------------------------------------------------
+//    std::string str_toNymId   (toNymId   .toStdString());
+//    std::string str_fromAcctId(fromAcctId.toStdString());
+//    // ------------------------------------------------------------
+//    const auto toNymID = ot.Factory().NymID(str_toNymId);
+//    const auto fromAccountID = ot.Factory().Identifier(str_fromAcctId);
+//    const auto fromAccount = ot.Wallet().Account(fromAccountID, reason);
+//    const auto & fromAccountNymID = fromAccount.get().GetNymID();
+//    const auto & fromAccountNotaryID = fromAccount.get().GetPurportedNotaryID();
 
-    int32_t nInterpretReply = opentxs::InterpretTransactionMsgReply(Moneychanger::It()->OT(), str_NotaryID, str_fromNymId, str_fromAcctId,
-                                                                    strAttempt, strResponse);
-
-    if (1 != nInterpretReply) // Failure
-    {
-        qDebug() << QString("Failure withdrawing voucher.");
-
-        Moneychanger::It()->HasUsageCredits(str_NotaryID, str_fromNymId);
-
-        return false;
-    }
-    // ---------------------------------------------------------
-    //else Success!
-    std::string strLedger = Moneychanger::It()->OT().Exec().Message_GetLedger(strResponse);
-
-    if (strLedger.empty())
-    {
-        qDebug() << QString("Failed withdrawing voucher: strLedger is empty.");
-        return false;
-    }
-    // ---------------------------------------------------------
-    std::string strTransReply = Moneychanger::It()->OT().Exec().Ledger_GetTransactionByIndex(str_NotaryID, str_fromNymId, str_fromAcctId, strLedger, 0); // index 0.
-
-    if (strTransReply.empty())
-    {
-        qDebug() << QString("Error in withdraw_voucher: strTransReply is unexpectedly null, "
-                            "returned by Ledger_GetTransactionByIndex, argument passed, index 0 and ledger:\n\n%s1\n").
-                    arg(strLedger.c_str());
-        return false;
-    }
-    // ---------------------------------------------------------
-    std::string strVoucher = Moneychanger::It()->OT().Exec().Transaction_GetVoucher(str_NotaryID, str_fromNymId, str_fromAcctId, strTransReply);
-
-    if (strVoucher.empty())
-    {
-        qDebug() << QString("Error in withdraw_voucher: Voucher is unexpectedly empty, returned by Transaction_GetVoucher "
-                            "with strTransReply set to:\n\n%1\n").arg(strTransReply.c_str());
-        return false;
-    }
-    else
-    {
-        // Save a copy in my own outpayments box. I don't want to lose this voucher since it uses
-        // one of my own transaction numbers. (If I later send the voucher to someone, OT is smart
-        // enough to remove the first copy from outpayments, when adding the second copy.)
-        //
-        // Notice how I can send an instrument to myself. This doesn't actually send anything --
-        // it just puts a copy into my outpayments box for safe-keeping.
-        //
-        std::shared_ptr<const opentxs::OTPayment> payment{
-            Moneychanger::It()
-                ->OT()
-                .Factory()
-                .Payment(
-
-                    opentxs::String::Factory(strVoucher.c_str()))
-                .release()};
-
-        OT_ASSERT(false != bool(payment));
-
-        // SENDING HERE TO MYSELF (FOR OUTBOX)
-        auto action = Moneychanger::It()->OT().ServerAction().SendPayment(fromNymID, notaryID, fromNymID, payment);
-        action->Run();
-    }
-    // ---------------------------------------------------------
-    // Download all the intermediary files (account balance, inbox, outbox, etc)
-    // since they have probably changed from this operation.
-    //
-    bool bRetrieved = false;
-    {
-        MTSpinner theSpinner;
-
-        bRetrieved = Moneychanger::It()->OT().ServerAction().DownloadAccount(
-        		fromNymID, notaryID, acctID, true);
-    }
-    qDebug() << QString("%1 retrieving intermediary files for account %2. (After withdraw voucher.)").
-                arg(bRetrieved ? QString("Success") : QString("Failed")).arg(str_fromAcctId.c_str());
-    // -------------
-    if (!bRetrieved)
-        Moneychanger::It()->HasUsageCredits(str_NotaryID, str_fromNymId);
-    // ---------------------------------------------------------
-    // Below code is wrong because we cannot assume the server ID.
-    // (That's why it's commented out)
-    // We have to use the new Sync::SendPayment instead.
-//    std::string  strSendResponse;
+//    std::string str_fromNymId(fromAccountNymID.str());
+//    std::string str_NotaryID (fromAccountNotaryID.str());
+//    // ------------------------------------------------------------
+//    int64_t SignedAmount = amount;
+////    qDebug() << QString("Sending %1:\n Server:'%2'\n Nym:'%3'\n Acct:'%4'\n ToNym:'%5'\n Amount:'%6'\n Note:'%7'").
+////                arg(nsChequeType).arg(str_NotaryID.c_str()).arg(str_fromNymId.c_str()).arg(str_fromAcctId.c_str()).
+////                arg(toNymId).arg(SignedAmount).arg(note);
+//    // ------------------------------------------------------------
+//    if (!ot.OTX().CheckTransactionNumbers(fromAccountNymID, fromAccountNotaryID, 1)) {
+//        qDebug() << QString("Failed trying to acquire a transaction number to write the %1 with.").arg(nsChequeType);
+//        return false;
+//    }
+//    // ------------------------------------------------------------
+//    // We don't want to go through the trouble of purchasing the voucher
+//    // if we can't even send messages to the recipient Contact. So let's
+//    // verify that first...
+//    //
+//    const auto toContactID = ot.Factory().Identifier(toContactId.toStdString());
+//    if (   toContactId.isEmpty()
+//        || str_fromNymId.empty()
+//        ||  (opentxs::Messagability::READY !=
+//            ot.OTX()
+//             .CanMessage(fromAccountNymID,
+//                         toContactID)))
+//    {
+//        QMessageBox::warning(this, tr("Not yet messageable"),
+//                             tr("This contact is not yet messageable. However, "
+//                                "credentials are being requested in the background, "
+//                                "so it's worth trying again sometime soon."));
+//        return false;
+//    }
+//    else
+//        canMessage_ = true;
+//    // --------------------------------
+//    std::string strAttempt  = "withdraw_voucher";
+//    std::string strResponse;
 //    {
 //        MTSpinner theSpinner;
-//
-//        std::shared_ptr<const opentxs::OTPayment> payment =
-//            std::make_shared<const opentxs::OTPayment>(opentxs::String(strVoucher.c_str()));
-//
-//        OT_ASSERT(payment);
-//
-//        auto action = Moneychanger::It()->OT().ServerAction().SendPayment(fromNymID, notaryID, toNymID, payment);
-//        strSendResponse = action->Run();
+
+//        auto action = ot.ServerAction().WithdrawVoucher(reason, fromAccountNymID, fromAccountNotaryID, fromAccountID,
+//        		toNymID, SignedAmount, note.toStdString());
+//        strResponse = action->Run();
 //    }
-//
-//    int32_t nReturnVal = opentxs::VerifyMessageSuccess(strSendResponse);
-//
-//    if (1 != nReturnVal)
+
+//    int32_t nInterpretReply = 1;
+////    int32_t nInterpretReply = opentxs::InterpretTransactionMsgReply(Moneychanger::It()->OT(), str_NotaryID, str_fromNymId, str_fromAcctId,
+////                                                                    strAttempt, strResponse);
+
+//    if (1 != nInterpretReply) // Failure
 //    {
-//        qDebug() << QString("send %1: Failed.").arg(nsChequeType);
-//
+//        qDebug() << QString("Failure withdrawing voucher.");
+
 //        Moneychanger::It()->HasUsageCredits(str_NotaryID, str_fromNymId);
+
+//        return false;
+//    }
+//    // ---------------------------------------------------------
+//    //else Success!
+//    std::string strLedger = ot.Exec().Message_GetLedger(strResponse);
+
+//    if (strLedger.empty())
+//    {
+//        qDebug() << QString("Failed withdrawing voucher: strLedger is empty.");
+//        return false;
+//    }
+//    // ---------------------------------------------------------
+//    std::string strTransReply = ot.Exec().Ledger_GetTransactionByIndex(str_NotaryID, str_fromNymId, str_fromAcctId, strLedger, 0); // index 0.
+
+//    if (strTransReply.empty())
+//    {
+//        qDebug() << QString("Error in withdraw_voucher: strTransReply is unexpectedly null, "
+//                            "returned by Ledger_GetTransactionByIndex, argument passed, index 0 and ledger:\n\n%s1\n").
+//                    arg(strLedger.c_str());
+//        return false;
+//    }
+//    // ---------------------------------------------------------
+//    std::string strVoucher = ot.Exec().Transaction_GetVoucher(str_NotaryID, str_fromNymId, str_fromAcctId, strTransReply);
+
+//    if (strVoucher.empty())
+//    {
+//        qDebug() << QString("Error in withdraw_voucher: Voucher is unexpectedly empty, returned by Transaction_GetVoucher "
+//                            "with strTransReply set to:\n\n%1\n").arg(strTransReply.c_str());
+//        return false;
 //    }
 //    else
 //    {
-//        qDebug() << QString("Success in send %1!").arg(nsChequeType);
-//        return true;
+//        // Save a copy in my own outpayments box. I don't want to lose this voucher since it uses
+//        // one of my own transaction numbers. (If I later send the voucher to someone, OT is smart
+//        // enough to remove the first copy from outpayments, when adding the second copy.)
+//        //
+//        // Notice how I can send an instrument to myself. This doesn't actually send anything --
+//        // it just puts a copy into my outpayments box for safe-keeping.
+//        //
+//        std::shared_ptr<const opentxs::OTPayment> payment{
+//            Moneychanger::It()
+//                ->OT()
+//                .Factory()
+//                .Payment(
+
+//                    opentxs::String::Factory(strVoucher.c_str()))
+//                .release()};
+
+//        OT_ASSERT(false != bool(payment));
+
+//        // SENDING HERE TO MYSELF (FOR OUTBOX)
+//        auto action = ot.ServerAction().SendPayment(fromNymID, notaryID, fromNymID, payment);
+//        action->Run();
 //    }
+//    // ---------------------------------------------------------
+//    // Download all the intermediary files (account balance, inbox, outbox, etc)
+//    // since they have probably changed from this operation.
+//    //
+//    bool bRetrieved = false;
+//    {
+//        MTSpinner theSpinner;
 
-    // New way:
-    if (canMessage_)
-    {
-        const auto otstrCheque = opentxs::String::Factory(strVoucher.c_str());
+//        bRetrieved = ot.ServerAction().DownloadAccount(
+//        		fromNymID, notaryID, acctID, true);
+//    }
+//    qDebug() << QString("%1 retrieving intermediary files for account %2. (After withdraw voucher.)").
+//                arg(bRetrieved ? QString("Success") : QString("Failed")).arg(str_fromAcctId.c_str());
+//    // -------------
+//    if (!bRetrieved)
+//        Moneychanger::It()->HasUsageCredits(str_NotaryID, str_fromNymId);
+//    // ---------------------------------------------------------
+//    // Below code is wrong because we cannot assume the server ID.
+//    // (That's why it's commented out)
+//    // We have to use the new Sync::SendPayment instead.
+////    std::string  strSendResponse;
+////    {
+////        MTSpinner theSpinner;
+////
+////        std::shared_ptr<const opentxs::OTPayment> payment =
+////            std::make_shared<const opentxs::OTPayment>(opentxs::String(strVoucher.c_str()));
+////
+////        OT_ASSERT(payment);
+////
+////        auto action = ot.ServerAction().SendPayment(fromNymID, notaryID, toNymID, payment);
+////        strSendResponse = action->Run();
+////    }
+////
+////    int32_t nReturnVal = opentxs::VerifyMessageSuccess(strSendResponse);
+////
+////    if (1 != nReturnVal)
+////    {
+////        qDebug() << QString("send %1: Failed.").arg(nsChequeType);
+////
+////        Moneychanger::It()->HasUsageCredits(str_NotaryID, str_fromNymId);
+////    }
+////    else
+////    {
+////        qDebug() << QString("Success in send %1!").arg(nsChequeType);
+////        return true;
+////    }
 
-        std::shared_ptr<const opentxs::OTPayment> pPayment{Moneychanger::It()->OT().Factory().Payment(  otstrCheque).release()};
+//    // New way:
+//    if (canMessage_)
+//    {
+//        const auto otstrCheque = opentxs::String::Factory(strVoucher.c_str());
 
-        OT_ASSERT(false != bool(pPayment));
+//        std::shared_ptr<const opentxs::OTPayment> pPayment{ot.Factory().Payment(  otstrCheque).release()};
 
-        const auto bgthreadId
-        {Moneychanger::It()->OT().Sync().
-            PayContact(opentxs::Identifier::Factory(str_fromNymId),
-                       opentxs::Identifier::Factory(toContactId.toStdString()),
-                       pPayment
-                       )};
+//        OT_ASSERT(false != bool(pPayment));
 
-        // Instead of MessageContact we use PayContact, so that it does
-        // a send_user_instrument instead of a send_user_message.
-        //
-        const auto status = Moneychanger::It()->OT().Sync().Status(bgthreadId);
+//        const auto bgthreadId
+//        {ot.OTX().
+//            PayContact(opentxs::Identifier::Factory(str_fromNymId),
+//                       opentxs::Identifier::Factory(toContactId.toStdString()),
+//                       pPayment
+//                       )};
 
-        const bool bAddToGUI = (opentxs::ThreadStatus::FINISHED_SUCCESS == status) ||
-        (opentxs::ThreadStatus::RUNNING == status);
-        if (bAddToGUI) { // This means it's queued, not actually sent to the notary yet.
-            //const bool bUseGrayText = (opentxs::ThreadStatus::FINISHED_SUCCESS != status);
-            qDebug() << QString("Success in queueing %1 for sending.").arg(nsChequeType);
-            return true;
-        }
-        else
-        {
-            qDebug() << QString("Failed trying to queue %1 for sending.").arg(nsChequeType);
-        }
-        return false;
-    }
+//        // Instead of MessageContact we use PayContact, so that it does
+//        // a send_user_instrument instead of a send_user_message.
+//        //
+//        const auto status =ot.OTX().Status(bgthreadId);
+
+//        const bool bAddToGUI = (opentxs::ThreadStatus::FINISHED_SUCCESS == status) ||
+//        (opentxs::ThreadStatus::RUNNING == status);
+//        if (bAddToGUI) { // This means it's queued, not actually sent to the notary yet.
+//            //const bool bUseGrayText = (opentxs::ThreadStatus::FINISHED_SUCCESS != status);
+//            qDebug() << QString("Success in queueing %1 for sending.").arg(nsChequeType);
+//            return true;
+//        }
+//        else
+//        {
+//            qDebug() << QString("Failed trying to queue %1 for sending.").arg(nsChequeType);
+//        }
+//        return false;
+//    }
 
     return false;
 }
@@ -716,124 +734,126 @@ bool MTSendDlg::sendCashierCheque(int64_t amount, QString toNymId, QString toCon
 // -------------------------------------------------------------------
 bool MTSendDlg::sendCheque(int64_t amount, QString toNymId, QString toContactId, QString fromAcctId, QString note)
 {
-    // This is already verified by the calling function.
-//    if (fromAcctId.isEmpty())
-//    {
-//        QMessageBox::warning(this, tr("Missing Payer Account"),
-//            tr("You must choose which of your accounts will send the funds."));
-//        return false;
-//    }
-    std::string str_fromAcctId(fromAcctId.toStdString());
-    std::string str_fromNymId(Moneychanger::It()->OT().Exec().GetAccountWallet_NymID(str_fromAcctId));
-    // ------------------------------------------------------------
-    // If there's a contact ID for recipient but no Nym ID, then we need to find
-    // out the Nym ID, so we can WRITE him the cheque. (Unless we deliberately leave
-    // the recipient blank on the cheque, to use it as an invite).
-    //
-    // If there's no Contact Id, then we need to find out
-    // the Contact ID, so we can SEND him the cheque.
-    //
-    // So both are needed / preferred though I suppose it's possible to leave the field
-    // blank on the invoice itself (like a blank cheque, which opentxs supports) so we can
-    // still write the cheque, worst case. And it's still possible to send through the server
-    // where the cheque is drawn, though there's no guarantee that the recipient has ever
-    // seen that server before! (Whereas with a Contact, you definitely KNOW you are
-    // sending the instrument via a method where the recipient WILL receive it).
-    //
-    // Already done higher up.
+    return false;
+
+//    // This is already verified by the calling function.
+////    if (fromAcctId.isEmpty())
+////    {
+////        QMessageBox::warning(this, tr("Missing Payer Account"),
+////            tr("You must choose which of your accounts will send the funds."));
+////        return false;
+////    }
+//    std::string str_fromAcctId(fromAcctId.toStdString());
+//    std::string str_fromNymId(ot.Exec().GetAccountWallet_NymID(str_fromAcctId));
+//    // ------------------------------------------------------------
+//    // If there's a contact ID for recipient but no Nym ID, then we need to find
+//    // out the Nym ID, so we can WRITE him the cheque. (Unless we deliberately leave
+//    // the recipient blank on the cheque, to use it as an invite).
+//    //
+//    // If there's no Contact Id, then we need to find out
+//    // the Contact ID, so we can SEND him the cheque.
+//    //
+//    // So both are needed / preferred though I suppose it's possible to leave the field
+//    // blank on the invoice itself (like a blank cheque, which opentxs supports) so we can
+//    // still write the cheque, worst case. And it's still possible to send through the server
+//    // where the cheque is drawn, though there's no guarantee that the recipient has ever
+//    // seen that server before! (Whereas with a Contact, you definitely KNOW you are
+//    // sending the instrument via a method where the recipient WILL receive it).
+//    //
+//    // Already done higher up.
+////    if (toContactId.isEmpty())
+////    {
+////        if (!toNymId.isEmpty())
+////        {
+////            const opentxs::Identifier toContact_Id = ot.Contacts()
+////                .ContactID(opentxs::Identifier{toNymId.toStdString()});
+////            const opentxs::String     strToContactId(toContact_Id);
+////            toContactId = toContact_Id.empty() ? QString("") : QString::fromStdString(std::string(strToContactId.Get()));
+////        }
+////    }
+//    // --------------------------------
+//    // Perhaps the sender wishes to leave the recipient Nym blank, so that
+//    // ANYONE could deposit this cheque, and not just a specific recipient.
+//    // Fair enough.
+//    //
+//    // But even so, he still needs a Contact ID or he won't have
+//    // anyone to SEND the message that contains the cheque!
+//    //
+//    // Therefore by this point, we MUST have a Contact Id, even if the NymID
+//    // remains blank. (Alternately, we could just pop up the cheque in a dialog
+//    // so the user, in that case, can just copy it and send out-of-band.)
+//    //
 //    if (toContactId.isEmpty())
 //    {
-//        if (!toNymId.isEmpty())
+//        qDebug() << "Cannot send funds to an empty contact id, aborting.";
+//        // todo: someday we will allow this, by popping up a dialog so the
+//        // user can copy the cheque and send it out-of-band.
+//        //
+//        return false;
+//    }
+//    // --------------------------------
+//    if (toNymId.isEmpty())
+//    {
+//        if (!toContactId.isEmpty())
 //        {
-//            const opentxs::Identifier toContact_Id = Moneychanger::It()->OT().Contacts()
-//                .ContactID(opentxs::Identifier{toNymId.toStdString()});
-//            const opentxs::String     strToContactId(toContact_Id);
-//            toContactId = toContact_Id.empty() ? QString("") : QString::fromStdString(std::string(strToContactId.Get()));
+//            // Need to get nyms (or primary nym, or whatever) for this contact. Here.
+//            //
+//            // Todo: We really don't need to find the "to Nym" at this point.
+//            // Instead we could just ask the user here if he wants to leave
+//            // the payee field blank. Only if the user says "No" do we then
+//            // do the below code and choose a Nym as the recipient/payee.
+//            //
+//            mapIDName theNymMap;
+
+//            if (!MTContactHandler::getInstance()->GetNyms(theNymMap, toContactId.toStdString()))
+//            {
+//                QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
+//                    tr("Sorry, there are no NymIds associated with this opentxs contact. "));
+//                return false;
+//            }
+//            else
+//            {
+//                if (theNymMap.size() == 1) // This contact has exactly one Nym, so we'll go with it.
+//                {
+//                    mapIDName::iterator theNymIt = theNymMap.begin();
+//                    toNymId = theNymIt.key();
+////                  QString qstrNymName = theNymIt.value();
+//                }
+//                else // There are multiple Nyms to choose from.
+//                {    // TODO: Choose one automatically from the CREDENTIALS!
+//                    DlgChooser theNymChooser(this);
+//                    theNymChooser.m_map = theNymMap;
+//                    theNymChooser.setWindowTitle(tr("Payee has multiple Nyms. (Please choose one.)"));
+//                    // -----------------------------------------------
+//                    if (theNymChooser.exec() == QDialog::Accepted)
+//                        toNymId = theNymChooser.m_qstrCurrentID;
+//                    else // User must have cancelled.
+//                        return false;
+//                    // -----------------------------------------------
+//                }
+//            }
 //        }
 //    }
-    // --------------------------------
-    // Perhaps the sender wishes to leave the recipient Nym blank, so that
-    // ANYONE could deposit this cheque, and not just a specific recipient.
-    // Fair enough.
-    //
-    // But even so, he still needs a Contact ID or he won't have
-    // anyone to SEND the message that contains the cheque!
-    //
-    // Therefore by this point, we MUST have a Contact Id, even if the NymID
-    // remains blank. (Alternately, we could just pop up the cheque in a dialog
-    // so the user, in that case, can just copy it and send out-of-band.)
-    //
-    if (toContactId.isEmpty())
-    {
-        qDebug() << "Cannot send funds to an empty contact id, aborting.";
-        // todo: someday we will allow this, by popping up a dialog so the
-        // user can copy the cheque and send it out-of-band.
-        //
-        return false;
-    }
-    // --------------------------------
-    if (toNymId.isEmpty())
-    {
-        if (!toContactId.isEmpty())
-        {
-            // Need to get nyms (or primary nym, or whatever) for this contact. Here.
-            //
-            // Todo: We really don't need to find the "to Nym" at this point.
-            // Instead we could just ask the user here if he wants to leave
-            // the payee field blank. Only if the user says "No" do we then
-            // do the below code and choose a Nym as the recipient/payee.
-            //
-            mapIDName theNymMap;
-
-            if (!MTContactHandler::getInstance()->GetNyms(theNymMap, toContactId.toStdString()))
-            {
-                QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
-                    tr("Sorry, there are no NymIds associated with this opentxs contact. "));
-                return false;
-            }
-            else
-            {
-                if (theNymMap.size() == 1) // This contact has exactly one Nym, so we'll go with it.
-                {
-                    mapIDName::iterator theNymIt = theNymMap.begin();
-                    toNymId = theNymIt.key();
-//                  QString qstrNymName = theNymIt.value();
-                }
-                else // There are multiple Nyms to choose from.
-                {    // TODO: Choose one automatically from the CREDENTIALS!
-                    DlgChooser theNymChooser(this);
-                    theNymChooser.m_map = theNymMap;
-                    theNymChooser.setWindowTitle(tr("Payee has multiple Nyms. (Please choose one.)"));
-                    // -----------------------------------------------
-                    if (theNymChooser.exec() == QDialog::Accepted)
-                        toNymId = theNymChooser.m_qstrCurrentID;
-                    else // User must have cancelled.
-                        return false;
-                    // -----------------------------------------------
-                }
-            }
-        }
-    }
-    // --------------------------------
-    if (   toContactId.isEmpty()
-        || str_fromNymId.empty()
-        ||  (opentxs::Messagability::READY !=
-             Moneychanger::It()->OT().Sync()
-             .CanMessage(opentxs::Identifier::Factory(str_fromNymId),
-                         opentxs::Identifier::Factory(toContactId.toStdString()))))
-    {
-        QMessageBox::warning(this, tr("Not yet messageable"),
-                             tr("This contact is not yet messageable. However, "
-                                "credentials are being requested in the background, "
-                                "so it's worth trying again sometime soon."));
-        return false;
-    }
-    else
-        canMessage_ = true;
-    // --------------------------------
-    return sendChequeLowLevel(amount, toNymId, toContactId, fromAcctId, note,
-                              false, //isInvoice = false
-                              toNymId.isEmpty()); // payeeNymIsBlank
+//    // --------------------------------
+//    if (   toContactId.isEmpty()
+//        || str_fromNymId.empty()
+//        ||  (opentxs::Messagability::READY !=
+//            ot.OTX()
+//             .CanMessage(opentxs::Identifier::Factory(str_fromNymId),
+//                         opentxs::Identifier::Factory(toContactId.toStdString()))))
+//    {
+//        QMessageBox::warning(this, tr("Not yet messageable"),
+//                             tr("This contact is not yet messageable. However, "
+//                                "credentials are being requested in the background, "
+//                                "so it's worth trying again sometime soon."));
+//        return false;
+//    }
+//    else
+//        canMessage_ = true;
+//    // --------------------------------
+//    return sendChequeLowLevel(amount, toNymId, toContactId, fromAcctId, note,
+//                              false, //isInvoice = false
+//                              toNymId.isEmpty()); // payeeNymIsBlank
 }
 
 // ----------------------------------------------------------------------
@@ -846,205 +866,214 @@ bool MTSendDlg::sendChequeLowLevel (int64_t amount,
                          bool isInvoice,
                          bool payeeNymIsBlank) // Meaning ANY Nym can deposit this cheque.
 {
-    QString nsChequeType = isInvoice ? QString("invoice") : QString("cheque");
-    // ------------------------------------------------------------
-    if (toNymId.isEmpty() && !payeeNymIsBlank)
-    {
-        qDebug() << QString("Cannot send %1 to an empty nym id, aborting.").arg(nsChequeType);
-        return false;
-    }
-    if (toContactId.isEmpty())
-    {
-        qDebug() << QString("Cannot send %1 to an empty contact id, aborting.").arg(nsChequeType);
-        return false;
-        // Todo: someday we could allow this case, and just pop up the invoice
-        // on the screen in a dialog for export so the user can copy/paste it
-        // out-of-band.
-    }
-    if (fromAcctId.isEmpty())
-    {
-        qDebug() << QString("Cannot send %1 from a non-existent account id, aborting.").arg(nsChequeType);
-        return false;
-    }
-    if (amount <= 0)
-    {
-        qDebug() << QString("Why send 0 (or less) units? Aborting send %1.").arg(nsChequeType);
-        return false;
-    }
-    // Note: in the case of cheques we don't have to see if the amount exceeds the
-    // account balance here, since the money doesn't come out of the account until
-    // the cheque is deposited by the recipient. Technically you could write a bad
-    // cheque. Also, your balance will not change right away either -- not until the
-    // recipient deposits the cheque.
-    // Also of course, in the case of invoices, your account balance is irrelevant
-    // since an invoice can only increase your balance, not decrease it.
-    if (note.isEmpty())
-        note = tr("From the Qt systray app.");
-    // ------------------------------------------------------------
-    std::string str_toNymId   (toNymId   .toStdString());
-    std::string str_fromAcctId(fromAcctId.toStdString());
-    // ------------------------------------------------------------
-    std::string str_fromNymId(Moneychanger::It()->OT().Exec().GetAccountWallet_NymID   (str_fromAcctId));
-    std::string str_NotaryID (Moneychanger::It()->OT().Exec().GetAccountWallet_NotaryID(str_fromAcctId));
-    // ------------------------------------------------------------
-    int64_t SignedAmount = amount;
-    int64_t trueAmount   = isInvoice ? (SignedAmount*(-1)) : SignedAmount;
-    // ------------------------------------------------------------
-//    std::string str_InstrumentDefinitionID(Moneychanger::It()->OT().Exec().GetAccountWallet_InstrumentDefinitionID(fromAcctId.toStdString()));
-//
-//    if (!str_InstrumentDefinitionID.empty())
-//    {
-//        std::string str_formatted_amount = Moneychanger::It()->OT().Exec().FormatAmount(str_InstrumentDefinitionID, amount);
-//        QString     qstr_FinalAmount     = QString::fromStdString(str_formatted_amount);
-//    }
-
-    const QString qstrAmount = ui->amountEdit->text();
-
-//    qDebug() << QString("Sending %1:\n Server:'%2'\n Nym:'%3'\n Acct:'%4'\n ToNym:'%5'\n Amount:'%6'\n Note:'%7'").
-//                arg(nsChequeType).arg(QString::fromStdString(str_NotaryID)).arg(QString::fromStdString(str_fromNymId)).
-//                arg(fromAcctId).arg(toNymId).arg(SignedAmount).arg(note);
-    // ------------------------------------------------------------
-    time64_t tFrom = Moneychanger::It()->OT().Exec().GetTime();
-    time64_t tTo   = tFrom + DEFAULT_CHEQUE_EXPIRATION;
-    // ------------------------------------------------------------
-    const auto notaryID = opentxs::Identifier::Factory(str_NotaryID),
-              fromNymID = opentxs::Identifier::Factory(str_fromNymId),
-                toNymID = opentxs::Identifier::Factory(str_toNymId);
-    if (!Moneychanger::It()->OT().ServerAction().GetTransactionNumbers(fromNymID, notaryID, 1)) {
-        qDebug() << QString("Failed trying to acquire a transaction number to write the %1 with.").arg(nsChequeType);
-        return false;
-    }
-    // ------------------------------------------------------------
-    // No point even writing the cheque if we already know it will fail
-    // to be sent...
-    //
-    if (canMessage_)
-    {
-        std::string strCheque = Moneychanger::It()->OT().Exec().WriteCheque(
-                                    str_NotaryID, trueAmount, tFrom, tTo,
-                                    str_fromAcctId, str_fromNymId, note.toStdString(),
-                                    str_toNymId);
-        if (strCheque.empty())
-        {
-            qDebug() << QString("Failed creating %1.").arg(nsChequeType);
-            return false;
-        }
-        // ----------------------------------------------------
-//      Identifier PayContact(
-//          const Identifier& senderNymID,
-//          const Identifier& contactID,
-//          std::unique_ptr<OTPayment>& payment) const = 0;
-//      Identifier PayContactCash(
-//         const Identifier& senderNymID,
-//         const Identifier& contactID,
-//         std::unique_ptr<Purse>& recipientCopy,
-//         std::unique_ptr<Purse>& senderCopy) const = 0;
-
-        const auto otstrCheque = opentxs::String::Factory(strCheque.c_str());
-
-        std::shared_ptr<const opentxs::OTPayment> pPayment{Moneychanger::It()->OT().Factory().Payment(  otstrCheque).release()};
-
-        OT_ASSERT(false != bool(pPayment));
-
-        const auto bgthreadId
-            {Moneychanger::It()->OT().Sync().
-                PayContact(opentxs::Identifier::Factory(str_fromNymId),
-                           opentxs::Identifier::Factory(toContactId.toStdString()),
-                           pPayment
-                           )};
-
-        // Instead of MessageContact we use PayContact, so that it does
-        // a send_user_instrument instead of a send_user_message.
-        //
-        const auto status = Moneychanger::It()->OT().Sync().Status(bgthreadId);
-
-        const bool bAddToGUI = (opentxs::ThreadStatus::FINISHED_SUCCESS == status) ||
-                               (opentxs::ThreadStatus::RUNNING == status);
-        if (bAddToGUI) { // This means it's queued, not actually sent to the notary yet.
-            //const bool bUseGrayText = (opentxs::ThreadStatus::FINISHED_SUCCESS != status);
-            qDebug() << QString("Success in queueing %1 for sending.").arg(nsChequeType);
-            return true;
-        }
-        else
-        {
-            qDebug() << QString("Failed trying to queue %1 for sending.").arg(nsChequeType);
-        }
-        return false;
-    }
-
-    // OLD CODE TO EXPORT INSTRUMENT TO A DIALOG FOR THE USER:
-    // ------------------------------------------------------------
-//    const QString qstrFromAccountName = ui->fromButton->text();
-//    const QString qstrToContactName   = ui->toButton->text();
-//    // ------------------------------------------------------------
-//    opentxs::String otstr_cheque(strCheque.c_str());
-//    opentxs::Armored asc_cheque(otstr_cheque);
-//    opentxs::String strArmoredCheque; // TODO: Encrypt to contact's pubkey if available.
-//    if (asc_cheque.WriteArmoredString(strArmoredCheque, "CHEQUE"))
-//    {
-//        const std::string str_armored_cheque(strArmoredCheque.Get());
-//        const QString qstrPayment = QString::fromStdString(str_armored_cheque);
-//
-//        const QString qstrFrom = QString("%1 %2: %3").arg(qstrAmount).arg(tr("from account")).arg(qstrFromAccountName);
-//        const QString qstrTo   = QString("%1: %2").arg(tr("To Contact")).arg(qstrToContactName);
-//        // ------------------------------------------------------------
-//        DlgExportedToPass * dlgExported = new DlgExportedToPass(NULL, qstrPayment,
-//                                                                qstrFrom,
-//                                                                qstrTo, false);
-//        dlgExported->setAttribute(Qt::WA_DeleteOnClose);
-//        // --------------------------------------------------
-//        dlgExported->setWindowTitle(QString("%1: %2").arg(tr("Memo")).arg(note));
-//        dlgExported->show();
-//    }
-//    // ------------------------------------------------------------
-//    QMessageBox::StandardButton reply;
-//
-//    reply = QMessageBox::question(this, "", tr("The cheque has been written and placed in your outbox. Do you want to SEND IT now?"),
-//                                  QMessageBox::Yes|QMessageBox::No);
-//    if (reply == QMessageBox::No) {
-//        return true;
-//    }
-//    // ------------------------------------------------------------
-//    std::string  strResponse;
-//    {
-//        MTSpinner theSpinner;
-//
-//        std::unique_ptr<opentxs::OTPayment> payment =
-//            std::make_unique<opentxs::OTPayment>(opentxs::String(strCheque.c_str()));
-//
-//        OT_ASSERT(payment);
-//
-//        auto action = Moneychanger::It()->OT().ServerAction().SendPayment(fromNymID, notaryID, toNymID, payment);
-//        strResponse = action->Run();
-//    }
-//
-//    int32_t nReturnVal  = opentxs::VerifyMessageSuccess(strResponse);
-//
-//    if (1 != nReturnVal)
-//    {
-//        qDebug() << QString("send %1: failed.").arg(nsChequeType);
-//
-//        Moneychanger::It()->HasUsageCredits(str_NotaryID, str_fromNymId);
-//    }
-//    else
-//    {
-//        qDebug() << QString("Success in send %1!").arg(nsChequeType);
-//        return true;
-//    }
-    // -------------------------------------
-    // NOTE: We do not retrieve the account files here, in the case of success.
-    // That's because none of them have changed yet from this operation -- not
-    // until the recipient deposits the cheque.
     return false;
+
+//    QString nsChequeType = isInvoice ? QString("invoice") : QString("cheque");
+//    // ------------------------------------------------------------
+//    if (toNymId.isEmpty() && !payeeNymIsBlank)
+//    {
+//        qDebug() << QString("Cannot send %1 to an empty nym id, aborting.").arg(nsChequeType);
+//        return false;
+//    }
+//    if (toContactId.isEmpty())
+//    {
+//        qDebug() << QString("Cannot send %1 to an empty contact id, aborting.").arg(nsChequeType);
+//        return false;
+//        // Todo: someday we could allow this case, and just pop up the invoice
+//        // on the screen in a dialog for export so the user can copy/paste it
+//        // out-of-band.
+//    }
+//    if (fromAcctId.isEmpty())
+//    {
+//        qDebug() << QString("Cannot send %1 from a non-existent account id, aborting.").arg(nsChequeType);
+//        return false;
+//    }
+//    if (amount <= 0)
+//    {
+//        qDebug() << QString("Why send 0 (or less) units? Aborting send %1.").arg(nsChequeType);
+//        return false;
+//    }
+//    // Note: in the case of cheques we don't have to see if the amount exceeds the
+//    // account balance here, since the money doesn't come out of the account until
+//    // the cheque is deposited by the recipient. Technically you could write a bad
+//    // cheque. Also, your balance will not change right away either -- not until the
+//    // recipient deposits the cheque.
+//    // Also of course, in the case of invoices, your account balance is irrelevant
+//    // since an invoice can only increase your balance, not decrease it.
+//    if (note.isEmpty())
+//        note = tr("From the Qt systray app.");
+//    // ------------------------------------------------------------
+//    std::string str_toNymId   (toNymId   .toStdString());
+//    std::string str_fromAcctId(fromAcctId.toStdString());
+//    // ------------------------------------------------------------
+//    std::string str_fromNymId(ot.Exec().GetAccountWallet_NymID   (str_fromAcctId));
+//    std::string str_NotaryID (ot.Exec().GetAccountWallet_NotaryID(str_fromAcctId));
+//    // ------------------------------------------------------------
+//    int64_t SignedAmount = amount;
+//    int64_t trueAmount   = isInvoice ? (SignedAmount*(-1)) : SignedAmount;
+//    // ------------------------------------------------------------
+////    std::string str_InstrumentDefinitionID(ot.Exec().GetAccountWallet_InstrumentDefinitionID(fromAcctId.toStdString()));
+////
+////    if (!str_InstrumentDefinitionID.empty())
+////    {
+////        std::string str_formatted_amount = ot.Exec().FormatAmount(str_InstrumentDefinitionID, amount);
+////        QString     qstr_FinalAmount     = QString::fromStdString(str_formatted_amount);
+////    }
+
+//    const QString qstrAmount = ui->amountEdit->text();
+
+////    qDebug() << QString("Sending %1:\n Server:'%2'\n Nym:'%3'\n Acct:'%4'\n ToNym:'%5'\n Amount:'%6'\n Note:'%7'").
+////                arg(nsChequeType).arg(QString::fromStdString(str_NotaryID)).arg(QString::fromStdString(str_fromNymId)).
+////                arg(fromAcctId).arg(toNymId).arg(SignedAmount).arg(note);
+//    // ------------------------------------------------------------
+//    time64_t tFrom = std::chrono::system_clock::to_time_t(opentxs::Clock::now());
+//    time64_t tTo   = tFrom + DEFAULT_CHEQUE_EXPIRATION;
+//    // ------------------------------------------------------------
+//    const auto notaryID = opentxs::Identifier::Factory(str_NotaryID),
+//              fromNymID = opentxs::Identifier::Factory(str_fromNymId),
+//                toNymID = opentxs::Identifier::Factory(str_toNymId);
+//    if (!ot.ServerAction().GetTransactionNumbers(fromNymID, notaryID, 1)) {
+//        qDebug() << QString("Failed trying to acquire a transaction number to write the %1 with.").arg(nsChequeType);
+//        return false;
+//    }
+//    // ------------------------------------------------------------
+//    // No point even writing the cheque if we already know it will fail
+//    // to be sent...
+//    //
+//    if (canMessage_)
+//    {
+//        std::string strCheque = ot.Exec().WriteCheque(
+//                                    str_NotaryID, trueAmount, tFrom, tTo,
+//                                    str_fromAcctId, str_fromNymId, note.toStdString(),
+//                                    str_toNymId);
+//        if (strCheque.empty())
+//        {
+//            qDebug() << QString("Failed creating %1.").arg(nsChequeType);
+//            return false;
+//        }
+//        // ----------------------------------------------------
+////      Identifier PayContact(
+////          const Identifier& senderNymID,
+////          const Identifier& contactID,
+////          std::unique_ptr<OTPayment>& payment) const = 0;
+////      Identifier PayContactCash(
+////         const Identifier& senderNymID,
+////         const Identifier& contactID,
+////         std::unique_ptr<Purse>& recipientCopy,
+////         std::unique_ptr<Purse>& senderCopy) const = 0;
+
+//        const auto otstrCheque = opentxs::String::Factory(strCheque.c_str());
+
+//        std::shared_ptr<const opentxs::OTPayment> pPayment{ot.Factory().Payment(  otstrCheque).release()};
+
+//        OT_ASSERT(false != bool(pPayment));
+
+//        const auto bgthreadId
+//            {ot.OTX().
+//                PayContact(opentxs::Identifier::Factory(str_fromNymId),
+//                           opentxs::Identifier::Factory(toContactId.toStdString()),
+//                           pPayment
+//                           )};
+
+//        // Instead of MessageContact we use PayContact, so that it does
+//        // a send_user_instrument instead of a send_user_message.
+//        //
+//        const auto status =ot.OTX().Status(bgthreadId);
+
+//        const bool bAddToGUI = (opentxs::ThreadStatus::FINISHED_SUCCESS == status) ||
+//                               (opentxs::ThreadStatus::RUNNING == status);
+//        if (bAddToGUI) { // This means it's queued, not actually sent to the notary yet.
+//            //const bool bUseGrayText = (opentxs::ThreadStatus::FINISHED_SUCCESS != status);
+//            qDebug() << QString("Success in queueing %1 for sending.").arg(nsChequeType);
+//            return true;
+//        }
+//        else
+//        {
+//            qDebug() << QString("Failed trying to queue %1 for sending.").arg(nsChequeType);
+//        }
+//        return false;
+//    }
+
+//    // OLD CODE TO EXPORT INSTRUMENT TO A DIALOG FOR THE USER:
+//    // ------------------------------------------------------------
+////    const QString qstrFromAccountName = ui->fromButton->text();
+////    const QString qstrToContactName   = ui->toButton->text();
+////    // ------------------------------------------------------------
+////    opentxs::String otstr_cheque(strCheque.c_str());
+////    opentxs::Armored asc_cheque(otstr_cheque);
+////    opentxs::String strArmoredCheque; // TODO: Encrypt to contact's pubkey if available.
+////    if (asc_cheque.WriteArmoredString(strArmoredCheque, "CHEQUE"))
+////    {
+////        const std::string str_armored_cheque(strArmoredCheque.Get());
+////        const QString qstrPayment = QString::fromStdString(str_armored_cheque);
+////
+////        const QString qstrFrom = QString("%1 %2: %3").arg(qstrAmount).arg(tr("from account")).arg(qstrFromAccountName);
+////        const QString qstrTo   = QString("%1: %2").arg(tr("To Contact")).arg(qstrToContactName);
+////        // ------------------------------------------------------------
+////        DlgExportedToPass * dlgExported = new DlgExportedToPass(NULL, qstrPayment,
+////                                                                qstrFrom,
+////                                                                qstrTo, false);
+////        dlgExported->setAttribute(Qt::WA_DeleteOnClose);
+////        // --------------------------------------------------
+////        dlgExported->setWindowTitle(QString("%1: %2").arg(tr("Memo")).arg(note));
+////        dlgExported->show();
+////    }
+////    // ------------------------------------------------------------
+////    QMessageBox::StandardButton reply;
+////
+////    reply = QMessageBox::question(this, "", tr("The cheque has been written and placed in your outbox. Do you want to SEND IT now?"),
+////                                  QMessageBox::Yes|QMessageBox::No);
+////    if (reply == QMessageBox::No) {
+////        return true;
+////    }
+////    // ------------------------------------------------------------
+////    std::string  strResponse;
+////    {
+////        MTSpinner theSpinner;
+////
+////        std::unique_ptr<opentxs::OTPayment> payment =
+////            std::make_unique<opentxs::OTPayment>(opentxs::String(strCheque.c_str()));
+////
+////        OT_ASSERT(payment);
+////
+////        auto action = ot.ServerAction().SendPayment(fromNymID, notaryID, toNymID, payment);
+////        strResponse = action->Run();
+////    }
+////
+////    int32_t nReturnVal  = opentxs::VerifyMessageSuccess(strResponse);
+////
+////    if (1 != nReturnVal)
+////    {
+////        qDebug() << QString("send %1: failed.").arg(nsChequeType);
+////
+////        Moneychanger::It()->HasUsageCredits(str_NotaryID, str_fromNymId);
+////    }
+////    else
+////    {
+////        qDebug() << QString("Success in send %1!").arg(nsChequeType);
+////        return true;
+////    }
+//    // -------------------------------------
+//    // NOTE: We do not retrieve the account files here, in the case of success.
+//    // That's because none of them have changed yet from this operation -- not
+//    // until the recipient deposits the cheque.
+//    return false;
 }
 
 // ----------------------------------------------------------------------
 
 void MTSendDlg::on_amountEdit_editingFinished()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (!m_myAcctId.isEmpty() && !m_bSent)
     {
-        std::string str_InstrumentDefinitionID(Moneychanger::It()->OT().Exec().GetAccountWallet_InstrumentDefinitionID(m_myAcctId.toStdString()));
+        const auto accountId = ot.Factory().Identifier(m_myAcctId.toStdString());
+        const auto account = ot.Wallet().Account(accountId, reason);
+        const auto& unitId = account.get().GetInstrumentDefinitionID();
+
+        std::string str_InstrumentDefinitionID(unitId.str());
         QString     amt = ui->amountEdit->text();
 
         if (!amt.isEmpty() && !str_InstrumentDefinitionID.empty())
@@ -1054,8 +1083,8 @@ void MTSendDlg::on_amountEdit_editingFinished()
             if (std::string::npos == str_temp.find(".")) // not found
                 str_temp += '.';
 
-            int64_t     amount               = Moneychanger::It()->OT().Exec().StringToAmount(str_InstrumentDefinitionID, str_temp);
-            std::string str_formatted_amount = Moneychanger::It()->OT().Exec().FormatAmount(str_InstrumentDefinitionID, static_cast<int64_t>(amount));
+            int64_t     amount               = Moneychanger::stringToAmount(unitId, str_temp);
+            std::string str_formatted_amount = Moneychanger::formatAmount(unitId, static_cast<int64_t>(amount));
             QString     qstr_FinalAmount     = QString::fromStdString(str_formatted_amount);
             ui->amountEdit->setText(qstr_FinalAmount);
         }
@@ -1066,6 +1095,9 @@ void MTSendDlg::on_amountEdit_editingFinished()
 
 void MTSendDlg::setInitialHisContact (QString contactId, bool bUsedInternally/*=false*/) // Payment To: (contact)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     canMessage_ = false;
 
     if (!lockPayee_)
@@ -1081,13 +1113,16 @@ void MTSendDlg::setInitialHisContact (QString contactId, bool bUsedInternally/*=
 
     if (!m_myAcctId.isEmpty() && !m_hisContactId.isEmpty())
     {
-        const std::string str_my_nym_id = Moneychanger::It()->OT().Exec()
-            .GetAccountWallet_NymID(m_myAcctId.toStdString());
+        const auto accountId = ot.Factory().Identifier(m_myAcctId.toStdString());
+        const auto account = ot.Wallet().Account(accountId, reason);
+        const auto& accountNymId = account.get().GetNymID();
+        const auto hisContactId = ot.Factory().Identifier(m_hisContactId.toStdString());
+
+        const std::string str_my_nym_id = accountNymId.str();
 
         if (   !str_my_nym_id.empty()
-            && (opentxs::Messagability::READY == Moneychanger::It()->OT().Sync()
-                .CanMessage(opentxs::Identifier::Factory(str_my_nym_id),
-                            opentxs::Identifier::Factory(m_hisContactId.toStdString()))))
+            && (opentxs::Messagability::READY ==ot.OTX()
+                .CanMessage(accountNymId, hisContactId)))
         {
             canMessage_ = true;
 
@@ -1110,6 +1145,9 @@ void MTSendDlg::setInitialHisContact (QString contactId, bool bUsedInternally/*=
 // ----------------------------------------------------------------------
 bool MTSendDlg::sendFunds(QString memo, QString qstr_amount)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     QString & toNymId     = m_hisNymId;
     QString & toContactId = m_hisContactId;
     QString & fromAcctId  = m_myAcctId;
@@ -1121,7 +1159,7 @@ bool MTSendDlg::sendFunds(QString memo, QString qstr_amount)
 //    {
 //        if (!toNymId.isEmpty())
 //        {
-//            const opentxs::Identifier toContact_Id = Moneychanger::It()->OT().Contacts()
+//            const opentxs::Identifier toContact_Id = ot.Contacts()
 //            .ContactID(opentxs::Identifier{toNymId.toStdString()});
 //            const opentxs::String strToContactId(toContact_Id);
 //            toContactId = toContact_Id.empty() ? QString("") : QString::fromStdString(std::string(strToContactId.Get()));
@@ -1159,8 +1197,12 @@ bool MTSendDlg::sendFunds(QString memo, QString qstr_amount)
         qstr_amount = QString("0");
     // ----------------------------------------------------
     int64_t     amount = 0;
-    std::string str_InstrumentDefinitionID(Moneychanger::It()->OT().Exec()
-        .GetAccountWallet_InstrumentDefinitionID(fromAcctId.toStdString()));
+
+    const auto accountId = ot.Factory().Identifier(fromAcctId.toStdString());
+    const auto account = ot.Wallet().Account(accountId, reason);
+    const auto& accountUnitId = account.get().GetInstrumentDefinitionID();
+
+    std::string str_InstrumentDefinitionID(accountUnitId.str());
 
     if (!str_InstrumentDefinitionID.empty())
     {
@@ -1169,7 +1211,7 @@ bool MTSendDlg::sendFunds(QString memo, QString qstr_amount)
         if (std::string::npos == str_amount.find(".")) // not found
             str_amount += '.';
 
-        amount = Moneychanger::It()->OT().Exec().StringToAmount(str_InstrumentDefinitionID, str_amount);
+        amount = Moneychanger::stringToAmount(accountUnitId, str_amount);
     }
     // ----------------------------------------------------
     if (amount <= 0)
@@ -1221,6 +1263,9 @@ bool MTSendDlg::sendFunds(QString memo, QString qstr_amount)
 
 void MTSendDlg::on_sendButton_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     // Send funds and then close dialog. Use progress bar.
     // -----------------------------------------------------------------
     // If the Contact ID is empty, but the NYM is set, we try to retrieve
@@ -1230,12 +1275,9 @@ void MTSendDlg::on_sendButton_clicked()
     {
         if (!m_hisNymId.isEmpty())
         {
-            const auto toContact_Id = Moneychanger::It()->OT().Contacts()
-                .ContactID(opentxs::Identifier::Factory(m_hisNymId.toStdString()));
-            const auto strToContactId = opentxs::String::Factory(toContact_Id);
-            m_hisContactId = toContact_Id->empty()
-            ? QString("")
-            : QString::fromStdString(std::string(strToContactId->Get()));
+            const auto hisNymId = ot.Factory().NymID(m_hisNymId.toStdString());
+            const auto toContact_Id = ot.Contacts().ContactID(hisNymId);
+            m_hisContactId = QString::fromStdString(toContact_Id->str());
         }
     }
     // -----------------------------------------------------------------
@@ -1296,7 +1338,9 @@ void MTSendDlg::on_sendButton_clicked()
     // Make sure I'm not sending to myself (since that will fail...)
     //
     std::string str_fromAcctId(m_myAcctId.toStdString());
-    QString     qstr_fromNymId(QString::fromStdString(Moneychanger::It()->OT().Exec().GetAccountWallet_NymID(str_fromAcctId)));
+    const auto accountId = ot.Factory().Identifier(str_fromAcctId);
+    const auto account = ot.Wallet().Account(accountId, reason);
+    QString     qstr_fromNymId(QString::fromStdString(account.get().GetNymID().str()));
 
     if (0 == qstr_fromNymId.compare(m_hisNymId))
     {
@@ -1351,6 +1395,9 @@ void MTSendDlg::onBalancesChanged()
 
 void MTSendDlg::on_fromButton_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     // Select from Accounts in local wallet.
     //
     DlgChooser theChooser(this);
@@ -1360,18 +1407,16 @@ void MTSendDlg::on_fromButton_clicked()
 
     bool bFoundDefault = false;
 
-    for (const auto& [accountID, alias] : Moneychanger::It()->OT().Storage().AccountList())
+    for (const auto& [accountID, alias] : ot.Storage().AccountList())
     {
         //Get OT Acct ID
         QString OT_acct_id = QString::fromStdString(accountID);
-        QString OT_acct_name("");
+        QString OT_acct_name = QString::fromStdString(alias);
         // -----------------------------------------------
         if (!OT_acct_id.isEmpty())
         {
             if (!m_myAcctId.isEmpty() && (OT_acct_id == m_myAcctId))
                 bFoundDefault = true;
-            // -----------------------------------------------
-            OT_acct_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAccountWallet_Name(OT_acct_id.toStdString()));
             // -----------------------------------------------
             the_map.insert(OT_acct_id, OT_acct_name);
         }
@@ -1436,6 +1481,9 @@ void MTSendDlg::on_toolButtonManageAccts_clicked()
 
 void MTSendDlg::on_toolButton_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (!m_hisContactId.isEmpty())
     {
         emit ShowContact(m_hisContactId);
@@ -1444,10 +1492,9 @@ void MTSendDlg::on_toolButton_clicked()
     // ------------------------------------------------
     if (!m_hisNymId.isEmpty())
     {
-        const auto toContact_Id = Moneychanger::It()->OT().Contacts()
-            .ContactID(opentxs::Identifier::Factory(m_hisNymId.toStdString()));
-        const auto     strToContactId = opentxs::String::Factory(toContact_Id);
-        m_hisContactId = toContact_Id->empty() ? QString("") : QString::fromStdString(std::string(strToContactId->Get()));
+        const auto hisNymId = ot.Factory().NymID(m_hisNymId.toStdString());
+        const auto toContact_Id = ot.Contacts().ContactID(hisNymId);
+        m_hisContactId = QString::fromStdString(toContact_Id->str());
 
         if (!m_hisContactId.isEmpty())
             emit ShowContact(m_hisContactId);
@@ -1460,6 +1507,9 @@ void MTSendDlg::on_toolButton_clicked()
 
 void MTSendDlg::on_toButton_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     // Select recipient from the address book and convert to Nym ID.
     // -----------------------------------------------
     DlgChooser theChooser(this);
@@ -1476,12 +1526,10 @@ void MTSendDlg::on_toButton_clicked()
     }
     else if (!m_hisNymId.isEmpty())
     {
-        const auto toContact_Id = Moneychanger::It()->OT().Contacts()
-                .ContactID(opentxs::Identifier::Factory(m_hisNymId.toStdString()));
-        const auto     strToContactId = opentxs::String::Factory(toContact_Id);
-        m_hisContactId = toContact_Id->empty()
-            ? QString("")
-            : QString::fromStdString(std::string(strToContactId->Get()));
+        const auto hisNymId = ot.Factory().NymID(m_hisNymId.toStdString());
+        const auto toContact_Id = ot.Contacts().ContactID(hisNymId);
+        m_hisContactId = QString::fromStdString(toContact_Id->str());
+
         if (!m_hisContactId.isEmpty())
             theChooser.SetPreSelected(m_hisContactId);
     }
@@ -1595,6 +1643,9 @@ void MTSendDlg::on_toButton_clicked()
 
 void MTSendDlg::dialog()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
 /** Send Funds Dialog **/
 
     if (!already_init)
@@ -1626,7 +1677,9 @@ void MTSendDlg::dialog()
         // -------------------------------------------
         if (!m_myAcctId.isEmpty()) // myAcct was provided.
         {
-            str_my_name = Moneychanger::It()->OT().Exec().GetAccountWallet_Name(m_myAcctId.toStdString());
+            const auto myAccountId = ot.Factory().Identifier(m_myAcctId.toStdString());
+            const auto myAccount = ot.Wallet().Account(myAccountId, reason);
+            str_my_name = myAccount.get().Alias();
 
             if (str_my_name.empty())
                 str_my_name = m_myAcctId.toStdString();
@@ -1651,7 +1704,9 @@ void MTSendDlg::dialog()
         // -------------------------------------------
         if (!m_hisNymId.isEmpty()) // hisNym was provided.
         {
-            str_his_name = Moneychanger::It()->OT().Exec().GetNym_Name(m_hisNymId.toStdString());
+            const auto hisNymId = ot.Factory().NymID(m_hisNymId.toStdString());
+            const auto nym = ot.Wallet().Nym(hisNymId, reason); // NOTE: Probably should be getting contact with NymID, and then using Contact Name.
+            str_his_name = nym->Alias();
 
             if (str_his_name.empty())
                 str_his_name = m_hisNymId.toStdString();

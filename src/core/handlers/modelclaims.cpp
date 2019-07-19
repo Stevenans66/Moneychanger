@@ -28,6 +28,9 @@ ClaimsProxyModel::ClaimsProxyModel(QObject *parent /*=0*/)
 
 QVariant ClaimsProxyModel::data ( const QModelIndex & index, int role/* = Qt::DisplayRole */) const
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
 //  if (role == Qt::TextAlignmentRole)
 //      return QVariant(Qt::AlignCenter | Qt::AlignVCenter);
     // ----------------------------------------
@@ -62,7 +65,9 @@ QVariant ClaimsProxyModel::data ( const QModelIndex & index, int role/* = Qt::Di
             if (!qstrID.isEmpty())
             {
                 const std::string str_id = qstrID.trimmed().toStdString();
-                str_name = str_id.empty() ? "" : Moneychanger::It()->OT().Exec().GetNym_Name(str_id);
+                const auto nymId = ot.Factory().NymID(str_id);
+                const auto nym = ot.Wallet().Nym(nymId, reason);
+                str_name = str_id.empty() ? "" : nym->Alias();
             }
             // ------------------------
             if (str_name.empty() && !qstrID.isEmpty())

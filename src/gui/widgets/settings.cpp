@@ -89,7 +89,7 @@ Settings::Settings(QWidget *parent) :
     ui->lineEditNotaryId->setContextMenuPolicy(Qt::CustomContextMenu);
 
     // ----------------------------------------------
-    ui->plainTextEditSeed->setPlainText(QString::fromStdString(Moneychanger::It()->OT().OTAPI().Wallet_GetWords()));
+    //ui->plainTextEditSeed->setPlainText(QString::fromStdString(ot.OTAPI().Wallet_GetWords()));
 }
 
 Settings::~Settings()
@@ -164,6 +164,9 @@ Settings::~Settings()
 
 void Settings::on_pushButton_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     class embeddedSetupClass
     {
         QTableWidget * tableWidget_=nullptr;
@@ -187,8 +190,10 @@ void Settings::on_pushButton_clicked()
     const QString NymID    = ui->lineEditNymId   ->text();
     const QString NotaryID = ui->lineEditNotaryId->text();
     // ---------------------------
-    opentxs::NumList numlistCronIds ( Moneychanger::It()->OT().Exec().GetNym_ActiveCronItemIDs(NymID   .toStdString(),
-                                                                                          NotaryID.toStdString()) );
+    return;
+    opentxs::NumList numlistCronIds;
+//    opentxs::NumList numlistCronIds ( ot.Exec().GetNym_ActiveCronItemIDs(NymID   .toStdString(),
+//                                                                                          NotaryID.toStdString()) );
     std::set<int64_t> cronIds;
     const bool bIdsArePresent = numlistCronIds.Output(cronIds);
 
@@ -204,15 +209,16 @@ void Settings::on_pushButton_clicked()
         QString qstrAgreementTypeDisplay = tr("Agreement"); // Smart Contract, Recurring Payment, etc.
         QString qstrMyColumn1, qstrMyColumn2;
         // --------------------------------------
-        const auto strCronItem =
-            opentxs::String::Factory(Moneychanger::It()->OT().Exec().GetActiveCronItem(
-                NotaryID.toStdString(),
-                cronId));
+//        const auto strCronItem =
+//            opentxs::String::Factory(ot.Exec().GetActiveCronItem(
+//                NotaryID.toStdString(),
+//                cronId));
+        const auto strCronItem = opentxs::String::Factory();
 
         if (!strCronItem->Exists())
             continue;
         // --------------------------------------
-        std::unique_ptr<opentxs::OTCronItem> pCronItem{Moneychanger::It()->OT().Factory().CronItem(  strCronItem)};
+        std::unique_ptr<opentxs::OTCronItem> pCronItem{ot.Factory().CronItem(  strCronItem, reason)};
 
         if (false != bool(pCronItem))
             continue;
@@ -222,7 +228,7 @@ void Settings::on_pushButton_clicked()
         // --------------------------------------
         if ( (nullptr != pPlan) || (nullptr != pSmart) )
         {
-            std::shared_ptr<opentxs::OTPayment> thePayment{Moneychanger::It()->OT().Factory().Payment(  strCronItem)};
+            std::shared_ptr<opentxs::OTPayment> thePayment{ot.Factory().Payment(  strCronItem)};
 
             OT_ASSERT(false != bool(thePayment));
 
@@ -280,7 +286,8 @@ void Settings::on_pushButton_clicked()
 
                     if ( !str_asset_type.empty() )
                     {
-                        str_formatted = Moneychanger::It()->OT().Exec().FormatAmount(str_asset_type, initialPaymentAmount);
+                        const auto assetId = ot.Factory().UnitID(str_asset_type);
+                        str_formatted = Moneychanger::formatAmount(assetId, initialPaymentAmount);
                         bFormatted = !str_formatted.empty();
                     }
                     // ----------------------------------------
@@ -374,6 +381,8 @@ void Settings::showEvent (QShowEvent * event)
 
 void Settings::on_pushButtonPair_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
 
     const QString qstrBridgeNymID   = ui->lineEditBridgeNymId->text();
     const QString qstrAdminPassword = ui->lineEditAdminPassword->text();
@@ -467,7 +476,7 @@ The ways in which a user should connect to an issuer:
 If you have a manual pairing dialog it should be hidden in expert mode in a debug window with plenty of warnings
 */
     // -----------------------------------
-    const std::string str_introduction_notary_id{opentxs::String::Factory(Moneychanger::It()->OT().Sync().IntroductionServer())->Get()};
+    const std::string str_introduction_notary_id{opentxs::String::Factory(ot.OTX().IntroductionServer())->Get()};
 
     if (str_introduction_notary_id.empty()) {
         errorMessage = tr("Introduction Notary Id not available.");
@@ -512,13 +521,13 @@ public:
         const bool onlyTrusted) const;
 */
 
-    const auto localNymID = opentxs::Identifier::Factory(qstrUserNymID.toStdString());
-    const auto issuerNymID = opentxs::Identifier::Factory(qstrBridgeNymID.toStdString());
+    const auto localNymID = ot.Factory().NymID(qstrUserNymID.toStdString());
+    const auto issuerNymID = ot.Factory().NymID(qstrBridgeNymID.toStdString());
     const std::string pairingCode{qstrAdminPassword.toStdString()};
 
     // NEW JUSTUS API
-    const bool bPairNode = Moneychanger::It()->OT().Pair().AddIssuer(localNymID, issuerNymID, pairingCode);
-//  const bool bPairNode = Moneychanger::It()->OT().OTME_TOO().PairNode(qstrUserNymID.toStdString(), qstrBridgeNymID.toStdString(), qstrAdminPassword.toStdString());
+    const bool bPairNode = ot.Pair().AddIssuer(localNymID, issuerNymID, pairingCode);
+//  const bool bPairNode = ot.OTME_TOO().PairNode(qstrUserNymID.toStdString(), qstrBridgeNymID.toStdString(), qstrAdminPassword.toStdString());
 
     if (!bPairNode) {
         QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME), tr("Pairing failed."));
@@ -530,8 +539,11 @@ public:
 
 void Settings::on_pushButtonSetSocksProxy_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     const QString qstrProxy = ui->lineEditSocksProxy->text();
-    const bool bSuccess = Moneychanger::It()->OT().ZMQ().SetSocksProxy(qstrProxy.toStdString());
+    const bool bSuccess = ot.ZMQ().SetSocksProxy(qstrProxy.toStdString());
     const QString qstrSuccess = QString("%1").arg(bSuccess ? tr("Success") : tr("Failure"));
     QMessageBox::information(this, tr(MONEYCHANGER_APP_NAME), qstrSuccess);
 }

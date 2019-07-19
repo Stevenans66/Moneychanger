@@ -213,39 +213,39 @@ bool MTServerDetails::eventFilter(QObject *obj, QEvent *event)
 //virtual
 void MTServerDetails::DeleteButtonClicked()
 {
-    if (!m_pOwner->m_qstrCurrentID.isEmpty())
-    {
-        // ----------------------------------------------------
-        bool bCanRemove = Moneychanger::It()->OT().Exec().Wallet_CanRemoveServer(m_pOwner->m_qstrCurrentID.toStdString());
+//    if (!m_pOwner->m_qstrCurrentID.isEmpty())
+//    {
+//        // ----------------------------------------------------
+//        bool bCanRemove = Moneychanger::It()->OT().Exec().Wallet_CanRemoveServer(m_pOwner->m_qstrCurrentID.toStdString());
 
-        if (!bCanRemove)
-        {
-            QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
-                                 tr("This server contract cannot be removed, because there are still accounts and/or nyms in the wallet that are registered there. Please unregister the relevant nyms, and/or delete the relevant accounts, first."));
-            return;
-        }
-        // ----------------------------------------------------
-        QMessageBox::StandardButton reply;
+//        if (!bCanRemove)
+//        {
+//            QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
+//                                 tr("This server contract cannot be removed, because there are still accounts and/or nyms in the wallet that are registered there. Please unregister the relevant nyms, and/or delete the relevant accounts, first."));
+//            return;
+//        }
+//        // ----------------------------------------------------
+//        QMessageBox::StandardButton reply;
 
-        reply = QMessageBox::question(this, "", tr("Are you sure you want to remove this Server Contract?"),
-                                      QMessageBox::Yes|QMessageBox::No);
-        if (reply == QMessageBox::Yes)
-        {
-            bool bSuccess = Moneychanger::It()->OT().Exec().Wallet_RemoveServer(m_pOwner->m_qstrCurrentID.toStdString());
+//        reply = QMessageBox::question(this, "", tr("Are you sure you want to remove this Server Contract?"),
+//                                      QMessageBox::Yes|QMessageBox::No);
+//        if (reply == QMessageBox::Yes)
+//        {
+//            bool bSuccess = Moneychanger::It()->OT().Exec().Wallet_RemoveServer(m_pOwner->m_qstrCurrentID.toStdString());
 
-            if (bSuccess)
-            {
-                m_pOwner->m_map.remove(m_pOwner->m_qstrCurrentID);
-                // ------------------------------------------------
-                emit serversChanged();
-                // ------------------------------------------------
-            }
-            else
-                QMessageBox::warning(this, tr("Failure Removing Server Contract"),
-                                     tr("Failed trying to remove this Server Contract."));
-        }
-    }
-    // ----------------------------------------------------
+//            if (bSuccess)
+//            {
+//                m_pOwner->m_map.remove(m_pOwner->m_qstrCurrentID);
+//                // ------------------------------------------------
+//                emit serversChanged();
+//                // ------------------------------------------------
+//            }
+//            else
+//                QMessageBox::warning(this, tr("Failure Removing Server Contract"),
+//                                     tr("Failed trying to remove this Server Contract."));
+//        }
+//    }
+//    // ----------------------------------------------------
 }
 
 
@@ -269,34 +269,34 @@ void MTServerDetails::DownloadedURL()
 
 void MTServerDetails::ImportContract(QString qstrContents)
 {
-    if (qstrContents.isEmpty())
-    {
-        QMessageBox::warning(this, tr("Contract is Empty"),
-            tr("Failed importing: contract is empty."));
-        return;
-    }
-    // ---------------------------------------------------
-    std::string newID = Moneychanger::It()->OT().Exec().AddServerContract(qstrContents.toStdString());
+//    if (qstrContents.isEmpty())
+//    {
+//        QMessageBox::warning(this, tr("Contract is Empty"),
+//            tr("Failed importing: contract is empty."));
+//        return;
+//    }
+//    // ---------------------------------------------------
+//    std::string newID = Moneychanger::It()->OT().Exec().AddServerContract(qstrContents.toStdString());
 
-    if (newID.empty())
-    {
-        QMessageBox::warning(this, tr("Failed Importing Server Contract"),
-            tr("Failed trying to import contract. Is it already in the wallet?"));
-        return;
-    }
-    // -----------------------------------------------
-    QString qstrContractName = QString::fromStdString(Moneychanger::It()->OT().Exec().GetServer_Name(newID));
-    // -----------------------------------------------
-    // Commenting this out for now.
-    //
-//  QMessageBox::information(this, tr("Success!"), QString("%1: '%2' %3: %4").arg(tr("Success Importing Server Contract! Name")).
-//                           arg(qstrContractName).arg(tr("ID")).arg(qstrContractID));
-    // ----------
-    m_pOwner->m_map.insert(newID.c_str(), qstrContractName);
-    m_pOwner->SetPreSelected(newID.c_str());
-    // ------------------------------------------------
-    emit newServerAdded(newID.c_str());
-    // ------------------------------------------------
+//    if (newID.empty())
+//    {
+//        QMessageBox::warning(this, tr("Failed Importing Server Contract"),
+//            tr("Failed trying to import contract. Is it already in the wallet?"));
+//        return;
+//    }
+//    // -----------------------------------------------
+//    QString qstrContractName = QString::fromStdString(Moneychanger::It()->OT().Exec().GetServer_Name(newID));
+//    // -----------------------------------------------
+//    // Commenting this out for now.
+//    //
+////  QMessageBox::information(this, tr("Success!"), QString("%1: '%2' %3: %4").arg(tr("Success Importing Server Contract! Name")).
+////                           arg(qstrContractName).arg(tr("ID")).arg(qstrContractID));
+//    // ----------
+//    m_pOwner->m_map.insert(newID.c_str(), qstrContractName);
+//    m_pOwner->SetPreSelected(newID.c_str());
+//    // ------------------------------------------------
+//    emit newServerAdded(newID.c_str());
+//    // ------------------------------------------------
 }
 
 // ------------------------------------------------------
@@ -651,78 +651,78 @@ void MTServerDetails::AddButtonClicked()
 //virtual
 void MTServerDetails::refresh(QString strID, QString strName)
 {
-    if (!strID.isEmpty() && (NULL != ui))
-    {
-        QWidget * pHeaderWidget = MTEditDetails::CreateDetailHeaderWidget(m_Type, strID, strName, "", "", ":/icons/server", false);
+//    if (!strID.isEmpty() && (nullptr != ui))
+//    {
+//        QWidget * pHeaderWidget = MTEditDetails::CreateDetailHeaderWidget(m_Type, strID, strName, "", "", ":/icons/server", false);
 
-        pHeaderWidget->setObjectName(QString("DetailHeader")); // So the stylesheet doesn't get applied to all its sub-widgets.
+//        pHeaderWidget->setObjectName(QString("DetailHeader")); // So the stylesheet doesn't get applied to all its sub-widgets.
 
-        if (m_pHeaderWidget)
-        {
-            ui->verticalLayout->removeWidget(m_pHeaderWidget);
+//        if (m_pHeaderWidget)
+//        {
+//            ui->verticalLayout->removeWidget(m_pHeaderWidget);
 
-            m_pHeaderWidget->setParent(NULL);
-            m_pHeaderWidget->disconnect();
-            m_pHeaderWidget->deleteLater();
+//            m_pHeaderWidget->setParent(NULL);
+//            m_pHeaderWidget->disconnect();
+//            m_pHeaderWidget->deleteLater();
 
-            m_pHeaderWidget = NULL;
-        }
-        ui->verticalLayout->insertWidget(0, pHeaderWidget);
-        m_pHeaderWidget = pHeaderWidget;
-        // ----------------------------------
-        QString qstrContents =
-            QString::fromStdString(Moneychanger::It()->OT().Exec().
-                GetServer_Contract(strID.toStdString()));
-        opentxs::proto::ServerContract contractProto =
-            opentxs::proto::StringToProto<opentxs::proto::ServerContract>
-                (opentxs::String::Factory(qstrContents.toStdString()));
+//            m_pHeaderWidget = NULL;
+//        }
+//        ui->verticalLayout->insertWidget(0, pHeaderWidget);
+//        m_pHeaderWidget = pHeaderWidget;
+//        // ----------------------------------
+//        QString qstrContents =
+//            QString::fromStdString(Moneychanger::It()->OT().Exec().
+//                GetServer_Contract(strID.toStdString()));
+//        opentxs::proto::ServerContract contractProto =
+//            opentxs::proto::StringToProto<opentxs::proto::ServerContract>
+//                (opentxs::String::Factory(qstrContents.toStdString()));
 
-        if (m_pPlainTextEdit)
-            m_pPlainTextEdit->setPlainText(qstrContents);
-        // ----------------------------------
-        QString qstrDetails("");
+//        if (m_pPlainTextEdit)
+//            m_pPlainTextEdit->setPlainText(qstrContents);
+//        // ----------------------------------
+//        QString qstrDetails("");
 
-        qstrDetails += contractProto.has_name() ? QString("- %1: %2\n").arg(tr("Name")).arg(QString::fromStdString(contractProto.name())) : QString("");
-        qstrDetails += contractProto.has_version() ? QString("- %1: %2\n").arg(tr("Version")).arg(QString::number(contractProto.version())) : QString("");
+//        qstrDetails += contractProto.has_name() ? QString("- %1: %2\n").arg(tr("Name")).arg(QString::fromStdString(contractProto.name())) : QString("");
+//        qstrDetails += contractProto.has_version() ? QString("- %1: %2\n").arg(tr("Version")).arg(QString::number(contractProto.version())) : QString("");
 
-        qstrDetails += QString("\n");
+//        qstrDetails += QString("\n");
 
-        auto nAddressCount = contractProto.address_size();
+//        auto nAddressCount = contractProto.address_size();
 
-        for (int ii = 0; ii < nAddressCount; ++ii)
-        {
-            const auto & address = contractProto.address(ii);
+//        for (int ii = 0; ii < nAddressCount; ++ii)
+//        {
+//            const auto & address = contractProto.address(ii);
 
-            qstrDetails += QString("%1:\n").arg(tr("Listening address"));
-            qstrDetails += address.has_version() ? QString("- %1: %2\n").arg(tr("Version")).arg(QString::number(address.version())) : QString("");
-            qstrDetails += address.has_type() ? QString("- %1: %2\n").arg(tr("Type")).arg(QString::number(address.type())) : QString("");
-            qstrDetails += address.has_protocol() ? QString("- %1: %2\n").arg(tr("Protocol")).arg(QString::number(address.protocol())) : QString("");
-            qstrDetails += address.has_host() ? QString("- %1: %2\n").arg(tr("Host")).arg(QString::fromStdString(address.host())) : QString("");
-            qstrDetails += address.has_port() ? QString("- %1: %2\n").arg(tr("Port")).arg(QString::number(address.port())) : QString("");
-        }
+//            qstrDetails += QString("%1:\n").arg(tr("Listening address"));
+//            qstrDetails += address.has_version() ? QString("- %1: %2\n").arg(tr("Version")).arg(QString::number(address.version())) : QString("");
+//            qstrDetails += address.has_type() ? QString("- %1: %2\n").arg(tr("Type")).arg(QString::number(address.type())) : QString("");
+//            qstrDetails += address.has_protocol() ? QString("- %1: %2\n").arg(tr("Protocol")).arg(QString::number(address.protocol())) : QString("");
+//            qstrDetails += address.has_host() ? QString("- %1: %2\n").arg(tr("Host")).arg(QString::fromStdString(address.host())) : QString("");
+//            qstrDetails += address.has_port() ? QString("- %1: %2\n").arg(tr("Port")).arg(QString::number(address.port())) : QString("");
+//        }
 
-        qstrDetails += contractProto.has_terms() ? QString("\n- %1:\n%2").arg(tr("Terms")).arg(QString::fromStdString(contractProto.terms())) : QString("");
+//        qstrDetails += contractProto.has_terms() ? QString("\n- %1:\n%2").arg(tr("Terms")).arg(QString::fromStdString(contractProto.terms())) : QString("");
 
-        ui->plainTextEditDetails->setPlainText(qstrDetails);
-        // ----------------------------------
-        auto contract =
-            Moneychanger::It()->OT().Wallet().Server(
-                opentxs::Identifier::Factory(strID.toStdString()));
+//        ui->plainTextEditDetails->setPlainText(qstrDetails);
+//        // ----------------------------------
+//        auto contract =
+//            Moneychanger::It()->OT().Wallet().Server(
+//                opentxs::Identifier::Factory(strID.toStdString()));
 
-        if (!contract) { return; }
+//        if (!contract) { return; }
 
-        QString qstrNymID("");  // contract->PublicNym()->GetIdentifier(some_variable)
+//        QString qstrNymID("");  // contract->PublicNym()->GetIdentifier(some_variable)
 
-        auto id_nym = opentxs::Identifier::Factory();
-        contract->Nym()->GetIdentifier(id_nym);
-        qstrNymID = QString::fromStdString(opentxs::String::Factory(id_nym)->Get());
-        // ----------------------------------
-        ui->lineEditID   ->setText(strID);
-        ui->lineEditName ->setText(strName);
-        ui->lineEditNymID->setText(qstrNymID);
+//        auto id_nym = opentxs::Identifier::Factory();
+//        contract->Nym()->GetIdentifier(id_nym);
+//        qstrNymID = QString::fromStdString(opentxs::String::Factory(id_nym)->Get());
+//        // ----------------------------------
+//        ui->lineEditID   ->setText(strID);
+//        ui->lineEditName ->setText(strName);
+//        ui->lineEditNymID->setText(qstrNymID);
 
-        FavorLeftSideForIDs();
-    }
+//        FavorLeftSideForIDs();
+//    }
 }
 
 // ------------------------------------------------------
@@ -731,8 +731,9 @@ void MTServerDetails::on_lineEditName_editingFinished()
 {
     if (!m_pOwner->m_qstrCurrentID.isEmpty())
     {
-        bool bSuccess = Moneychanger::It()->OT().Exec().SetServer_Name(m_pOwner->m_qstrCurrentID.toStdString(),  // Server
-                                                   ui->lineEditName->text(). toStdString()); // New Name
+        bool bSuccess = false;
+//        bool bSuccess = Moneychanger::It()->OT().Exec().SetServer_Name(m_pOwner->m_qstrCurrentID.toStdString(),  // Server
+//                                                   ui->lineEditName->text(). toStdString()); // New Name
         if (bSuccess)
         {
             m_pOwner->m_map.remove(m_pOwner->m_qstrCurrentID);

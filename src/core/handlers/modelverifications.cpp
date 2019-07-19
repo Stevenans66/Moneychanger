@@ -31,6 +31,9 @@ VerificationsProxyModel::VerificationsProxyModel(QObject *parent /*=0*/)
 
 QVariant VerificationsProxyModel::data ( const QModelIndex & index, int role/* = Qt::DisplayRole */) const
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
 //  if (role == Qt::TextAlignmentRole)
 //      return QVariant(Qt::AlignCenter | Qt::AlignVCenter);
     // ----------------------------------------
@@ -65,7 +68,8 @@ QVariant VerificationsProxyModel::data ( const QModelIndex & index, int role/* =
             if (!qstrID.isEmpty())
             {
                 const std::string str_id = qstrID.trimmed().toStdString();
-                str_name = str_id.empty() ? "" : Moneychanger::It()->OT().Exec().GetNym_Name(str_id);
+                const auto nymId = ot.Factory().NymID(str_id);
+                str_name = str_id.empty() ? "" : ot.Wallet().Nym(nymId, reason)->Alias();
             }
             // ------------------------
             if (str_name.empty() && !qstrID.isEmpty())
@@ -81,7 +85,8 @@ QVariant VerificationsProxyModel::data ( const QModelIndex & index, int role/* =
             if (!qstrID.isEmpty())
             {
                 const std::string str_id = qstrID.trimmed().toStdString();
-                str_name = str_id.empty() ? "" : Moneychanger::It()->OT().Exec().GetNym_Name(str_id);
+                const auto nymId = ot.Factory().NymID(str_id);
+                str_name = str_id.empty() ? "" : ot.Wallet().Nym(nymId, reason)->Alias();
             }
             // ------------------------
             if (str_name.empty() && !qstrID.isEmpty())

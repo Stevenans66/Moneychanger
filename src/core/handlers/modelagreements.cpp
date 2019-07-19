@@ -206,6 +206,9 @@ void AgreementsProxyModel::setFilterFolder(int nFolder)
 // ------------------------------------------------------------
 QVariant AgreementsProxyModel::data ( const QModelIndex & index, int role/* = Qt::DisplayRole */) const
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
 //  if (role == Qt::TextAlignmentRole)
 //      return QVariant(Qt::AlignCenter | Qt::AlignVCenter);
     // ----------------------------------------
@@ -238,7 +241,8 @@ QVariant AgreementsProxyModel::data ( const QModelIndex & index, int role/* = Qt
         {
             QString qstrID = sourceData.isValid() ? sourceData.toString() : "";
             const std::string str_id = qstrID.toStdString();
-            const std::string str_name = str_id.empty() ? "" : Moneychanger::It()->OT().Exec().GetServer_Name(str_id);
+            const auto serverId = ot.Factory().ServerID(str_id);
+            const std::string str_name = str_id.empty() ? "" : ot.Wallet().Server(serverId, reason)->Alias();
             // ------------------------
             if (!str_name.empty())
                 return QVariant(QString::fromStdString(str_name));
@@ -764,6 +768,9 @@ QWidget * AgreementReceiptsProxyModel::CreateDetailHeaderWidget(const int nSourc
 
 QVariant AgreementReceiptsProxyModel::data ( const QModelIndex & index, int role/* = Qt::DisplayRole */) const
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
 //    if (role == Qt::TextAlignmentRole)
 //        return QVariant(Qt::AlignCenter | Qt::AlignVCenter);
     // ----------------------------------------
@@ -825,7 +832,8 @@ QVariant AgreementReceiptsProxyModel::data ( const QModelIndex & index, int role
             if (!qstrID.isEmpty())
             {
                 const std::string str_id = qstrID.trimmed().toStdString();
-                str_name = str_id.empty() ? "" : Moneychanger::It()->OT().Exec().GetNym_Name(str_id);
+                const auto nymId = ot.Factory().NymID(str_id);
+                str_name = str_id.empty() ? "" : ot.Wallet().Nym(nymId, reason)->Alias();
             }
             // ------------------------
             if (str_name.empty() && !qstrID.isEmpty())
@@ -841,7 +849,8 @@ QVariant AgreementReceiptsProxyModel::data ( const QModelIndex & index, int role
             if (!qstrID.isEmpty())
             {
                 const std::string str_id = qstrID.trimmed().toStdString();
-                str_name = str_id.empty() ? "" : Moneychanger::It()->OT().Exec().GetAccountWallet_Name(str_id);
+                const auto accountId = ot.Factory().Identifier(str_id);
+                str_name = str_id.empty() ? "" : ot.Wallet().Account(accountId, reason).get().Alias();
             }
             // ------------------------
             if (str_name.empty() && !qstrID.isEmpty())
@@ -852,7 +861,8 @@ QVariant AgreementReceiptsProxyModel::data ( const QModelIndex & index, int role
         {
             QString qstrID = sourceData.isValid() ? sourceData.toString().trimmed() : "";
             const std::string str_id = qstrID.isEmpty() ? "" : qstrID.toStdString();
-            const std::string str_name = str_id.empty() ? "" : Moneychanger::It()->OT().Exec().GetNym_Name(str_id);
+            const auto nymId = ot.Factory().NymID(str_id);
+            const std::string str_name = str_id.empty() ? "" : ot.Wallet().Nym(nymId, reason)->Alias();
             // ------------------------
             if (!str_name.empty())
                 return QVariant(QString::fromStdString(str_name));
@@ -885,7 +895,8 @@ QVariant AgreementReceiptsProxyModel::data ( const QModelIndex & index, int role
         {
             QString qstrID = sourceData.isValid() ? sourceData.toString().trimmed() : "";
             const std::string str_id = qstrID.isEmpty() ? "" : qstrID.toStdString();
-            const std::string str_name = str_id.empty() ? "" : Moneychanger::It()->OT().Exec().GetNym_Name(str_id);
+            const auto nymId = ot.Factory().NymID(str_id);
+            const std::string str_name = str_id.empty() ? "" : ot.Wallet().Nym(nymId, reason)->Alias();
             // ------------------------
             if (!str_name.empty())
                 return QVariant(QString::fromStdString(str_name));
@@ -918,7 +929,8 @@ QVariant AgreementReceiptsProxyModel::data ( const QModelIndex & index, int role
         {
             QString qstrID = sourceData.isValid() ? sourceData.toString() : "";
             const std::string str_id = qstrID.toStdString();
-            const std::string str_name = str_id.empty() ? "" : Moneychanger::It()->OT().Exec().GetServer_Name(str_id);
+            const auto serverId = ot.Factory().ServerID(str_id);
+            const std::string str_name = str_id.empty() ? "" : ot.Wallet().Server(serverId, reason)->Alias();
             // ------------------------
             if (!str_name.empty())
                 return QVariant(QString::fromStdString(str_name));
@@ -940,11 +952,14 @@ QVariant AgreementReceiptsProxyModel::data ( const QModelIndex & index, int role
             QModelIndex sibling   = sourceIndex.sibling(sourceIndex.row(), AGRMT_RECEIPT_COL_MY_ASSET_TYPE);
             QString qstrAssetType = sourceModel()->data(sibling,role).isValid() ? sourceModel()->data(sibling,role).toString() : QString("");
 
-            QString qstrAmount = QString::fromStdString(Moneychanger::It()->OT().Exec().LongToString(lAmount));
+            QString qstrAmount = QString::fromStdString(opentxs::String::LongToString(lAmount));
 
             if (!qstrAssetType.isEmpty())
             {
-                QString qstrTemp = QString::fromStdString(Moneychanger::It()->OT().Exec().FormatAmount(qstrAssetType.toStdString(), lAmount));
+                const auto unitId = ot.Factory().UnitID(qstrAssetType.toStdString());
+                const auto unitDefinition = ot.Wallet().UnitDefinition(unitId, reason);
+
+                QString qstrTemp = QString::fromStdString(Moneychanger::formatAmount(unitId, lAmount));
                 if (!qstrTemp.isEmpty())
                     qstrAmount = qstrTemp;
             }
@@ -955,7 +970,8 @@ QVariant AgreementReceiptsProxyModel::data ( const QModelIndex & index, int role
         {
             QString qstrID = sourceData.isValid() ? sourceData.toString() : "";
             const std::string str_id = qstrID.toStdString();
-            const std::string str_name = str_id.empty() ? "" : Moneychanger::It()->OT().Exec().GetAssetType_Name(str_id);
+            const auto unitId = ot.Factory().UnitID(str_id);
+            const std::string str_name = str_id.empty() ? "" : ot.Wallet().UnitDefinition(unitId, reason)->Alias();
             // ------------------------
             if (!str_name.empty())
                 return QVariant(QString::fromStdString(str_name));

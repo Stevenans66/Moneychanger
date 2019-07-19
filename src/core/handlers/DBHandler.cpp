@@ -22,7 +22,7 @@
 template class opentxs::SharedPimpl<opentxs::ui::ActivityThreadItem>;
 
 
-DBHandler * DBHandler::_instance = NULL;
+DBHandler * DBHandler::_instance = nullptr;
 
 DBHandler* DBHandler::getInstance()
 {
@@ -927,6 +927,9 @@ QSharedPointer<QStandardItemModel>  DBHandler::getNewConversationItemModel(
                                                                 const QString & qstrThreadId,
                                                                 bool bArchived/*=false*/)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     const int nArchived(bArchived ? 1 : 0);
     const int nHasNoSubject = 0;  // Chat messages have no subject. So the has_subject field is always 0 for those records.
 
@@ -982,8 +985,7 @@ QSharedPointer<QStandardItemModel>  DBHandler::getNewConversationItemModel(
     qDebug() << "str_thread_id: " << QString::fromStdString(str_thread_id);
 
     if (opentxs::Messagability::READY !=
-        Moneychanger::It()->OT().Sync().CanMessage(opentxs::Identifier::Factory(str_my_nym_id),
-                                                   opentxs::Identifier::Factory(str_thread_id)))
+        ot.OTX().CanMessage(ot.Factory().NymID(str_my_nym_id), opentxs::Identifier::Factory(str_thread_id)))
     {
         qDebug() << "Returning empty conversational model for contact, since he is not yet messagable.";
 
@@ -991,8 +993,7 @@ QSharedPointer<QStandardItemModel>  DBHandler::getNewConversationItemModel(
     }
     // --------------------------------------------
 
-    const auto& thread = Moneychanger::It()->OT().UI().ActivityThread(
-        opentxs::Identifier::Factory(str_my_nym_id),
+    const auto& thread = ot.UI().ActivityThread(ot.Factory().NymID(str_my_nym_id),
         opentxs::Identifier::Factory(str_thread_id));
 
     const auto first = thread.First();

@@ -235,6 +235,9 @@ QVariant ModelTradeArchive::rawData ( const QModelIndex & index, int role/* = Qt
 
 QVariant ModelTradeArchive::data ( const QModelIndex & index, int role/* = Qt::DisplayRole */) const
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (role == Qt::TextAlignmentRole )
         return QVariant(Qt::AlignCenter | Qt::AlignVCenter);
 
@@ -257,7 +260,8 @@ QVariant ModelTradeArchive::data ( const QModelIndex & index, int role/* = Qt::D
 
             const std::string str_currency_id = qstrCurrencyID.toStdString();
 
-            std::string str_display = Moneychanger::It()->OT().Exec().FormatAmount(str_currency_id, lPrice);
+            const auto currencyId = ot.Factory().UnitID(str_currency_id);
+            std::string str_display = Moneychanger::formatAmount(currencyId, lPrice);
             QString qstrDisplay = QString::fromStdString(str_display);
 
             return QVariant(qstrDisplay);
@@ -271,7 +275,8 @@ QVariant ModelTradeArchive::data ( const QModelIndex & index, int role/* = Qt::D
             QString qstrCurrencyID = QSqlTableModel::data(sibling,role).toString();
             const std::string str_currency_id = qstrCurrencyID.toStdString();
 
-            std::string str_display = Moneychanger::It()->OT().Exec().FormatAmount(str_currency_id, lPrice);
+            const auto currencyId = ot.Factory().UnitID(str_currency_id);
+            std::string str_display = Moneychanger::formatAmount(currencyId, lPrice);
             QString qstrDisplay = QString::fromStdString(str_display);
 
             return QVariant(qstrDisplay);
@@ -285,8 +290,8 @@ QVariant ModelTradeArchive::data ( const QModelIndex & index, int role/* = Qt::D
             QString qstrCurrencyID = QSqlTableModel::data(sibling,role).toString();
 
             const std::string str_currency_id = qstrCurrencyID.toStdString();
-
-            std::string str_display = Moneychanger::It()->OT().Exec().FormatAmount(str_currency_id, lPrice);
+            const auto currencyId = ot.Factory().UnitID(str_currency_id);
+            std::string str_display = Moneychanger::formatAmount(currencyId, lPrice);
             QString qstrDisplay = QString::fromStdString(str_display);
 
             return QVariant(qstrDisplay);
@@ -299,8 +304,8 @@ QVariant ModelTradeArchive::data ( const QModelIndex & index, int role/* = Qt::D
 
             QString qstrCurrencyID = QSqlTableModel::data(sibling,role).toString();
             const std::string str_currency_id = qstrCurrencyID.toStdString();
-
-            std::string str_display = Moneychanger::It()->OT().Exec().FormatAmount(str_currency_id, lPrice);
+            const auto currencyId = ot.Factory().UnitID(str_currency_id);
+            std::string str_display = Moneychanger::formatAmount(currencyId, lPrice);
             QString qstrDisplay = QString::fromStdString(str_display);
 
             return QVariant(qstrDisplay);
@@ -324,7 +329,9 @@ QVariant ModelTradeArchive::data ( const QModelIndex & index, int role/* = Qt::D
         {
             QString qstrID = QSqlTableModel::data(index,role).toString();
             const std::string str_id = qstrID.toStdString();
-            const std::string str_name = Moneychanger::It()->OT().Exec().GetServer_Name(str_id);
+            const auto serverId = ot.Factory().ServerID(str_id);
+            const auto server = ot.Wallet().Server(serverId, reason);
+            const auto str_name = server->Alias();
             // ------------------------
             if (str_name.empty())
                 return QSqlTableModel::data(index,role);
@@ -334,7 +341,10 @@ QVariant ModelTradeArchive::data ( const QModelIndex & index, int role/* = Qt::D
         {
             QString qstrID = QSqlTableModel::data(index,role).toString();
             const std::string str_id = qstrID.toStdString();
-            const std::string str_name = Moneychanger::It()->OT().Exec().GetNym_Name(str_id);
+
+            const auto nymId = ot.Factory().NymID(str_id);
+            const auto nym = ot.Wallet().Nym(nymId, reason);
+            const auto str_name = nym->Alias();
             // ------------------------
             if (str_name.empty())
                 return QSqlTableModel::data(index,role);
@@ -344,9 +354,11 @@ QVariant ModelTradeArchive::data ( const QModelIndex & index, int role/* = Qt::D
         {
             QString qstrID = QSqlTableModel::data(index,role).toString();
             const std::string str_id = qstrID.toStdString();
+            const auto accountId = ot.Factory().Identifier(str_id);
+            const auto account = ot.Wallet().Account(accountId, reason);
             std::string str_name;
             if (!str_id.empty())
-                str_name = Moneychanger::It()->OT().Exec().GetAccountWallet_Name(str_id);
+                str_name = account.get().Alias();
             // ------------------------
             if (str_name.empty())
                 return QSqlTableModel::data(index,role);
@@ -356,9 +368,11 @@ QVariant ModelTradeArchive::data ( const QModelIndex & index, int role/* = Qt::D
         {
             QString qstrID = QSqlTableModel::data(index,role).toString();
             const std::string str_id = qstrID.toStdString();
+            const auto accountId = ot.Factory().Identifier(str_id);
+            const auto account = ot.Wallet().Account(accountId, reason);
             std::string str_name;
             if (!str_id.empty())
-                str_name = Moneychanger::It()->OT().Exec().GetAccountWallet_Name(str_id);
+                str_name = account.get().Alias();
             // ------------------------
             if (str_name.empty())
                 return QSqlTableModel::data(index,role);
@@ -368,7 +382,9 @@ QVariant ModelTradeArchive::data ( const QModelIndex & index, int role/* = Qt::D
         {
             QString qstrID = QSqlTableModel::data(index,role).toString();
             const std::string str_id = qstrID.toStdString();
-            const std::string str_name = Moneychanger::It()->OT().Exec().GetAssetType_Name(str_id);
+            const auto assetId = ot.Factory().UnitID(str_id);
+            const auto unitDefinition = ot.Wallet().UnitDefinition(assetId, reason);
+            const std::string str_name = unitDefinition->Alias();
             // ------------------------
             if (str_name.empty())
                 return QSqlTableModel::data(index,role);
@@ -378,7 +394,9 @@ QVariant ModelTradeArchive::data ( const QModelIndex & index, int role/* = Qt::D
         {
             QString qstrID = QSqlTableModel::data(index,role).toString();
             const std::string str_id = qstrID.toStdString();
-            const std::string str_name = Moneychanger::It()->OT().Exec().GetAssetType_Name(str_id);
+            const auto assetId = ot.Factory().UnitID(str_id);
+            const auto unitDefinition = ot.Wallet().UnitDefinition(assetId, reason);
+            const std::string str_name = unitDefinition->Alias();
             // ------------------------
             if (str_name.empty())
                 return QSqlTableModel::data(index,role);
@@ -412,6 +430,9 @@ QVariant ModelTradeArchive::data ( const QModelIndex & index, int role/* = Qt::D
 
 void ModelTradeArchive::updateDBFromOT(const std::string & strNotaryID, const std::string & strNymID)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     std::shared_ptr<opentxs::OTDB::TradeListNym> pTradeList = ModelTradeArchive::LoadTradeListForNym(strNotaryID, strNymID);
 
     if (pTradeList)
@@ -438,27 +459,27 @@ void ModelTradeArchive::updateDBFromOT(const std::string & strNotaryID, const st
             if (pTradeData->currency_id.empty() || pTradeData->instrument_definition_id.empty())
                 continue;
             // -----------------------------------------------------------------------
-            int64_t lScale     = Moneychanger::It()->OT().Exec().StringToLong(pTradeData->scale);
-            int64_t lReceiptID = Moneychanger::It()->OT().Exec().StringToLong(pTradeData->updated_id);
-            int64_t lOfferID   = Moneychanger::It()->OT().Exec().StringToLong(pTradeData->transaction_id);
+            int64_t lScale     = opentxs::String::StringToLong(pTradeData->scale);
+            int64_t lReceiptID = opentxs::String::StringToLong(pTradeData->updated_id);
+            int64_t lOfferID   = opentxs::String::StringToLong(pTradeData->transaction_id);
             // -----------------------------------------------------------------------
-//          time_t tDate = static_cast<time_t>(Moneychanger::It()->OT().Exec().StringToLong(pTradeData->date));
-            time64_t tDate = static_cast<time64_t>(Moneychanger::It()->OT().Exec().StringToLong(pTradeData->date));
+//          time_t tDate = static_cast<time_t>(ot.Exec().StringToLong(pTradeData->date));
+            time64_t tDate = static_cast<time64_t>(opentxs::String::StringToLong(pTradeData->date));
             // -----------------------------------------------------------------------
             std::string & str_price = pTradeData->price;
-            int64_t       lPrice    = Moneychanger::It()->OT().Exec().StringToLong(str_price); // this price is "per scale"
+            int64_t       lPrice    = opentxs::String::StringToLong(str_price); // this price is "per scale"
 
             if (lPrice < 0)
                 lPrice *= (-1);
             // -----------------------------------------------------------------------
             std::string & str_amount_sold    = pTradeData->amount_sold;
-            int64_t       lQuantity          = Moneychanger::It()->OT().Exec().StringToLong(str_amount_sold); // Amount of asset sold for that price.
+            int64_t       lQuantity          = opentxs::String::StringToLong(str_amount_sold); // Amount of asset sold for that price.
 
             if (lQuantity < 0)
                 lQuantity *= (-1);
             // -----------------------------------------------------------------------
             std::string & str_currency_paid   = pTradeData->currency_paid;
-            int64_t       lPayQuantity        = Moneychanger::It()->OT().Exec().StringToLong(str_currency_paid); // Amount of currency paid for this trade.
+            int64_t       lPayQuantity        = opentxs::String::StringToLong(str_currency_paid); // Amount of currency paid for this trade.
 
             if (lPayQuantity < 0)
                 lPayQuantity *= (-1);
@@ -554,7 +575,7 @@ void ModelTradeArchive::updateDBFromOT(const std::string & strNotaryID, const st
             if (this->submitAll())
             {
                 if (this->database().commit())
-                    opentxs::OTDB::StoreObject(*pTradeList, Moneychanger::It()->OT().DataFolder(), "nyms", "trades",
+                    opentxs::OTDB::StoreObject(*pTradeList, ot.DataFolder(), "nyms", "trades",
                         strNotaryID, strNymID);
             }
             else
@@ -571,20 +592,20 @@ void ModelTradeArchive::updateDBFromOT(const std::string & strNotaryID, const st
 
 void ModelTradeArchive::updateDBFromOT()
 {
-    const int32_t nymCount    = Moneychanger::It()->OT().Exec().GetNymCount();
-    const int32_t serverCount = Moneychanger::It()->OT().Exec().GetServerCount();
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
 
-    for (int32_t serverIndex = 0; serverIndex < serverCount; ++serverIndex)
+    const auto nyms = ot.Wallet().LocalNyms();
+    const auto servers = ot.Wallet().ServerList();
+
+    for (const auto & [server_id, server_name] : servers)
     {
-        std::string NotaryID = Moneychanger::It()->OT().Exec().GetServer_ID(serverIndex);
+        const auto serverId = ot.Factory().ServerID(server_id);
 
-        for (int32_t nymIndex = 0; nymIndex < nymCount; ++nymIndex)
+        for (const auto & nym_id : nyms)
         {
-            std::string nymId = Moneychanger::It()->OT().Exec().GetNym_ID(nymIndex);
-
-            if (Moneychanger::It()->OT().Exec().IsNym_RegisteredAtServer(nymId, NotaryID))
-            {
-                updateDBFromOT(NotaryID, nymId);
+            if (ot.OTAPI().IsNym_RegisteredAtServer(nym_id, serverId)) {
+                updateDBFromOT(server_id, nym_id->str());
             }
         }
     }
@@ -592,6 +613,9 @@ void ModelTradeArchive::updateDBFromOT()
 
 std::shared_ptr<opentxs::OTDB::TradeListNym> ModelTradeArchive::LoadTradeListForNym(const std::string & strNotaryID, const std::string & strNymID)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     std::shared_ptr<opentxs::OTDB::TradeListNym> pReturn;
     // ------------------------------------------
     opentxs::OTDB::TradeListNym * pTradeList = nullptr;
@@ -600,9 +624,9 @@ std::shared_ptr<opentxs::OTDB::TradeListNym> ModelTradeArchive::LoadTradeListFor
     if (strNotaryID.empty() || strNymID.empty())
         return nullptr;
     // ------------------------------------------
-    if (opentxs::OTDB::Exists(Moneychanger::It()->OT().DataFolder(), "nyms", "trades", strNotaryID, strNymID))
+    if (opentxs::OTDB::Exists(ot.DataFolder(), "nyms", "trades", strNotaryID, strNymID))
     {
-        pStorable = opentxs::OTDB::QueryObject(opentxs::OTDB::STORED_OBJ_TRADE_LIST_NYM, Moneychanger::It()->OT().DataFolder(), "nyms", "trades",
+        pStorable = opentxs::OTDB::QueryObject(opentxs::OTDB::STORED_OBJ_TRADE_LIST_NYM, ot.DataFolder(), "nyms", "trades",
                                       strNotaryID, strNymID);
         if (nullptr == pStorable) {
             return nullptr;

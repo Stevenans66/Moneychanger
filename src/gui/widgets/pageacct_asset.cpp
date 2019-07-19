@@ -36,6 +36,8 @@ MTPageAcct_Asset::MTPageAcct_Asset(QWidget *parent) :
 
 void MTPageAcct_Asset::on_pushButtonSelect_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
     // --------------------------------------------------
     QString     qstr_default_id = Moneychanger::It()->get_default_asset_id();
     // -------------------------------------------
@@ -44,8 +46,10 @@ void MTPageAcct_Asset::on_pushButtonSelect_clicked()
     if (qstr_current_id.isEmpty())
         qstr_current_id = qstr_default_id;
     // -------------------------------------------
-    if (qstr_current_id.isEmpty() && (Moneychanger::It()->OT().Exec().GetAssetTypeCount() > 0))
-        qstr_current_id = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_ID(0));
+    const auto assets = ot.Wallet().UnitDefinitionList();
+
+    if (qstr_current_id.isEmpty() && (assets.size() > 0))
+        qstr_current_id = QString::fromStdString(assets.front().first);
     // -------------------------------------------
     // Select from Asset Types in local wallet.
     //
@@ -55,19 +59,15 @@ void MTPageAcct_Asset::on_pushButtonSelect_clicked()
 
     bool bFoundDefault = false;
     // -----------------------------------------------
-    const int32_t the_count = Moneychanger::It()->OT().Exec().GetAssetTypeCount();
-    // -----------------------------------------------
-    for (int32_t ii = 0; ii < the_count; ++ii)
+    for (const auto & [id, name] : assets)
     {
-        QString OT_id = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_ID(ii));
-        QString OT_name("");
+        QString OT_id = QString::fromStdString(id);
+        QString OT_name = QString::fromStdString(name);
         // -----------------------------------------------
         if (!OT_id.isEmpty())
         {
             if (!qstr_current_id.isEmpty() && (0 == qstr_current_id.compare(OT_id)))
                 bFoundDefault = true;
-            // -----------------------------------------------
-            OT_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_Name(OT_id.toStdString()));
             // -----------------------------------------------
             the_map.insert(OT_id, OT_name);
         }
@@ -101,6 +101,9 @@ void MTPageAcct_Asset::on_pushButtonSelect_clicked()
 //virtual
 void MTPageAcct_Asset::initializePage()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (!Moneychanger::It()->expertMode())
     {
         ui->pushButtonManage->setVisible(false);
@@ -115,11 +118,17 @@ void MTPageAcct_Asset::initializePage()
     // -------------------------------------------
     qstr_id = qstr_current_id.isEmpty() ? qstr_default_id : qstr_current_id;
     // -------------------------------------------
-    if (qstr_id.isEmpty() && (Moneychanger::It()->OT().Exec().GetAssetTypeCount() > 0))
-        qstr_id = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_ID(0));
+    const auto units = ot.Wallet().UnitDefinitionList();
+
+    if (qstr_id.isEmpty() && (units.size() > 0))
+        qstr_id = QString::fromStdString(units.front().first);
     // -------------------------------------------
     if (!qstr_id.isEmpty())
-        str_name = Moneychanger::It()->OT().Exec().GetAssetType_Name(qstr_id.toStdString());
+    {
+        const auto unitId = ot.Factory().UnitID(qstr_id.toStdString());
+        const auto unit = ot.Wallet().UnitDefinition(unitId, reason);
+        str_name = unit->Alias();
+    }
     // -------------------------------------------
     if (str_name.empty() || qstr_id.isEmpty())
         SetFieldsBlank();
@@ -140,6 +149,9 @@ void MTPageAcct_Asset::initializePage()
 
 void MTPageAcct_Asset::on_pushButtonManage_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     MTDetailEdit * pWindow = new MTDetailEdit(this);
 
     pWindow->setAttribute(Qt::WA_DeleteOnClose);
@@ -151,13 +163,14 @@ void MTPageAcct_Asset::on_pushButtonManage_clicked()
     QString qstrPreSelected   = field("InstrumentDefinitionID").toString();
     bool    bFoundPreselected = false;
     // -------------------------------------
-    int32_t the_count = Moneychanger::It()->OT().Exec().GetAssetTypeCount();
+    const auto units = ot.Wallet().UnitDefinitionList();
+    int32_t the_count = units.size();
     bool    bStartingWithNone = (the_count < 1);
 
-    for (int32_t ii = 0; ii < the_count; ii++)
+    for (const auto& [id, name] : units)
     {
-        QString OT_id   = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_ID(ii));
-        QString OT_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_Name(OT_id.toStdString()));
+        QString OT_id   = QString::fromStdString(id);
+        QString OT_name = QString::fromStdString(name);
 
         the_map.insert(OT_id, OT_name);
 
@@ -172,13 +185,13 @@ void MTPageAcct_Asset::on_pushButtonManage_clicked()
     // -------------------------------------
     pWindow->dialog(MTDetailEdit::DetailEditTypeAsset, true);
     // -------------------------------------
-    if (bStartingWithNone && (Moneychanger::It()->OT().Exec().GetAssetTypeCount() > 0))
+    if (bStartingWithNone && (units.size() > 0))
     {
-        std::string str_id = Moneychanger::It()->OT().Exec().GetAssetType_ID(0);
+        std::string str_id = units.front().first;
 
         if (!str_id.empty())
         {
-            std::string str_name = Moneychanger::It()->OT().Exec().GetAssetType_Name(str_id);
+            std::string str_name = units.front().second;
 
             if (str_name.empty())
                 str_name = str_id;
@@ -190,7 +203,7 @@ void MTPageAcct_Asset::on_pushButtonManage_clicked()
         }
     }
     // -------------------------------------
-    else if (Moneychanger::It()->OT().Exec().GetAssetTypeCount() < 1)
+    else if (units.size() < 1)
         SetFieldsBlank();
     // -------------------------------------------
 }

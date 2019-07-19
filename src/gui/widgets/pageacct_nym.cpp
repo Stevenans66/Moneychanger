@@ -37,6 +37,9 @@ MTPageAcct_Nym::MTPageAcct_Nym(QWidget *parent) :
 
 void MTPageAcct_Nym::on_pushButtonSelect_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     QString qstr_default_id = Moneychanger::It()->get_default_nym_id();
     // -------------------------------------------
     QString qstr_current_id = field("NymID").toString();
@@ -44,8 +47,9 @@ void MTPageAcct_Nym::on_pushButtonSelect_clicked()
     if (qstr_current_id.isEmpty())
         qstr_current_id = qstr_default_id;
     // -------------------------------------------
-    if (qstr_current_id.isEmpty() && (Moneychanger::It()->OT().Exec().GetNymCount() > 0))
-        qstr_current_id = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_ID(0));
+    const auto nyms = ot.Wallet().LocalNyms();
+    if (qstr_current_id.isEmpty() && (nyms.size() > 0))
+        qstr_current_id = QString::fromStdString(nyms.begin()->get().str());
     // -------------------------------------------
     // Select from Nyms in local wallet.
     //
@@ -55,11 +59,11 @@ void MTPageAcct_Nym::on_pushButtonSelect_clicked()
 
     bool bFoundDefault = false;
     // -----------------------------------------------
-    const int32_t the_count = Moneychanger::It()->OT().Exec().GetNymCount();
+//    const int32_t the_count = ot.Exec().GetNymCount();
     // -----------------------------------------------
-    for (int32_t ii = 0; ii < the_count; ++ii)
+    for (const auto nymId : nyms)
     {
-        QString OT_id = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_ID(ii));
+        QString OT_id = QString::fromStdString(nymId->str());
         QString OT_name("");
         // -----------------------------------------------
         if (!OT_id.isEmpty())
@@ -67,7 +71,8 @@ void MTPageAcct_Nym::on_pushButtonSelect_clicked()
             if (!qstr_current_id.isEmpty() && (0 == qstr_current_id.compare(OT_id)))
                 bFoundDefault = true;
             // -----------------------------------------------
-            OT_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_Name(OT_id.toStdString()));
+            const auto nym = ot.Wallet().Nym(nymId, reason);
+            OT_name = QString::fromStdString(nym->Alias());
             // -----------------------------------------------
             the_map.insert(OT_id, OT_name);
         }
@@ -106,6 +111,9 @@ void MTPageAcct_Nym::SetFieldsBlank()
 
 void MTPageAcct_Nym::initializePage() //virtual
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (!Moneychanger::It()->expertMode())
     {
         ui->pushButtonManage->setVisible(false);
@@ -120,11 +128,18 @@ void MTPageAcct_Nym::initializePage() //virtual
     // -------------------------------------------
     qstr_id = qstr_current_id.isEmpty() ? qstr_default_id : qstr_current_id;
     // -------------------------------------------
-    if (qstr_id.isEmpty() && (Moneychanger::It()->OT().Exec().GetNymCount() > 0))
-        qstr_id = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_ID(0));
+    const auto nyms = ot.Wallet().LocalNyms();
+
+    if (qstr_id.isEmpty() && (nyms.size() > 0))
+        qstr_id = QString::fromStdString(nyms.begin()->get().str());
     // -------------------------------------------
     if (!qstr_id.isEmpty())
-        str_name = Moneychanger::It()->OT().Exec().GetNym_Name(qstr_id.toStdString());
+    {
+        const auto nymId = ot.Factory().NymID(qstr_id.toStdString());
+        const auto nym = ot.Wallet().Nym(nymId, reason);
+
+        str_name = nym->Alias();
+    }
     // -------------------------------------------
     if (str_name.empty() || qstr_id.isEmpty())
         SetFieldsBlank();
@@ -146,6 +161,9 @@ void MTPageAcct_Nym::initializePage() //virtual
 
 void MTPageAcct_Nym::on_pushButtonManage_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     MTDetailEdit * pWindow = new MTDetailEdit(this);
 
     pWindow->setAttribute(Qt::WA_DeleteOnClose);
@@ -157,13 +175,16 @@ void MTPageAcct_Nym::on_pushButtonManage_clicked()
     QString qstrPreSelected   = field("NymID").toString();
     bool    bFoundPreselected = false;
     // -------------------------------------
-    int32_t the_count = Moneychanger::It()->OT().Exec().GetNymCount();
+    const auto nyms = ot.Wallet().LocalNyms();
+
+    int32_t the_count = nyms.size();
     bool    bStartingWithNone = (the_count < 1);
 
-    for (int32_t ii = 0; ii < the_count; ii++)
+    for (const auto & nymId : nyms)
     {
-        QString OT_id   = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_ID(ii));
-        QString OT_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_Name(OT_id.toStdString()));
+        QString OT_id   = QString::fromStdString(nymId->str());
+        const auto nym = ot.Wallet().Nym(nymId, reason);
+        QString OT_name = QString::fromStdString(nym->Alias());
 
         the_map.insert(OT_id, OT_name);
 
@@ -178,13 +199,15 @@ void MTPageAcct_Nym::on_pushButtonManage_clicked()
     // -------------------------------------
     pWindow->dialog(MTDetailEdit::DetailEditTypeNym, true);
     // -------------------------------------
-    if (bStartingWithNone && (Moneychanger::It()->OT().Exec().GetNymCount() > 0))
+    if (bStartingWithNone && (nyms.size() > 0))
     {
-        std::string str_id = Moneychanger::It()->OT().Exec().GetNym_ID(0);
+        std::string str_id = nyms.begin()->get().str();
 
         if (!str_id.empty())
         {
-            std::string str_name = Moneychanger::It()->OT().Exec().GetNym_Name(str_id);
+            const auto nymId = ot.Factory().NymID(str_id);
+            const auto nym = ot.Wallet().Nym(nymId, reason);
+            std::string str_name = nym->Alias();
 
             if (str_name.empty())
                 str_name = str_id;
@@ -196,7 +219,7 @@ void MTPageAcct_Nym::on_pushButtonManage_clicked()
         }
     }
     // -------------------------------------
-    else if (Moneychanger::It()->OT().Exec().GetNymCount() < 1)
+    else if (nyms.size() < 1)
         SetFieldsBlank();
 }
 

@@ -80,6 +80,9 @@ void DlgEncrypt::SetCurrentNymIDBasedOnIndex(int index)
 
 void DlgEncrypt::PopulateCombo()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (ui)
     {
         ui->comboBoxNym->blockSignals(true);
@@ -87,12 +90,16 @@ void DlgEncrypt::PopulateCombo()
         int nDefaultNymIndex    = 0;
         bool bFoundNymDefault   = false;
         // -----------------------------------------------
-        const int32_t nym_count = Moneychanger::It()->OT().Exec().GetNymCount();
+        const auto nyms = ot.Wallet().LocalNyms();
+        const int32_t nym_count = nyms.size();
         // -----------------------------------------------
-        for (int32_t ii = 0; ii < nym_count; ++ii)
+        int ii = -1;
+        for (const auto nymId : nyms)
         {
-            QString OT_nym_id = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_ID(ii));
-            QString OT_nym_name("");
+            ii++;
+            QString OT_nym_id = QString::fromStdString(nymId->str());
+            const auto nym = ot.Wallet().Nym(nymId, reason);
+            QString OT_nym_name = QString::fromStdString(nym->Alias());
             // -----------------------------------------------
             if (!OT_nym_id.isEmpty())
             {
@@ -101,8 +108,6 @@ void DlgEncrypt::PopulateCombo()
                     bFoundNymDefault = true;
                     nDefaultNymIndex = ii;
                 }
-                // -----------------------------------------------
-                OT_nym_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_Name(OT_nym_id.toStdString()));
                 // -----------------------------------------------
                 m_mapNyms.insert(OT_nym_id, OT_nym_name);
                 ui->comboBoxNym->insertItem(ii, OT_nym_name);
@@ -222,278 +227,283 @@ void DlgEncrypt::dialog()
 
 void DlgEncrypt::on_pushButtonEncrypt_clicked()
 {
-    QString qstrText = ui->plainTextEdit->toPlainText().trimmed();
-    // --------------------------------
-    if (qstrText.isEmpty())
-    {
-        // pop up a message box warning that the input text is empty.
-        //
-        QMessageBox::warning(this, tr("Input Text is Empty"),
-                             tr("Please paste some text to be signed/encrypted."));
-        return;
-    }
-    else
-    {
-        if (m_bSign)
-        {
-            if (m_nymId.isEmpty())
-            {
-                QMessageBox::warning(this, tr("Missing Signer"),
-                                     tr("No signer is selected. Perhaps you need to create an identity first, to sign with."));
-                return;
-            }
-            else
-            {
-                // Sign the contents.
-                //
-                std::string  str_nym    (m_nymId.toStdString());
-                auto     strNym = opentxs::String::Factory(str_nym.c_str());
-                auto nym_id     = opentxs::Identifier::Factory(std::string(strNym->Get()));
+//    const auto & ot = Moneychanger::It()->OT();
+//    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
 
-                std::string  str_text   (qstrText.toStdString());
-                auto     strText = opentxs::String::Factory(str_text.c_str());
-//              opentxs::Armored ascText    (strText);
-//              std::string  str_encoded(ascText.Get());
-//              opentxs::String     strEncoded (str_encoded.c_str());
-//              std::string  str_type   ("MESSAGE");
+//    QString qstrText = ui->plainTextEdit->toPlainText().trimmed();
+//    // --------------------------------
+//    if (qstrText.isEmpty())
+//    {
+//        // pop up a message box warning that the input text is empty.
+//        //
+//        QMessageBox::warning(this, tr("Input Text is Empty"),
+//                             tr("Please paste some text to be signed/encrypted."));
+//        return;
+//    }
+//    else
+//    {
+//        if (m_bSign)
+//        {
+//            if (m_nymId.isEmpty())
+//            {
+//                QMessageBox::warning(this, tr("Missing Signer"),
+//                                     tr("No signer is selected. Perhaps you need to create an identity first, to sign with."));
+//                return;
+//            }
+//            else
+//            {
+//                // Sign the contents.
+//                //
+//                std::string  str_nym    (m_nymId.toStdString());
+//                auto     strNym = opentxs::String::Factory(str_nym.c_str());
+//                auto nym_id     = opentxs::Identifier::Factory(std::string(strNym->Get()));
 
-                if (!nym_id->empty())
-                {
-                    opentxs::OTPasswordData thePWData("Signer passphrase");
+//                std::string  str_text   (qstrText.toStdString());
+//                auto     strText = opentxs::String::Factory(str_text.c_str());
+////              opentxs::Armored ascText    (strText);
+////              std::string  str_encoded(ascText.Get());
+////              opentxs::String     strEncoded (str_encoded.c_str());
+////              std::string  str_type   ("MESSAGE");
 
-                    std::shared_ptr<const opentxs::Nym> pNym = Moneychanger::It()->OT().Wallet().Nym(nym_id);
-                    if (false == bool(pNym))
-                    {
-                        QString qstrErrorMsg = QString("%1: %2").arg(tr("Failed loading the signer; unable to continue. NymID")).arg(m_nymId);
-                        QMessageBox::warning(this, tr("Failed Loading Signer"), qstrErrorMsg);
-                        return;
-                    }
-                    else
-                    {
-                        // FOR VERIFY STEP:
-    //                  inline opentxs::String & opentxs::OTSignedFile::GetFilePayload()                       { return m_strSignedFilePayload;   }
+//                if (!nym_id->empty())
+//                {
+//                    auto thePWData = ot.Factory().PasswordPrompt("Signer passphrase");
+////                    opentxs::OTPasswordData thePWData("Signer passphrase");
 
-                        auto     strSignedOutput = opentxs::String::Factory();
+//                    const auto nymId = ot.Factory().NymID(nym_id->str());
+//                    auto pNym = ot.Wallet().mutable_Nym(nymId, reason);
+//                    if (!pNym.Valid())
+//                    {
+//                        QString qstrErrorMsg = QString("%1: %2").arg(tr("Failed loading the signer; unable to continue. NymID")).arg(m_nymId);
+//                        QMessageBox::warning(this, tr("Failed Loading Signer"), qstrErrorMsg);
+//                        return;
+//                    }
+//                    else
+//                    {
+//                        // FOR VERIFY STEP:
+//    //                  inline opentxs::String & opentxs::OTSignedFile::GetFilePayload()                       { return m_strSignedFilePayload;   }
 
-                        auto theSignedFile{Moneychanger::It()->OT().Factory().SignedFile()};
+//                        auto     strSignedOutput = opentxs::String::Factory();
 
-                        OT_ASSERT(false != bool(theSignedFile));
+//                        auto theSignedFile{ot.Factory().SignedFile()};
 
-                        theSignedFile->SetSignerNymID(strNym);
+//                        OT_ASSERT(false != bool(theSignedFile));
 
-                        theSignedFile->SetFilePayload(strText);
-                        theSignedFile->SignContract(*pNym, &thePWData);
-                        theSignedFile->SaveContract();
-                        theSignedFile->SaveContractRaw(strSignedOutput);
+//                        theSignedFile->SetSignerNymID(strNym);
 
-                        // Set the result onto qstrText
-                        //
-                        if (!strSignedOutput->Exists())
-                        {
-                            QMessageBox::warning(this, tr("Signing Failed"),
-                                                 tr("Failed trying to sign, using the selected identity."));
-                            return;
-                        }
-                        else if (!theSignedFile->VerifySignature(*pNym))
-                        {
-                            QMessageBox::warning(this, tr("Test Verification Failed"),
-                                                 tr("Failed trying to test verify, immediately after signing. Trying authentication key..."));
+//                        theSignedFile->SetFilePayload(strText);
+////                        theSignedFile->SignContract(pNym, thePWData);
+//                        theSignedFile->SaveContract();
+//                        theSignedFile->SaveContractRaw(strSignedOutput);
 
-                            if (!theSignedFile->VerifySigAuthent(*pNym))
-                            {
-                                QMessageBox::warning(this, tr("Authent Test Also Failed"),
-                                                     tr("Failed trying to verify signature with authentication key as well."));
-                                return;
-                            }
-                            else
-                                QMessageBox::information(this, tr("SUCCESS USING AUTHENTICATION KEY"), tr("Tried authent key instead of signing key, and it worked!"));
-                        }
-                        else
-                        {
-                            std::string str_signed_output(strSignedOutput->Get());
-                            qstrText = QString::fromStdString(str_signed_output);
-                        }
-                    } // else (we have pNym.)
-                }
-//              std::string  str_output (Moneychanger::It()->OT().Exec().FlatSign(str_nym, str_encoded, str_type));
-            }
-        }
-        // --------------------------------
-        // Encrypt qstrText and pop up a dialog with the encrypted result.
-        //
-        if (m_bEncrypt)
-        {
-            if (ui->listWidgetAdded->count() > 0)
-            {
-                std::set<const opentxs::Nym*> setRecipients;
-                bool      bRecipientsShouldBeAvailable = false;
+//                        // Set the result onto qstrText
+//                        //
+//                        if (!strSignedOutput->Exists())
+//                        {
+//                            QMessageBox::warning(this, tr("Signing Failed"),
+//                                                 tr("Failed trying to sign, using the selected identity."));
+//                            return;
+//                        }
+//                        else if (!theSignedFile->VerifySignature(*pNym))
+//                        {
+//                            QMessageBox::warning(this, tr("Test Verification Failed"),
+//                                                 tr("Failed trying to test verify, immediately after signing. Trying authentication key..."));
 
-                // Loop through each NymID in listWidgetAdded, and put them on a opentxs::setOfNyms
-                // so we can pass them along to opentxs::OTEnvelope (and so we can clean them up afterwards.)
-                // UPDATE: Can't clean them up! Because the wallet only owns private nyms, not public
-                // ones, we never know for sure which ones are safe to erase. TODO: Fix in OT by using
-                // shared_ptr.
-                //
-                for (int nIndex = 0; nIndex < ui->listWidgetAdded->count(); ++nIndex)
-                {
-                    bRecipientsShouldBeAvailable = true;
+//                            if (!theSignedFile->VerifySigAuthent(*pNym))
+//                            {
+//                                QMessageBox::warning(this, tr("Authent Test Also Failed"),
+//                                                     tr("Failed trying to verify signature with authentication key as well."));
+//                                return;
+//                            }
+//                            else
+//                                QMessageBox::information(this, tr("SUCCESS USING AUTHENTICATION KEY"), tr("Tried authent key instead of signing key, and it worked!"));
+//                        }
+//                        else
+//                        {
+//                            std::string str_signed_output(strSignedOutput->Get());
+//                            qstrText = QString::fromStdString(str_signed_output);
+//                        }
+//                    } // else (we have pNym.)
+//                }
+////              std::string  str_output (ot.Exec().FlatSign(str_nym, str_encoded, str_type));
+//            }
+//        }
+//        // --------------------------------
+//        // Encrypt qstrText and pop up a dialog with the encrypted result.
+//        //
+//        if (m_bEncrypt)
+//        {
+//            if (ui->listWidgetAdded->count() > 0)
+//            {
+//                std::set<const opentxs::Nym*> setRecipients;
+//                bool      bRecipientsShouldBeAvailable = false;
 
-                    QListWidgetItem   * pItem    = ui->listWidgetAdded->item(nIndex);
-                    QVariant            qvarItem = pItem->data(Qt::UserRole);
-                    QString             qstrNymID(qvarItem.toString());
-                    std::string         str_nym(qstrNymID.toStdString());
-                    auto     strNym = opentxs::String::Factory(str_nym.c_str());
-                    auto nym_id = opentxs::Identifier::Factory(std::string(strNym->Get()));
+//                // Loop through each NymID in listWidgetAdded, and put them on a opentxs::setOfNyms
+//                // so we can pass them along to opentxs::OTEnvelope (and so we can clean them up afterwards.)
+//                // UPDATE: Can't clean them up! Because the wallet only owns private nyms, not public
+//                // ones, we never know for sure which ones are safe to erase. TODO: Fix in OT by using
+//                // shared_ptr.
+//                //
+//                for (int nIndex = 0; nIndex < ui->listWidgetAdded->count(); ++nIndex)
+//                {
+//                    bRecipientsShouldBeAvailable = true;
 
-                    if (!nym_id->empty())
-                    {
-                        opentxs::OTPasswordData thePWData("Sometimes need to load private part of nym in order to use its public key. (Fix that!)");
+//                    QListWidgetItem   * pItem    = ui->listWidgetAdded->item(nIndex);
+//                    QVariant            qvarItem = pItem->data(Qt::UserRole);
+//                    QString             qstrNymID(qvarItem.toString());
+//                    std::string         str_nym(qstrNymID.toStdString());
+//                    auto     strNym = opentxs::String::Factory(str_nym.c_str());
+//                    auto nym_id = opentxs::Identifier::Factory(std::string(strNym->Get()));
 
-                        std::shared_ptr<const opentxs::Nym> pNym = Moneychanger::It()->OT().Wallet().Nym(nym_id);
-                        if (false == bool(pNym))
-                        {
-                            QString qstrErrorMsg = QString("%1: %2").arg(tr("Failed loading a recipient; attempting to continue without. NymID")).arg(qstrNymID);
+//                    if (!nym_id->empty())
+//                    {
+//                        opentxs::OTPasswordData thePWData("Sometimes need to load private part of nym in order to use its public key. (Fix that!)");
 
-                            QMessageBox::warning(this, tr("Failed Loading Recipient"), qstrErrorMsg);
-                        }
-                        else
-                        {
-                            setRecipients.insert(setRecipients.begin(), pNym.get());
-                        }
-                    }
-                    // qstrNymID will be passed to opentxs::OTEnvelope on its recipient list.
-                } // for (selected Nyms.)
-                // ---------------------------------------------------
-                // We might also want to encrypt to the Signer's Nym, if there is one.
-                // We'll default this to ON, but give users the choice to deactivate it.
-                //
-                if (ui->checkBoxAlso->isVisible() &&
-                    ui->checkBoxAlso->isEnabled() &&
-                    ui->checkBoxAlso->isChecked() &&
-                    !m_nymId.isEmpty())
-                {
-                    std::string str_signer_nym(m_nymId.toStdString());
-                    auto strSignerNymID = opentxs::String::Factory(str_signer_nym.c_str());
-                    bool bSignerIsAlreadyThere = false;
+//                        std::shared_ptr<const opentxs::Nym> pNym = ot.Wallet().Nym(nym_id);
+//                        if (false == bool(pNym))
+//                        {
+//                            QString qstrErrorMsg = QString("%1: %2").arg(tr("Failed loading a recipient; attempting to continue without. NymID")).arg(qstrNymID);
 
-                    //FOR_EACH(opentxs::setOfNyms(), setRecipients) // See if it's already there, in which case we don't need to do anything else.
-                    for(auto it = setRecipients.begin(); it != setRecipients.end(); ++ it)
-                    {
-                        const opentxs::Nym       * pNym = *it;
-                        auto            strNymID = opentxs::String::Factory();
-                        pNym->GetIdentifier(strNymID);
+//                            QMessageBox::warning(this, tr("Failed Loading Recipient"), qstrErrorMsg);
+//                        }
+//                        else
+//                        {
+//                            setRecipients.insert(setRecipients.begin(), pNym.get());
+//                        }
+//                    }
+//                    // qstrNymID will be passed to opentxs::OTEnvelope on its recipient list.
+//                } // for (selected Nyms.)
+//                // ---------------------------------------------------
+//                // We might also want to encrypt to the Signer's Nym, if there is one.
+//                // We'll default this to ON, but give users the choice to deactivate it.
+//                //
+//                if (ui->checkBoxAlso->isVisible() &&
+//                    ui->checkBoxAlso->isEnabled() &&
+//                    ui->checkBoxAlso->isChecked() &&
+//                    !m_nymId.isEmpty())
+//                {
+//                    std::string str_signer_nym(m_nymId.toStdString());
+//                    auto strSignerNymID = opentxs::String::Factory(str_signer_nym.c_str());
+//                    bool bSignerIsAlreadyThere = false;
 
-                        if (strSignerNymID->Compare(strNymID))
-                            bSignerIsAlreadyThere = true;
-                    }
-                    // -------------------------
-                    if (!bSignerIsAlreadyThere) // Not already there? Add signer to list of recipients.
-                    {
-                        bRecipientsShouldBeAvailable = true;
+//                    //FOR_EACH(opentxs::setOfNyms(), setRecipients) // See if it's already there, in which case we don't need to do anything else.
+//                    for(auto it = setRecipients.begin(); it != setRecipients.end(); ++ it)
+//                    {
+//                        const opentxs::Nym       * pNym = *it;
+//                        auto            strNymID = opentxs::String::Factory();
+//                        pNym->GetIdentifier(strNymID);
 
-                        auto signer_nym_id = opentxs::Identifier::Factory(std::string(strSignerNymID->Get()));
+//                        if (strSignerNymID->Compare(strNymID))
+//                            bSignerIsAlreadyThere = true;
+//                    }
+//                    // -------------------------
+//                    if (!bSignerIsAlreadyThere) // Not already there? Add signer to list of recipients.
+//                    {
+//                        bRecipientsShouldBeAvailable = true;
 
-                        if (!signer_nym_id->empty())
-                        {
-                            opentxs::OTPasswordData thePWData("Sometimes need to load private part of nym in order to use its public key. (Fix that!)");
+//                        auto signer_nym_id = opentxs::Identifier::Factory(std::string(strSignerNymID->Get()));
 
-                            auto pNym =
-                                Moneychanger::It()->OT().Wallet().Nym(signer_nym_id);
-                            if (!pNym)
-                            {
-                                QString qstrErrorMsg = QString("%1: %2").
-                                        arg(tr("Failed trying to load the signer; attempting to continue without. NymID")).arg(m_nymId);
-                                QMessageBox::warning(this, tr("Failed Loading Signer"), qstrErrorMsg);
-                            }
-                            else
-                            {
-                                setRecipients.insert(setRecipients.begin(), pNym.get());
-                            }
-                        }
-                    }
-                }
-                // ---------------------------------------------------
-                if (setRecipients.size() > 0)
-                {
-                    opentxs::OTEnvelope theEnvelope;
-                    auto   strInput = opentxs::String::Factory(qstrText.toStdString().c_str());
+//                        if (!signer_nym_id->empty())
+//                        {
+//                            opentxs::OTPasswordData thePWData("Sometimes need to load private part of nym in order to use its public key. (Fix that!)");
 
-                    if (!theEnvelope.Seal(setRecipients, strInput))
-                    {
-                        QMessageBox::warning(this, tr("Encryption Failed"),
-                                             tr("Failed trying to encrypt message."));
-                        return;
-                    }
-                    else
-                    {
-                        // Success encrypting!
-                        //
-                        auto     strOutput = opentxs::String::Factory();
-                        auto ascCiphertext = opentxs::Armored::Factory(theEnvelope);
+//                            auto pNym =
+//                                ot.Wallet().Nym(signer_nym_id);
+//                            if (!pNym)
+//                            {
+//                                QString qstrErrorMsg = QString("%1: %2").
+//                                        arg(tr("Failed trying to load the signer; attempting to continue without. NymID")).arg(m_nymId);
+//                                QMessageBox::warning(this, tr("Failed Loading Signer"), qstrErrorMsg);
+//                            }
+//                            else
+//                            {
+//                                setRecipients.insert(setRecipients.begin(), pNym.get());
+//                            }
+//                        }
+//                    }
+//                }
+//                // ---------------------------------------------------
+//                if (setRecipients.size() > 0)
+//                {
+//                    opentxs::OTEnvelope theEnvelope;
+//                    auto   strInput = opentxs::String::Factory(qstrText.toStdString().c_str());
 
-                        if (ascCiphertext->WriteArmoredString(strOutput, "ENVELOPE")) // -----BEGIN OT ARMORED ENVELOPE-----
-                        {
-                            std::string str_output(strOutput->Get());
-                            qstrText = QString::fromStdString(str_output);
-                        }
-                    }
-                }
-                else if (bRecipientsShouldBeAvailable) // They should be, but they weren't.
-                {
-                    QMessageBox::warning(this, tr("Failed Loading Recipients"),
-                                         tr("Due to failure loading any of the recipients, unable to commence."));
-                    return;
-                }
-            } // if (listItems.size() > 0)
-        } // if (m_bEncrypt)
-        // -------------------
-        // If it's NOT encrypted, but it IS signed, then we want to OT ARMOR it as well.
-        // (We don't have to if it's encrypted, since that process already armors it for us.
-        //  But this is for the case where it's signed and NOT encrypted.)
-        //
-        else if (m_bSign && !qstrText.isEmpty())
-        {
-            std::string  str_text(qstrText.toStdString());
-            auto     strText = opentxs::String::Factory(str_text.c_str());
-            auto     strOutput = opentxs::String::Factory();
-            auto ascText = opentxs::Armored::Factory(strText);
+//                    if (!theEnvelope.Seal(setRecipients, strInput))
+//                    {
+//                        QMessageBox::warning(this, tr("Encryption Failed"),
+//                                             tr("Failed trying to encrypt message."));
+//                        return;
+//                    }
+//                    else
+//                    {
+//                        // Success encrypting!
+//                        //
+//                        auto     strOutput = opentxs::String::Factory();
+//                        auto ascCiphertext = opentxs::Armored::Factory(theEnvelope);
 
-            if (ascText->WriteArmoredString(strOutput, "SIGNED FILE")) // -----BEGIN OT ARMORED SIGNED FILE-----
-            {
-                std::string str_output(strOutput->Get());
-                qstrText = QString::fromStdString(str_output);
-            }
-        }
-        // -----------------------------------------------
-        // if qstrText still contains something, pop up a dialog to display the result to the user.
-        //
-        if (!qstrText.isEmpty())
-        {
-            QString qstrType("Output:");
+//                        if (ascCiphertext->WriteArmoredString(strOutput, "ENVELOPE")) // -----BEGIN OT ARMORED ENVELOPE-----
+//                        {
+//                            std::string str_output(strOutput->Get());
+//                            qstrText = QString::fromStdString(str_output);
+//                        }
+//                    }
+//                }
+//                else if (bRecipientsShouldBeAvailable) // They should be, but they weren't.
+//                {
+//                    QMessageBox::warning(this, tr("Failed Loading Recipients"),
+//                                         tr("Due to failure loading any of the recipients, unable to commence."));
+//                    return;
+//                }
+//            } // if (listItems.size() > 0)
+//        } // if (m_bEncrypt)
+//        // -------------------
+//        // If it's NOT encrypted, but it IS signed, then we want to OT ARMOR it as well.
+//        // (We don't have to if it's encrypted, since that process already armors it for us.
+//        //  But this is for the case where it's signed and NOT encrypted.)
+//        //
+//        else if (m_bSign && !qstrText.isEmpty())
+//        {
+//            std::string  str_text(qstrText.toStdString());
+//            auto     strText = opentxs::String::Factory(str_text.c_str());
+//            auto     strOutput = opentxs::String::Factory();
+//            auto ascText = opentxs::Armored::Factory(strText);
 
-            if (m_bSign)
-            {
-                qstrType = QString(tr("Signed Output:"));
-            }
-            // -----------
-            if (m_bEncrypt)
-            {
-                if (m_bSign)
-                    qstrType = QString(tr("Signed and Encrypted Output:"));
-                else
-                    qstrType = QString(tr("Encrypted Output:"));
-            }
-            // -----------
-            QString qstrSubTitle(tr("Be sure to copy it somewhere before closing this dialog."));
-            // -----------
-            // Pop up the result dialog.
-            //
-            DlgExportedToPass dlgExported(this, qstrText,
-                                          qstrType,
-                                          qstrSubTitle, false);
-            dlgExported.exec();
-        }
-    } // if (!qstrText.isEmpty())
+//            if (ascText->WriteArmoredString(strOutput, "SIGNED FILE")) // -----BEGIN OT ARMORED SIGNED FILE-----
+//            {
+//                std::string str_output(strOutput->Get());
+//                qstrText = QString::fromStdString(str_output);
+//            }
+//        }
+//        // -----------------------------------------------
+//        // if qstrText still contains something, pop up a dialog to display the result to the user.
+//        //
+//        if (!qstrText.isEmpty())
+//        {
+//            QString qstrType("Output:");
+
+//            if (m_bSign)
+//            {
+//                qstrType = QString(tr("Signed Output:"));
+//            }
+//            // -----------
+//            if (m_bEncrypt)
+//            {
+//                if (m_bSign)
+//                    qstrType = QString(tr("Signed and Encrypted Output:"));
+//                else
+//                    qstrType = QString(tr("Encrypted Output:"));
+//            }
+//            // -----------
+//            QString qstrSubTitle(tr("Be sure to copy it somewhere before closing this dialog."));
+//            // -----------
+//            // Pop up the result dialog.
+//            //
+//            DlgExportedToPass dlgExported(this, qstrText,
+//                                          qstrType,
+//                                          qstrSubTitle, false);
+//            dlgExported.exec();
+//        }
+//    } // if (!qstrText.isEmpty())
 }
 
 

@@ -21,22 +21,31 @@ DlgGetAmount::DlgGetAmount(QWidget *parent, QString qstrAcctId, QString qstrInst
     m_bValidAmount(false),
     ui(new Ui::DlgGetAmount)
 {
+    const auto& ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
+    const auto accountId = ot.Factory().Identifier(qstrAcctId.toStdString());
+    const auto unitId    = ot.Factory().UnitID(qstrInstrumentDefinitionID.toStdString());
+
+    const auto account        = ot.Wallet().Account(accountId, reason);
+    const auto unitDefinition = ot.Wallet().UnitDefinition(unitId, reason);
+
     ui->setupUi(this);
     // ----------------------
     ui->labelReason->setText(qstrReason);
     // ----------------------
-    std::string str_asset_name  = Moneychanger::It()->OT().Exec().GetAssetType_Name(qstrInstrumentDefinitionID.toStdString());
+    std::string str_asset_name  = unitDefinition->Alias();
     QString     qstr_asset_name = QString("<font color=grey>%1</font>").arg(QString::fromStdString(str_asset_name));
     // ----------------------
     ui->labelAsset->setText(qstr_asset_name);
     // ----------------------
     QString     qstrBalance   = Moneychanger::shortAcctBalance(qstrAcctId);
-    std::string str_acct_name = Moneychanger::It()->OT().Exec().GetAccountWallet_Name(qstrAcctId.toStdString());
+    std::string str_acct_name = account.get().Alias();
     QString     qstrAcctName  = QString::fromStdString(str_acct_name);
     // ----------------------
     ui->labelBalance->setText(QString("<font color=grey>%1:</font> <big>%2</big>").arg(qstrAcctName).arg(qstrBalance));
     // ----------------------
-    std::string str_amount = Moneychanger::It()->OT().Exec().FormatAmount(m_qstrInstrumentDefinitionID.toStdString(), m_lAmount);
+    std::string str_amount = Moneychanger::It()->formatAmount(unitId, m_lAmount);
     // ----------------------
     ui->lineEdit->setText(QString::fromStdString(str_amount));
     // ----------------------
@@ -70,6 +79,9 @@ void DlgGetAmount::on_buttonBox_rejected()
 
 void DlgGetAmount::on_buttonBox_accepted()
 {
+    const auto& ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     on_lineEdit_editingFinished();
     // ------------------------------------
     if (!m_bValidAmount)
@@ -79,7 +91,8 @@ void DlgGetAmount::on_buttonBox_accepted()
         return;
     }
     // ------------------------------------
-    std::string str_amount = Moneychanger::It()->OT().Exec().FormatAmount(m_qstrInstrumentDefinitionID.toStdString(), m_lAmount);
+    const auto unitId = ot.Factory().UnitID(m_qstrInstrumentDefinitionID.toStdString());
+    std::string str_amount = Moneychanger::formatAmount(unitId, m_lAmount);
     // ------------------------------------
     QMessageBox::StandardButton reply;
 
@@ -103,9 +116,14 @@ void DlgGetAmount::on_buttonBox_accepted()
 
 void DlgGetAmount::on_lineEdit_editingFinished()
 {
+    const auto& ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     std::string   str_amount;
-    m_lAmount   = Moneychanger::It()->OT().Exec().StringToAmount(m_qstrInstrumentDefinitionID.toStdString(), ui->lineEdit->text().toStdString());
-    str_amount  = Moneychanger::It()->OT().Exec().FormatAmount  (m_qstrInstrumentDefinitionID.toStdString(), m_lAmount);
+    const auto unitId = ot.Factory().UnitID(m_qstrInstrumentDefinitionID.toStdString());
+
+    m_lAmount  = Moneychanger::stringToAmount(unitId, ui->lineEdit->text().toStdString());
+    str_amount = Moneychanger::formatAmount(unitId, m_lAmount);
 
     ui->lineEdit->setText(QString::fromStdString(str_amount));
     // --------------------------------

@@ -63,7 +63,7 @@ template class opentxs::Pimpl<opentxs::String>;
 //        // -----------------------------------------------
 //        return str_result;
 //    }
-////  const auto pContact2 = Moneychanger::It()->OT().Contacts().Contact(opentxs::Identifier{str_id});
+////  const auto pContact2 = ot.Contacts().Contact(opentxs::Identifier{str_id});
 //    //
 //    // NOTE: No need to do the OT::App().Client().Contacts() thing, since the above call to
 //    // GetContactName already calls it. If we're in this block, that means it already
@@ -415,7 +415,7 @@ static void blah()
 //    opentxs::String strVerifierNymId = qstrVerifierNymId.toStdString();
 //    opentxs::Identifier verifierNymId(strVerifierNymId);
 
-//    opentxs::Nym * pVerifierNym = Moneychanger::It()->OT().OTAPI().GetOrLoadPrivateNym(verifierNymId, false, __FUNCTION__);
+//    opentxs::Nym * pVerifierNym = ot.OTAPI().GetOrLoadPrivateNym(verifierNymId, false, __FUNCTION__);
 
 //    if (nullptr == pVerifierNym)
 //    {
@@ -439,7 +439,7 @@ static void blah()
 
 
 
-//    opentxs::proto::VerificationSet   verification_set = Moneychanger::It()->OT().OTAPI().GetVerificationSet(*pVerifierNym);
+//    opentxs::proto::VerificationSet   verification_set = ot.OTAPI().GetVerificationSet(*pVerifierNym);
 //    opentxs::proto::VerificationSetMap & internal         = std::get<0>(verification_set);
 //    opentxs::proto::VerificationSetMap & external         = std::get<1>(verification_set);
 //    std::set<std::string>            & repudiatedIDs    = std::get<2>(verification_set);
@@ -545,44 +545,46 @@ static void blah()
 bool MTContactHandler::claimVerificationLowlevel(const QString & qstrClaimId, const QString & qstrClaimantNymId,
                                                  const QString & qstrVerifierNymId, opentxs::ClaimPolarity claimPolarity)
 {
-    if (qstrVerifierNymId.isEmpty() || qstrClaimId.isEmpty())
-        return false;
+//    if (qstrVerifierNymId.isEmpty() || qstrClaimId.isEmpty())
+//        return false;
 
 
-    qDebug() << "DEBUGGING: claimVerificationLowlevel: USER selected claimPolarity (and setting in OT): " << claimPolarityToInt(claimPolarity);
+//    qDebug() << "DEBUGGING: claimVerificationLowlevel: USER selected claimPolarity (and setting in OT): " << claimPolarityToInt(claimPolarity);
 
-    bool bChanged = false; // So we know if OT had to change anything when it set the verification. (Maybe it was already there.)
+//    bool bChanged = false; // So we know if OT had to change anything when it set the verification. (Maybe it was already there.)
 
-    opentxs::OTPasswordData thePWData(QString(QObject::tr("We've almost bubbled up to the top!! Confirming/refuting a claim.")).toStdString().c_str());
+//    opentxs::OTPasswordData thePWData(QString(QObject::tr("We've almost bubbled up to the top!! Confirming/refuting a claim.")).toStdString().c_str());
 
-    auto data = Moneychanger::It()->OT().Exec().SetVerification(
-                bChanged,
-                qstrVerifierNymId.toStdString(),
-                qstrClaimantNymId.toStdString(),
-                qstrClaimId.toStdString(),
-                claimPolarity,
-                0, // start. todo.
-                0); // end. todo. bitemporal.
+//    auto data = ot.Exec().SetVerification(
+//                bChanged,
+//                qstrVerifierNymId.toStdString(),
+//                qstrClaimantNymId.toStdString(),
+//                qstrClaimId.toStdString(),
+//                claimPolarity,
+//                0, // start. todo.
+//                0); // end. todo. bitemporal.
 
-    const auto the_set =
-        opentxs::proto::DataToProto<opentxs::proto::VerificationSet>(
-            opentxs::Data::Factory(data.c_str(), static_cast<uint32_t>(data.length())));
+//    const auto the_set =
+//        opentxs::proto::DataToProto<opentxs::proto::VerificationSet>(
+//            opentxs::Data::Factory(data.c_str(), static_cast<uint32_t>(data.length())));
 
 
-    qDebug() << QString("%1").arg(QString(bChanged ? "YES, I CHANGED A VALUE (ACCORDING TO OT)" : "**NO** didn't CHANGE A VALUE, ACCORDING TO OT." ));
+//    qDebug() << QString("%1").arg(QString(bChanged ? "YES, I CHANGED A VALUE (ACCORDING TO OT)" : "**NO** didn't CHANGE A VALUE, ACCORDING TO OT." ));
 
-    // Internal verifications:
-    // Here I'm looping through pCurrentNym's verifications of other people's claims.
-    for (auto& claimant: the_set.internal().identity()) {
-        // Here we're looping through those other people. (Claimants.)
-        for (auto& verification : claimant.verification()) {
-            const bool ver_polarity = verification.valid();
+//    // Internal verifications:
+//    // Here I'm looping through pCurrentNym's verifications of other people's claims.
+//    for (auto& claimant: the_set.internal().identity()) {
+//        // Here we're looping through those other people. (Claimants.)
+//        for (auto& verification : claimant.verification()) {
+//            const bool ver_polarity = verification.valid();
 
-            qDebug() << QString("%1").arg(QString(ver_polarity ? "==>Polarity is now positive" : "==>Polarity is now negative" ));
-        }
-    }
+//            qDebug() << QString("%1").arg(QString(ver_polarity ? "==>Polarity is now positive" : "==>Polarity is now negative" ));
+//        }
+//    }
 
-    return bChanged;
+//    return bChanged;
+
+    return false;
 }
 
 bool MTContactHandler::claimVerificationConfirm(const QString & qstrClaimId, const QString & qstrClaimantNymId, const QString & qstrVerifierNymId)
@@ -829,99 +831,102 @@ bool MTContactHandler::upsertClaim(
     const uint32_t section,
     const opentxs::proto::ContactItem& claim)
 {
-    QMutexLocker locker(&m_Mutex);
+    return false;
+//    QMutexLocker locker(&m_Mutex);
 
-    const auto nym_id = opentxs::Identifier::Factory(nym);
-    const auto                strNym = opentxs::String::Factory(nym_id);
-    const std::string         str_nym_id(strNym->Get());
-    const QString             qstrNymId(QString::fromStdString(str_nym_id));
+//    const auto nym_id = ot.Factory().NymID(nym.ID().str());
+////  const auto nym_id = opentxs::Identifier::Factory(nym);
+//    const auto                strNym = opentxs::String::Factory(nym_id);
+//    const std::string         str_nym_id(strNym->Get());
+//    const QString             qstrNymId(QString::fromStdString(str_nym_id));
 
-    const QString claim_id = QString::fromStdString(claim.id());
-    const uint32_t claim_section = section;
-    const uint32_t claim_type = claim.type();
-    const QString claim_value = QString::fromStdString(claim.value());
-    const int64_t claim_start = claim.start();
-    const int64_t claim_end = claim.end();
+//    const QString claim_id = QString::fromStdString(claim.id());
+//    const uint32_t claim_section = section;
+//    const uint32_t claim_type = claim.type();
+//    const QString claim_value = QString::fromStdString(claim.value());
+//    const int64_t claim_start = claim.start();
+//    const int64_t claim_end = claim.end();
 
-    bool claim_att_active  = false;
-    bool claim_att_primary = false;
+//    bool claim_att_active  = false;
+//    bool claim_att_primary = false;
 
-    opentxs::NumList numlistAttributes;
-    for (const auto& attribute: claim.attribute()) {
-        numlistAttributes.Add(attribute);
+//    opentxs::NumList numlistAttributes;
+//    for (const auto& attribute: claim.attribute()) {
+//        numlistAttributes.Add(attribute);
 
-        if (opentxs::proto::CITEMATTR_ACTIVE  == attribute) {
-            claim_att_active  = true;
-        }
+//        if (opentxs::proto::CITEMATTR_ACTIVE  == attribute) {
+//            claim_att_active  = true;
+//        }
 
-        if (opentxs::proto::CITEMATTR_PRIMARY == attribute) {
-            claim_att_primary = true;
-        }
-    }
+//        if (opentxs::proto::CITEMATTR_PRIMARY == attribute) {
+//            claim_att_primary = true;
+//        }
+//    }
 
-    auto strAttributes = opentxs::String::Factory();
-    numlistAttributes.Output(strAttributes);
-    const std::string str_attributes(strAttributes->Get());
-    const QString qstrAttributes(QString::fromStdString(str_attributes));
-    // ------------------------------------------------------------
-    QString str_select_count = QString("SELECT claim_section FROM `claim` WHERE `claim_id`='%1' LIMIT 0,1").arg(claim_id);
+//    auto strAttributes = opentxs::String::Factory();
+//    numlistAttributes.Output(strAttributes);
+//    const std::string str_attributes(strAttributes->Get());
+//    const QString qstrAttributes(QString::fromStdString(str_attributes));
+//    // ------------------------------------------------------------
+//    QString str_select_count = QString("SELECT claim_section FROM `claim` WHERE `claim_id`='%1' LIMIT 0,1").arg(claim_id);
 
-    const bool bClaimExists = (DBHandler::getInstance()->querySize(str_select_count) > 0);
-    // ------------------------------------------------------------
-    // TODO: Do a real upsert here instead of this crap.
-    // UPDATE: Upsert is only possible if you replace ALL fields.
-    //
-    QString queryStr;
-    if (!bClaimExists)
-        queryStr = QString("INSERT INTO `claim`"
-                           " (`claim_id`, `claim_nym_id`, `claim_section`, `claim_type`, `claim_value`,"
-                           "  `claim_start`, `claim_end`, `claim_attributes`, `claim_att_active`, `claim_att_primary`)"
-                           "  VALUES(:claim_idBlah, :claim_nym_idBlah, :claim_sectionBlah, :claim_typeBlah, :claim_valueBlah,"
-                           ":claim_startBlah , :claim_endBlah, :claim_attributesBlah, :claim_att_activeBlah, :claim_att_primaryBlah)");
+//    const bool bClaimExists = (DBHandler::getInstance()->querySize(str_select_count) > 0);
+//    // ------------------------------------------------------------
+//    // TODO: Do a real upsert here instead of this crap.
+//    // UPDATE: Upsert is only possible if you replace ALL fields.
+//    //
+//    QString queryStr;
+//    if (!bClaimExists)
+//        queryStr = QString("INSERT INTO `claim`"
+//                           " (`claim_id`, `claim_nym_id`, `claim_section`, `claim_type`, `claim_value`,"
+//                           "  `claim_start`, `claim_end`, `claim_attributes`, `claim_att_active`, `claim_att_primary`)"
+//                           "  VALUES(:claim_idBlah, :claim_nym_idBlah, :claim_sectionBlah, :claim_typeBlah, :claim_valueBlah,"
+//                           ":claim_startBlah , :claim_endBlah, :claim_attributesBlah, :claim_att_activeBlah, :claim_att_primaryBlah)");
 
-    else
-        queryStr = QString("UPDATE `claim` SET"
-                           " `claim_nym_id`=:claim_nym_idBlah, `claim_section`=:claim_sectionBlah,`claim_type`=:claim_typeBlah,"
-                           " `claim_value`=:claim_valueBlah,`claim_start`=:claim_startBlah,`claim_end`=:claim_endBlah,"
-                           " `claim_attributes`=:claim_attributesBlah,`claim_att_active`=:claim_att_activeBlah,"
-                           " `claim_att_primary`=:claim_att_primaryBlah WHERE `claim_id`=:claim_idBlah");
-    bool bRan = false;
+//    else
+//        queryStr = QString("UPDATE `claim` SET"
+//                           " `claim_nym_id`=:claim_nym_idBlah, `claim_section`=:claim_sectionBlah,`claim_type`=:claim_typeBlah,"
+//                           " `claim_value`=:claim_valueBlah,`claim_start`=:claim_startBlah,`claim_end`=:claim_endBlah,"
+//                           " `claim_attributes`=:claim_attributesBlah,`claim_att_active`=:claim_att_activeBlah,"
+//                           " `claim_att_primary`=:claim_att_primaryBlah WHERE `claim_id`=:claim_idBlah");
+//    bool bRan = false;
 
-    try
-    {
-        std::unique_ptr<DBHandler::PreparedQuery> qu;
-        qu.reset (DBHandler::getInstance ()->prepareQuery (queryStr));
-        // ---------------------------------------------
-        qu->bind (":claim_idBlah", claim_id);
-        qu->bind (":claim_nym_idBlah", qstrNymId);
-        qu->bind (":claim_sectionBlah", claim_section);
-        qu->bind (":claim_typeBlah", claim_type);
-        qu->bind (":claim_valueBlah", claim_value);
-        qu->bind (":claim_startBlah", QVariant::fromValue(claim_start));
-        qu->bind (":claim_endBlah", QVariant::fromValue(claim_end));
-        qu->bind (":claim_attributesBlah", qstrAttributes);
-        qu->bind (":claim_att_activeBlah", (claim_att_active ? 1 : 0));
-        qu->bind (":claim_att_primaryBlah", (claim_att_primary ? 1 : 0));
+//    try
+//    {
+//        std::unique_ptr<DBHandler::PreparedQuery> qu;
+//        qu.reset (DBHandler::getInstance ()->prepareQuery (queryStr));
+//        // ---------------------------------------------
+//        qu->bind (":claim_idBlah", claim_id);
+//        qu->bind (":claim_nym_idBlah", qstrNymId);
+//        qu->bind (":claim_sectionBlah", claim_section);
+//        qu->bind (":claim_typeBlah", claim_type);
+//        qu->bind (":claim_valueBlah", claim_value);
+//        qu->bind (":claim_startBlah", QVariant::fromValue(claim_start));
+//        qu->bind (":claim_endBlah", QVariant::fromValue(claim_end));
+//        qu->bind (":claim_attributesBlah", qstrAttributes);
+//        qu->bind (":claim_att_activeBlah", (claim_att_active ? 1 : 0));
+//        qu->bind (":claim_att_primaryBlah", (claim_att_primary ? 1 : 0));
 
-        bRan = DBHandler::getInstance ()->runQuery (qu.release ());
-    }
-    catch (const std::exception& exc)
-    {
-        qDebug () << "Error: " << exc.what ();
-        return false;
-    }
-    // -----------------------------
-    if (bClaimExists)
-    {
-        if (bRan)
-            return true;
-        else
-            return false;
-    }
-    // -----------------------------
-    const int nRowId = DBHandler::getInstance()->queryInt("SELECT last_insert_rowid() from `claim`", 0, 0);
-    return (nRowId > 0);
+//        bRan = DBHandler::getInstance ()->runQuery (qu.release ());
+//    }
+//    catch (const std::exception& exc)
+//    {
+//        qDebug () << "Error: " << exc.what ();
+//        return false;
+//    }
+//    // -----------------------------
+//    if (bClaimExists)
+//    {
+//        if (bRan)
+//            return true;
+//        else
+//            return false;
+//    }
+//    // -----------------------------
+//    const int nRowId = DBHandler::getInstance()->queryInt("SELECT last_insert_rowid() from `claim`", 0, 0);
+//    return (nRowId > 0);
 }
+
 
 
 
@@ -1119,6 +1124,9 @@ bool MTContactHandler::AddNymToExistingContact(int nContactID, QString nym_id_st
 //
 bool MTContactHandler::GetServers(mapIDName & theMap, QString filterByNym, bool bPrependOTType/*=false*/)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     QMutexLocker locker(&m_Mutex);
 
     QString str_select = QString("SELECT (`notary_id`) FROM `nym_server` WHERE `nym_id`='%1'").arg(filterByNym);
@@ -1132,7 +1140,9 @@ bool MTContactHandler::GetServers(mapIDName & theMap, QString filterByNym, bool 
 
         if (!notary_id.isEmpty())
         {
-            QString server_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetServer_Name(notary_id.toStdString()));
+            const auto notaryId = ot.Factory().ServerID(notary_id.toStdString());
+            const auto notary   = ot.Wallet().Server(notaryId, reason);
+            QString server_name = QString::fromStdString(notary->Alias());
 
             if (!server_name.isEmpty())
             {
@@ -1168,19 +1178,17 @@ bool MTContactHandler::GetServers(mapIDName & theMap, QString filterByNym, bool 
 // ---------------------------------------------------------------------
 bool MTContactHandler::GetServers(mapIDName & theMap, bool bPrependOTType/*=false*/)
 {
-    bool    bFoundAny    = false;
-    int32_t nServerCount = Moneychanger::It()->OT().Exec().GetServerCount();
+    bool bFoundAny{false};
+    const auto & ot = Moneychanger::It()->OT();
+    const auto serverList = ot.Wallet().ServerList();
 
-    for (int32_t ii = 0; ii < nServerCount; ++ii)
+    for (const auto & [id, name] : serverList)
     {
-        std::string str_notary_id   = Moneychanger::It()->OT().Exec().GetServer_ID(ii);
-        std::string str_server_name = Moneychanger::It()->OT().Exec().GetServer_Name(str_notary_id);
+        QString qstrNotaryID   = QString::fromStdString(id);
+        QString qstrServerName = QString::fromStdString(name);
 
-        QString qstrNotaryID   = QString::fromStdString(str_notary_id);
-        QString qstrServerName = QString::fromStdString(str_server_name);
-
-        QString qstrFinalID   = qstrNotaryID;
-        QString qstrFinalName = qstrServerName;
+        QString qstrFinalID    = qstrNotaryID;
+        QString qstrFinalName  = qstrServerName;
 
         if (bPrependOTType)
         {
@@ -1213,13 +1221,23 @@ bool MTContactHandler::GetServers(mapIDName & theMap, int nFilterByContact, bool
     bool bFoundAny = false;
     int  nRows     = DBHandler::getInstance()->querySize(str_select);
 
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     for(int ii=0; ii < nRows; ii++)
     {
         QString notary_id = DBHandler::getInstance()->queryString(str_select, 0, ii);
 
         if (!notary_id.isEmpty())
         {
-            QString server_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetServer_Name(notary_id.toStdString()));
+            const auto notaryId = ot.Factory().ServerID(notary_id.toStdString());
+            const auto server = ot.Wallet().Server(notaryId, reason);
+            const auto serverAlias = server->Alias();
+        //  const auto serverNymId = ot.Factory().NymID(server->Nym()->ID().str());
+        //  auto serverContext = ot.Wallet().mutable_ServerContext(myNymId, serverNymId, reason);
+        //  const auto serverContext = ot.Wallet().ServerContext(myNymId, serverNymId, reason);
+
+            QString server_name = QString::fromStdString(serverAlias);
 
             if (!server_name.isEmpty())
             {
@@ -2127,11 +2145,15 @@ bool MTContactHandler::LowLevelUpdatePaymentBody(int nPaymentID, const QString q
 
 bool MTContactHandler::GetOpentxsContacts(mapIDName & theMap, const opentxs::OTIdentifier nymID/*=opentxs::Identifier::Factory()*/, int nCurrencyType/*=0*/)
 {
+    const auto & ot = Moneychanger::It()->OT();
+
+    const auto nymId = ot.Factory().NymID(nymID->str());
+
     bool bFoundAny{false};
 
     if ((nymID->size() > 0) && nCurrencyType > 0) {
         const auto currencyType = opentxs::proto::ContactItemType(nCurrencyType);
-        const auto &list = Moneychanger::It()->OT().UI().PayableList(nymID, currencyType);
+        const auto &list = ot.UI().PayableList(nymId, currencyType);
 
         auto line = list.First();
         auto last = line->Last();
@@ -2155,7 +2177,7 @@ bool MTContactHandler::GetOpentxsContacts(mapIDName & theMap, const opentxs::OTI
         }
     }
     else if (nymID->size() > 0) {
-        const auto &list = Moneychanger::It()->OT().UI().MessagableList(nymID);
+        const auto &list = ot.UI().MessagableList(nymId);
 
         auto line = list.First();
         auto last = line->Last();
@@ -2179,7 +2201,7 @@ bool MTContactHandler::GetOpentxsContacts(mapIDName & theMap, const opentxs::OTI
         }
     }
     else {
-        const auto &list = Moneychanger::It()->OT().Contacts().ContactList();
+        const auto &list = ot.Contacts().ContactList();
 
         for (const auto& it : list) {
             bFoundAny = true;
@@ -2243,6 +2265,8 @@ bool MTContactHandler::GetContacts(mapIDName & theMap)
 bool MTContactHandler::GetPaymentCodes(mapIDName & theMap, int nFilterByContact)
 {
     QMutexLocker locker(&m_Mutex);
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
 
     QString str_select = QString("SELECT * FROM `nym` WHERE `contact_id`=%1").arg(nFilterByContact);
 //  QString str_select = QString("SELECT * FROM `nym` WHERE `contact_id`=%1 LIMIT 0,1").arg(nFilterByContact);
@@ -2267,7 +2291,9 @@ bool MTContactHandler::GetPaymentCodes(mapIDName & theMap, int nFilterByContact)
             }
             else
             {
-                nym_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_Name(nym_id.toStdString()));
+                const auto nymId = ot.Factory().NymID(nym_id.toStdString());
+                const auto nym = ot.Wallet().Nym(nymId, reason);
+                nym_name = QString::fromStdString(nym->Alias());
             }
             // ----------------------------
             // At this point we have the payment code *and* the nym name.
@@ -2282,17 +2308,27 @@ bool MTContactHandler::GetPaymentCodes(mapIDName & theMap, int nFilterByContact)
 
 bool MTContactHandler::GetAssetIdsForTLA(mapIDName & theMap, const std::string & str_tla)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (str_tla.empty())
         return false;
     // ------------------------
     bool bFoundAny{false};
 
-    int32_t asset_count = Moneychanger::It()->OT().Exec().GetAssetTypeCount();
-    for (int aa = 0; aa < asset_count; aa++)
-    {
-        QString OT_asset_id   = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_ID(aa));
-        QString OT_asset_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_Name(OT_asset_id.toStdString()));
-        const std::string OT_asset_tla  = Moneychanger::It()->OT().Exec().GetCurrencyTLA(OT_asset_id.toStdString());
+    const auto units = ot.Wallet().UnitDefinitionList();
+
+    for (const auto & unit : units) {
+        const auto & id = unit.first;
+        const auto & name = unit.second;
+
+        const auto unitId = ot.Factory().UnitID(id);
+
+        QString OT_asset_id   = QString::fromStdString(id);
+        QString OT_asset_name = QString::fromStdString(name);
+
+        const auto unitDefinition = ot.Wallet().UnitDefinition(unitId, reason);
+        const std::string OT_asset_tla  = unitDefinition->TLA();
 
         if (0 == OT_asset_tla.compare(str_tla)) {
             theMap.insert(OT_asset_id, OT_asset_name);
@@ -2308,10 +2344,13 @@ bool MTContactHandler::GetAssetIdsForTLA(mapIDName & theMap, const std::string &
 //
 bool MTContactHandler::GetNyms(mapIDName & theMap, const std::string & str_contact_id)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (str_contact_id.empty() || !opentxs::Identifier::Validate(str_contact_id))
         return false;
     // ------------------------
-    const auto pContact = Moneychanger::It()->OT().Contacts().Contact(opentxs::Identifier::Factory(str_contact_id));
+    const auto pContact = ot.Contacts().Contact(ot.Factory().Identifier(str_contact_id), reason);
     if (!pContact)
     {
         qDebug() << "No opentxs Contact found for the ID provided.";
@@ -2364,6 +2403,9 @@ bool MTContactHandler::GetNyms(mapIDName & theMap, int nFilterByContact)
 {
     QMutexLocker locker(&m_Mutex);
 
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     QString str_select = QString("SELECT * FROM `nym` WHERE `contact_id`=%1").arg(nFilterByContact);
 //  QString str_select = QString("SELECT * FROM `nym` WHERE `contact_id`=%1 LIMIT 0,1").arg(nFilterByContact);
 
@@ -2388,7 +2430,9 @@ bool MTContactHandler::GetNyms(mapIDName & theMap, int nFilterByContact)
             }
             else
             {
-                nym_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_Name(nym_id.toStdString()));
+                const auto nymId = ot.Factory().NymID(nym_id.toStdString());
+                const auto nym = ot.Wallet().Nym(nymId, reason);
+                nym_name = QString::fromStdString(nym->Alias());
             }
             // ----------------------------
             // At this point we have the nym ID *and* the nym name.
@@ -2880,7 +2924,7 @@ int  MTContactHandler::CreateSmartContractTemplate(QString template_string)
         const QString strNewContactLabel = nameDlg.GetOutputString();
         const std::string str_new_contact_label = strNewContactLabel.toStdString();
         // --------------------------------------------------
-        auto pContact = Moneychanger::It()->OT().Contacts().NewContact(str_new_contact_label);
+        auto pContact = ot.Contacts().NewContact(str_new_contact_label);
 
         if (!pContact) {
             qDebug() << "Error: Failed trying to create new Contact.";
@@ -2899,21 +2943,24 @@ int  MTContactHandler::CreateSmartContractTemplate(QString template_string)
 */
 QString MTContactHandler::GetOrCreateOpentxsContactBasedOnNym(QString qstrLabel, QString nym_id_string, QString payment_code/*=QString("")*/)
 {
-    const auto contactId = Moneychanger::It()->OT().Contacts().ContactID(opentxs::Identifier::Factory(nym_id_string.toStdString()));
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
+    const auto nymId = ot.Factory().NymID(nym_id_string.toStdString());
+    const auto contactId = ot.Contacts().ContactID(nymId);
 
     if (!contactId->empty()) // Found an existing one
     {
-        const auto strContactId = opentxs::String::Factory(contactId);
-        const std::string str_contact_id(strContactId->Get());
-        return QString::fromStdString(str_contact_id);
+        return QString::fromStdString(contactId->str());
     }
     // -------------------------------------------------------
     // Okay so there's definitely not an existing Contact for this Nym ID.
     // So let's create a new one instead.
     //
     const std::string str_label = qstrLabel.toStdString();
-    const auto response = Moneychanger::It()->OT().Contacts().NewContact(str_label, opentxs::Identifier::Factory(nym_id_string.toStdString()),
-                                                                  Moneychanger::It()->OT().Factory().PaymentCode(payment_code.toStdString()));
+    const auto response = ot.Contacts().NewContact(str_label,
+                                                   ot.Factory().NymID(nym_id_string.toStdString()),
+                                                   ot.Factory().PaymentCode(payment_code.toStdString(), reason), reason);
     return response ? QString::fromStdString(std::string(opentxs::String::Factory(response->ID())->Get())) : QString("");
 }
 
@@ -2936,8 +2983,8 @@ int MTContactHandler::CreateContactBasedOnNym(QString nym_id_string, QString not
     //
     //
 //    const std::string str_label;
-//    const auto response = Moneychanger::It()->OT().Contacts().NewContact(str_label, opentxs::Identifier{nym_id_string.toStdString()}, opentxs::PaymentCode{payment_code.toStdString()});
-//  const auto pContact = Moneychanger::It()->OT().Contacts().Contact(opentxs::Identifier{contact});
+//    const auto response = ot.Contacts().NewContact(str_label, opentxs::Identifier{nym_id_string.toStdString()}, opentxs::PaymentCode{payment_code.toStdString()});
+//  const auto pContact = ot.Contacts().Contact(opentxs::Identifier{contact});
     // -----------------------------------------------------------------------
     // Here's the old Moneychanger Contacts, which we still create in parallel (for now):
     //
@@ -3399,8 +3446,10 @@ std::string MTContactHandler::GetContactName(const std::string& str_id)
         return {};
     }
 
-    const auto pContact =
-        Moneychanger::It()->OT().Contacts().Contact(opentxs::Identifier::Factory(str_id));
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
+    const auto pContact = ot.Contacts().Contact(opentxs::Identifier::Factory(str_id), reason);
 
     if (!pContact || pContact->Label().empty())
         return {};
@@ -3414,15 +3463,17 @@ bool MTContactHandler::SetContactName(const std::string& str_id, const std::stri
         qDebug() << "I should assert here. Empty ID passed to MTContactHandler::SetContactName.";
         return false;
     }
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
 
     // -------------------------------
-    auto mutableContactEditor{Moneychanger::It()->OT().Contacts().mutable_Contact(opentxs::Identifier::Factory(str_id))};
+    auto mutableContactEditor{ot.Contacts().mutable_Contact(opentxs::Identifier::Factory(str_id), reason)};
 
     if (!mutableContactEditor) {
         return false;
     }
     else {
-        auto & mutableContact = mutableContactEditor->It();
+        auto & mutableContact = mutableContactEditor->get();
         mutableContact.SetLabel(contact_name_string);
     }
 
@@ -3438,7 +3489,7 @@ QString MTContactHandler::Encrypt(QString plaintext)
 //
 //     if (!plaintext.isEmpty())
 //     {
-//         opentxs::OTWallet * pWallet = Moneychanger::It()->OT().OTAPI().GetWallet("MTContactHandler::Encrypt"); // This logs and ASSERTs already.
+//         opentxs::OTWallet * pWallet = ot.OTAPI().GetWallet("MTContactHandler::Encrypt"); // This logs and ASSERTs already.
 //
 //         if (NULL != pWallet)
 //         {
@@ -3469,7 +3520,7 @@ QString MTContactHandler::Decrypt(QString ciphertext)
 //
 //     if (!ciphertext.isEmpty())
 //     {
-//         opentxs::OTWallet * pWallet = Moneychanger::It()->OT().OTAPI().GetWallet("MTContactHandler::Decrypt"); // This logs and ASSERTs already.
+//         opentxs::OTWallet * pWallet = ot.OTAPI().GetWallet("MTContactHandler::Decrypt"); // This logs and ASSERTs already.
 //
 //         if (NULL != pWallet)
 //         {

@@ -401,16 +401,18 @@ bool DlgMarkets::LowLevelRetrieveOfferList(QString qstrNotaryID, QString qstrNym
     if (qstrNotaryID.isEmpty() || qstrNymID.isEmpty())
         return false;
     // -----------------
-
+    const auto & ot  = Moneychanger::It()->OT();
+    auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
 
     bool bSuccess = false;
     {
         MTSpinner theSpinner;
 
-        auto action = Moneychanger::It()->OT().ServerAction().DownloadNymMarketOffers(opentxs::Identifier::Factory(qstrNymID.toStdString()),
-                opentxs::Identifier::Factory(qstrNotaryID.toStdString()));
+        auto action = ot.ServerAction().DownloadNymMarketOffers(reason, ot.Factory().NymID(qstrNymID.toStdString()),
+                ot.Factory().ServerID(qstrNotaryID.toStdString()));
         const std::string str_reply = action->Run();
-        const int32_t     nResult   = opentxs::VerifyMessageSuccess(Moneychanger::It()->OT(), str_reply);
+
+        const int32_t     nResult   = action->Reply()->m_bSuccess ? 1 : -1;
 
         bSuccess = (1 == nResult);
     }
@@ -480,6 +482,9 @@ bool DlgMarkets::GetMarket_AssetCurrencyScale(QString qstrMarketID, QString & qs
 // -----------------------------------------------
 bool DlgMarkets::LowLevelLoadOfferList(QString qstrNotaryID, QString qstrNymID, mapIDName & the_map, QString qstrMarketID)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (qstrNotaryID.isEmpty() || qstrNymID.isEmpty() || qstrMarketID.isEmpty())
         return false;
     // -----------------------------------
@@ -518,13 +523,16 @@ bool DlgMarkets::LowLevelLoadOfferList(QString qstrNotaryID, QString qstrNymID, 
                 // -----------------------------------------------------------------------
                 QString qstrBuySell = pOfferData->selling ? tr("Sell") : tr("Buy");
 
-                const std::string str_asset_name = Moneychanger::It()->OT().Exec().GetAssetType_Name(pOfferData->instrument_definition_id);
+                const auto unitId = ot.Factory().UnitID(pOfferData->instrument_definition_id);
+                const auto unitDefinition = ot.Wallet().UnitDefinition(unitId, reason);
+
+                const std::string str_asset_name =  unitDefinition->Alias();
                 // --------------------------
-                int64_t lTotalAssets   = Moneychanger::It()->OT().Exec().StringToLong(pOfferData->total_assets);
-                int64_t lFinishedSoFar = Moneychanger::It()->OT().Exec().StringToLong(pOfferData->finished_so_far);
+                int64_t lTotalAssets   = opentxs::String::StringToLong(pOfferData->total_assets);
+                int64_t lFinishedSoFar = opentxs::String::StringToLong(pOfferData->finished_so_far);
                 // --------------------------
-                const std::string str_total_assets    = Moneychanger::It()->OT().Exec().FormatAmount(pOfferData->instrument_definition_id, lTotalAssets);
-                const std::string str_finished_so_far = Moneychanger::It()->OT().Exec().FormatAmount(pOfferData->instrument_definition_id, lFinishedSoFar);
+                const std::string str_total_assets    = Moneychanger::formatAmount(unitId, lTotalAssets);
+                const std::string str_finished_so_far = Moneychanger::formatAmount(unitId, lFinishedSoFar);
                 // --------------------------
                 QString qstrAmounts;
 
@@ -566,14 +574,17 @@ bool DlgMarkets::LowLevelLoadOfferList(QString qstrNotaryID, QString qstrNymID, 
 // -----------------------------------------------
 opentxs::OTDB::OfferListNym * DlgMarkets::LoadOfferListForServer(const std::string & NotaryID, const std::string & nymID)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     opentxs::OTDB::OfferListNym * pOfferList = NULL;
     opentxs::OTDB::Storable     * pStorable  = NULL;
     // ------------------------------------------
     QString qstrFilename = QString("%1.bin").arg(QString::fromStdString(nymID));
 
-    if (opentxs::OTDB::Exists(Moneychanger::It()->OT().DataFolder(), "nyms", NotaryID, "offers", qstrFilename.toStdString()))
+    if (opentxs::OTDB::Exists(ot.DataFolder(), "nyms", NotaryID, "offers", qstrFilename.toStdString()))
     {
-        pStorable = opentxs::OTDB::QueryObject(opentxs::OTDB::STORED_OBJ_OFFER_LIST_NYM, Moneychanger::It()->OT().DataFolder(), "nyms", NotaryID, "offers", qstrFilename.toStdString());
+        pStorable = opentxs::OTDB::QueryObject(opentxs::OTDB::STORED_OBJ_OFFER_LIST_NYM, ot.DataFolder(), "nyms", NotaryID, "offers", qstrFilename.toStdString());
 
         if (nullptr == pStorable)
             return NULL;
@@ -623,6 +634,9 @@ bool DlgMarkets::LoadMarketList(mapIDName & the_map)
 
 bool DlgMarkets::LowLevelLoadMarketList(QString qstrNotaryID, QString qstrNymID, mapIDName & the_map)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (qstrNotaryID.isEmpty() || qstrNymID.isEmpty())
         return false;
     // -----------------------------------
@@ -657,8 +671,12 @@ bool DlgMarkets::LowLevelLoadMarketList(QString qstrNotaryID, QString qstrNymID,
 
             if (the_map.end() == it_map)
             {
-                const std::string str_asset_name    = Moneychanger::It()->OT().Exec().GetAssetType_Name(pMarketData->instrument_definition_id);
-                const std::string str_currency_name = Moneychanger::It()->OT().Exec().GetAssetType_Name(pMarketData->currency_type_id);
+                const auto assetId = ot.Factory().UnitID(pMarketData->instrument_definition_id);
+                const auto assetContract = ot.Wallet().UnitDefinition(assetId, reason);
+                const auto currencyId = ot.Factory().UnitID(pMarketData->currency_type_id);
+                const auto currencyContract = ot.Wallet().UnitDefinition(currencyId, reason);
+                const std::string str_asset_name    = assetContract->Alias();
+                const std::string str_currency_name = currencyContract->Alias();
                 // --------------------------
                 QString qstrMarketName = QString("%1 for %2").
                         arg(QString::fromStdString(str_asset_name)).
@@ -706,19 +724,22 @@ bool DlgMarkets::RetrieveMarketList(mapIDName & the_map)
 
 bool DlgMarkets::LowLevelRetrieveMarketList(QString qstrNotaryID, QString qstrNymID, mapIDName & the_map)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (qstrNotaryID.isEmpty() || qstrNymID.isEmpty())
         return false;
     // -----------------
-
-
     bool bSuccess = false;
     {
         MTSpinner theSpinner;
 
-        auto action = Moneychanger::It()->OT().ServerAction().DownloadMarketList(opentxs::Identifier::Factory(qstrNymID.toStdString()),
-            opentxs::Identifier::Factory(qstrNotaryID.toStdString()));
+        auto action = ot.ServerAction().DownloadMarketList(
+                    reason,
+                    ot.Factory().NymID(qstrNymID.toStdString()),
+                    ot.Factory().ServerID(qstrNotaryID.toStdString()));
         const std::string str_reply = action->Run();
-        const int32_t nResult = opentxs::VerifyMessageSuccess(Moneychanger::It()->OT(), str_reply);
+        const int32_t nResult = action->Reply()->m_bSuccess ? 1 : -1;
 
         bSuccess = (1 == nResult);
     }
@@ -739,12 +760,15 @@ bool DlgMarkets::LowLevelRetrieveMarketList(QString qstrNotaryID, QString qstrNy
 //
 opentxs::OTDB::MarketList * DlgMarkets::LoadMarketListForServer(const std::string & NotaryID)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     opentxs::OTDB::MarketList * pMarketList = NULL;
     opentxs::OTDB::Storable   * pStorable   = NULL;
     // ------------------------------------------
-    if (opentxs::OTDB::Exists(Moneychanger::It()->OT().DataFolder(), "markets", NotaryID, "market_data.bin", ""))
+    if (opentxs::OTDB::Exists(ot.DataFolder(), "markets", NotaryID, "market_data.bin", ""))
     {
-        pStorable = opentxs::OTDB::QueryObject(opentxs::OTDB::STORED_OBJ_MARKET_LIST, Moneychanger::It()->OT().DataFolder(), "markets", NotaryID, "market_data.bin", "");
+        pStorable = opentxs::OTDB::QueryObject(opentxs::OTDB::STORED_OBJ_MARKET_LIST, ot.DataFolder(), "markets", NotaryID, "market_data.bin", "");
 
         if (nullptr == pStorable)
             return NULL;
@@ -764,6 +788,9 @@ opentxs::OTDB::MarketList * DlgMarkets::LoadMarketListForServer(const std::strin
 //
 void DlgMarkets::LoadOrRetrieveMarkets()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (!m_pMarketDetails || !m_pOfferDetails)
         return;
     // -----------------------------------------------
@@ -832,10 +859,13 @@ void DlgMarkets::LoadOrRetrieveMarkets()
                     if (NULL != pMarketData) // Should never be NULL.
                     {
                         // ------------------------------------------------------
-                        int64_t     lScale    = Moneychanger::It()->OT().Exec().StringToLong(pMarketData->scale);
+                        int64_t     lScale    = opentxs::String::StringToLong(pMarketData->scale);
                         if (lScale > 1)
                         {
-                            std::string str_scale = Moneychanger::It()->OT().Exec().FormatAmount(pMarketData->instrument_definition_id, lScale);
+                            const auto unitId = ot.Factory().UnitID(pMarketData->instrument_definition_id);
+                            const auto unitDefinition = ot.Wallet().UnitDefinition(unitId, reason);
+
+                            const auto str_scale = Moneychanger::formatAmount(unitId, lScale);
                             // ------------------------------------------------------
                             QString qstrFormattedScale = QString::fromStdString(str_scale);
                             // ------------------------------------------------------
@@ -951,6 +981,9 @@ void DlgMarkets::onNeedToLoadOrRetrieveOffers(QString qstrMarketID)
 //
 void DlgMarkets::RefreshRecords()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     ui->comboBoxServer->blockSignals(true);
     ui->comboBoxNym   ->blockSignals(true);
     // ----------------------------
@@ -979,14 +1012,16 @@ void DlgMarkets::RefreshRecords()
         bFoundServerDefault = true;
         nDefaultServerIndex = 0;
     }
-    // ----------------------------
-    const int32_t server_count = Moneychanger::It()->OT().Exec().GetServerCount();
     // -----------------------------------------------
-    for (int32_t ii = 0; ii < server_count; ++ii)
+    const auto servers = ot.Wallet().ServerList();
+    int ii = -1;
+    for (const auto & [id, name] : servers)
     {
+        ++ii;
+
         //Get OT Server ID
         //
-        QString OT_notary_id = QString::fromStdString(Moneychanger::It()->OT().Exec().GetServer_ID(ii));
+        QString OT_notary_id = QString::fromStdString(id);
         QString OT_server_name("");
         // -----------------------------------------------
         if (!OT_notary_id.isEmpty())
@@ -997,22 +1032,23 @@ void DlgMarkets::RefreshRecords()
                 nDefaultServerIndex = ii+1; // the +1 is because of "all" in the 0 position. (Servers only.)
             }
             // -----------------------------------------------
-            OT_server_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetServer_Name(OT_notary_id.toStdString()));
+            OT_server_name = QString::fromStdString(name);
             // -----------------------------------------------
             m_mapServers.insert(OT_notary_id, OT_server_name);
             ui->comboBoxServer->insertItem(ii+1, OT_server_name);
         }
     }
     // -----------------------------------------------
-
-    // -----------------------------------------------
     bool bFoundNymDefault = false;
-    const int32_t nym_count = Moneychanger::It()->OT().Exec().GetNymCount();
     // -----------------------------------------------
-    for (int32_t ii = 0; ii < nym_count; ++ii)
+    const auto nyms = ot.Wallet().LocalNyms();
+    ii = -1;
+    for (const auto & nymId : nyms)
     {
+        ++ii;
+
         //Get OT Nym ID
-        QString OT_nym_id = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_ID(ii));
+        QString OT_nym_id = QString::fromStdString(nymId->str());
         QString OT_nym_name("");
         // -----------------------------------------------
         if (!OT_nym_id.isEmpty())
@@ -1023,7 +1059,8 @@ void DlgMarkets::RefreshRecords()
                 nDefaultNymIndex = ii;
             }
             // -----------------------------------------------
-            OT_nym_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_Name(OT_nym_id.toStdString()));
+            const auto nym = ot.Wallet().Nym(nymId, reason);
+            OT_nym_name = QString::fromStdString(nym->Alias());
             // -----------------------------------------------
             m_mapNyms.insert(OT_nym_id, OT_nym_name);
             ui->comboBoxNym->insertItem(ii, OT_nym_name);

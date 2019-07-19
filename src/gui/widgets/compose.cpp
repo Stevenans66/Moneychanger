@@ -123,13 +123,18 @@ void MTCompose::setInitialSenderNym(QString nymId, QString address/*=""*/)
 
 void MTCompose::setTransportDisplayBasedOnAvailableData()
 {
-    if (NULL != ui)
+    const auto& ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+    const auto serverId = ot.Factory().ServerID(m_NotaryID.toStdString());
+    const auto server = ot.Wallet().Server(serverId, reason);
+
+    if (nullptr != ui)
     {
         QString qstrMsgTypeDisplay("");
 
         if (sendingThroughOTServer() && !m_NotaryID.isEmpty())
         {
-            qstrMsgTypeDisplay = QString::fromStdString(Moneychanger::It()->OT().Exec().GetServer_Name(m_NotaryID.toStdString()));
+            qstrMsgTypeDisplay = QString::fromStdString(server->Alias());
 
             if (qstrMsgTypeDisplay.isEmpty())
                 qstrMsgTypeDisplay = m_NotaryID;
@@ -149,13 +154,18 @@ void MTCompose::setTransportDisplayBasedOnAvailableData()
 
 void MTCompose::setSenderNameBasedOnAvailableData()
 {
-    if (NULL != ui)
+    const auto& ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+    const auto nymId = ot.Factory().NymID(m_senderNymId.toStdString());
+    const auto nym = ot.Wallet().Nym(nymId, reason);
+
+    if (nullptr != ui)
     {
         QString qstrNymName("");
 
         if (!m_senderNymId.isEmpty())
         {
-            qstrNymName = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_Name(m_senderNymId.toStdString()));
+            qstrNymName = QString::fromStdString(nym->Alias());
         }
         // ---------------------------
         QString qstrAddressPortion("");
@@ -186,6 +196,11 @@ void MTCompose::setSenderNameBasedOnAvailableData()
 
 void MTCompose::setRecipientNameBasedOnAvailableData()
 {
+    const auto& ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+    const auto nymId = ot.Factory().NymID(m_recipientNymId.toStdString());
+    const auto nym = ot.Wallet().Nym(nymId, reason);
+
     // If there's no contact ID, but there IS a Nym ID, let's go ahead
     // and try to find the contact ID based on the Nym ID, just for shits
     // and giggles. (We may or may not find it.)
@@ -193,7 +208,7 @@ void MTCompose::setRecipientNameBasedOnAvailableData()
     if ((m_recipientContactId <= 0) && (!m_recipientNymId.isEmpty()))
         m_recipientContactId = MTContactHandler::getInstance()->FindContactIDByNymID(m_recipientNymId);
     // ---------------------------------------------------------------
-    if (NULL != ui)
+    if (nullptr != ui)
     {
         QString qstrNymName("");
 
@@ -206,7 +221,7 @@ void MTCompose::setRecipientNameBasedOnAvailableData()
         }
         else if (!m_recipientNymId.isEmpty())
         {
-            qstrNymName = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_Name(m_recipientNymId.toStdString()));
+            qstrNymName = QString::fromStdString(nym->Alias());
         }
         else if (qstrContactName.isEmpty() && m_recipientContactId > 0)
         {
@@ -309,9 +324,16 @@ void MTCompose::setInitialRecipientContactID(QString qstrContactid, QString addr
         qstrSenderNym = qstrDefaultNym;
         m_senderNymId = qstrDefaultNym;
     }
+
+    const auto& ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (!qstrSenderNym.isEmpty() && !qstrContactid.isEmpty()) {
-        bCanMessage_ = (opentxs::Messagability::READY == Moneychanger::It()->OT().Sync().CanMessage(opentxs::Identifier::Factory(qstrSenderNym.toStdString()),
-                                                                                                    opentxs::Identifier::Factory(qstrContactid.toStdString())));
+        const auto nymId = ot.Factory().NymID(m_senderNymId.toStdString());
+        const auto nym = ot.Wallet().Nym(nymId, reason);
+        const auto contactId = ot.Factory().Identifier(qstrContactid.toStdString());
+
+        bCanMessage_ = (opentxs::Messagability::READY == ot.OTX().CanMessage(nymId, contactId));
     }
     // -------------------------------------------
     mapIDName theMap;
@@ -440,6 +462,9 @@ void MTCompose::setInitialServer(QString NotaryID)
 bool MTCompose::sendMessage(QString subject,   QString body, QString fromNymId, QString toNymId, QString fromAddress, QString toAddress,
                             QString viaServer, QString viaTransport, int viaMethodID)
 {
+    const auto& ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (!bCanMessage_ && viaTransport.isEmpty())
     {
         qDebug() << "Cannot send a message via a blank transport type, aborting.";
@@ -535,8 +560,8 @@ bool MTCompose::sendMessage(QString subject,   QString body, QString fromNymId, 
     {
         const std::string str_thread_id = qstrContactId_.toStdString();
         // --------------------------------------------
-        const opentxs::OTIdentifier nymID    = opentxs::Identifier::Factory(str_fromNymId);
-        const opentxs::OTIdentifier threadID = opentxs::Identifier::Factory(str_thread_id);
+        const auto nymID    = ot.Factory().NymID(str_fromNymId);
+        const auto threadID = ot.Factory().Identifier(str_thread_id);
         // --------------------------------------------
         const QString qstrPlainText = contents.simplified();
 
@@ -544,11 +569,11 @@ bool MTCompose::sendMessage(QString subject,   QString body, QString fromNymId, 
         {
             const std::string message {qstrPlainText.toStdString()};
 
-            qDebug() << "str_fromNymId: " << QString::fromStdString(str_fromNymId);
-            qDebug() << "str_thread_id: " << QString::fromStdString(str_thread_id);
+//            qDebug() << "str_fromNymId: " << QString::fromStdString(str_fromNymId);
+//            qDebug() << "str_thread_id: " << QString::fromStdString(str_thread_id);
 
             if (opentxs::Messagability::READY !=
-                Moneychanger::It()->OT().Sync().CanMessage(nymID, threadID))
+                Moneychanger::It()->OT().OTX().CanMessage(nymID, threadID))
             {
                 qDebug() << "Contact is not yet messageable, aborting.";
                 return false;
@@ -576,11 +601,10 @@ bool MTCompose::sendMessage(QString subject,   QString body, QString fromNymId, 
                 }
             }
             else {
-                const auto bgthreadId =
-                    Moneychanger::It()->OT().Sync().
-                        MessageContact(nymID, threadID, contents.toStdString());
+                const auto [bgthreadId, aFuture] =
+                    Moneychanger::It()->OT().OTX().MessageContact(nymID, threadID, contents.toStdString());
 
-                const auto status = Moneychanger::It()->OT().Sync().Status(bgthreadId);
+                const auto status = ot.OTX().Status(bgthreadId);
 
                 const bool bAddToGUI = (opentxs::ThreadStatus::FINISHED_SUCCESS == status) ||
                                        (opentxs::ThreadStatus::RUNNING == status);
@@ -592,28 +616,28 @@ bool MTCompose::sendMessage(QString subject,   QString body, QString fromNymId, 
         }
     }
     // ----------------------------------------------------
-    else if (0 == viaTransport.compare("otserver"))
-    {
-        std::string strResponse; {
-            MTSpinner theSpinner;
-            auto action = Moneychanger::It()->OT().ServerAction().SendMessage(
-                    opentxs::Identifier::Factory(str_fromNymId),
-                    opentxs::Identifier::Factory(str_NotaryID),
-                    opentxs::Identifier::Factory(str_toNymId),
-                    contents.toStdString());
-            strResponse = action->Run();
-        }
+//    else if (0 == viaTransport.compare("otserver"))
+//    {
+//        std::string strResponse; {
+//            MTSpinner theSpinner;
+//            auto action = Moneychanger::It()->OT().ServerAction().SendMessage(
+//                    opentxs::Identifier::Factory(str_fromNymId),
+//                    opentxs::Identifier::Factory(str_NotaryID),
+//                    opentxs::Identifier::Factory(str_toNymId),
+//                    contents.toStdString());
+//            strResponse = action->Run();
+//        }
 
-        int32_t  nReturnVal = opentxs::VerifyMessageSuccess(Moneychanger::It()->OT(), strResponse);
-        if (1 != nReturnVal) {
-            qDebug() << "OT send_message: Failed.";
-            Moneychanger::It()->HasUsageCredits(str_NotaryID, str_fromNymId);
-            return false;
-        }
+//        int32_t  nReturnVal = opentxs::VerifyMessageSuccess(Moneychanger::It()->OT(), strResponse);
+//        if (1 != nReturnVal) {
+//            qDebug() << "OT send_message: Failed.";
+//            Moneychanger::It()->HasUsageCredits(str_NotaryID, str_fromNymId);
+//            return false;
+//        }
 
-        qDebug() << "Success in OT send_message!";
-        m_bSent = true; // In this case it means it actually sent it through the notary.
-    }
+//        qDebug() << "Success in OT send_message!";
+//        m_bSent = true; // In this case it means it actually sent it through the notary.
+//    }
     // ---------------------------------------------------------
 //    else if (NULL != pModule) // Anything but otserver. (Bitmessage, probably.)
 //    {
@@ -1339,6 +1363,9 @@ bool MTCompose::chooseServer(mapIDName & theMap)
 // Recipient has just changed. Does Sender exist? If so, make sure he is compatible with msgtype or find a new one that matches both.
 void MTCompose::FindSenderMsgMethod()
 {
+    const auto& ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (bCanMessage_) {
         return;
     }
@@ -1450,7 +1477,10 @@ void MTCompose::FindSenderMsgMethod()
                         std::string notary_id    = qstrNotaryID.toStdString();
                         std::string sender_id    = m_senderNymId.toStdString();
 
-                        if (Moneychanger::It()->OT().Exec().IsNym_RegisteredAtServer(sender_id, notary_id))
+                        const auto senderNymId = ot.Factory().NymID(sender_id);
+                        const auto notaryId = ot.Factory().ServerID(notary_id);
+
+                        if (Moneychanger::It()->OT().OTAPI().IsNym_RegisteredAtServer(senderNymId, notaryId))
                         {
                             setInitialServer(qstrNotaryID);
                             return; // SUCCESS!
@@ -1631,6 +1661,9 @@ void MTCompose::FindSenderMsgMethod()
 // Sender has just changed. Does Recipient exist? If so, make sure he is compatible with msgtype or find a new one that matches both.
 void MTCompose::FindRecipientMsgMethod()
 {
+    const auto& ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (bCanMessage_) {
         return;
     }
@@ -1741,7 +1774,10 @@ void MTCompose::FindRecipientMsgMethod()
                         std::string notary_id    = qstrNotaryID.toStdString();
                         std::string sender_id    = m_senderNymId.toStdString();
 
-                        if (Moneychanger::It()->OT().Exec().IsNym_RegisteredAtServer(sender_id, notary_id))
+                        const auto senderNymId = ot.Factory().NymID(sender_id);
+                        const auto notaryId = ot.Factory().ServerID(notary_id);
+
+                        if (Moneychanger::It()->OT().OTAPI().IsNym_RegisteredAtServer(senderNymId, notaryId))
                         {
                             setInitialServer(qstrNotaryID);
                             return; // SUCCESS!
@@ -2491,6 +2527,9 @@ bool MTCompose::MakeSureCommonMsgMethod()
 
 bool MTCompose::verifySenderAgainstServer(bool bAsk/*=true*/, QString qstrNotaryID/*=QString("")*/)   // Assumes senderNymId and NotaryID are set.
 {
+    const auto& ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (bCanMessage_)
         return true;
 
@@ -2502,7 +2541,10 @@ bool MTCompose::verifySenderAgainstServer(bool bAsk/*=true*/, QString qstrNotary
     std::string notary_id    = qstrNotaryID .toStdString();
     std::string sender_id    = m_senderNymId.toStdString();
 
-    if (!Moneychanger::It()->OT().Exec().IsNym_RegisteredAtServer(sender_id, notary_id))
+    const auto senderNymId = ot.Factory().NymID(sender_id);
+    const auto notaryId = ot.Factory().ServerID(notary_id);
+
+    if (!ot.OTAPI().IsNym_RegisteredAtServer(senderNymId, notaryId))
     {
         if (bAsk)
         {
@@ -2516,13 +2558,14 @@ bool MTCompose::verifySenderAgainstServer(bool bAsk/*=true*/, QString qstrNotary
                 std::string response;
                 {
                     MTSpinner theSpinner;
-
-                    response = opentxs::String::Factory(Moneychanger::It()->OT().Sync().RegisterNym(opentxs::Identifier::Factory(sender_id), opentxs::Identifier::Factory(notary_id), true))->Get();
+                    const auto [bgthreadId, aFuture] = ot.OTX().RegisterNym(senderNymId, notaryId, true);
+//                    response = opentxs::String::Factory()->Get( response message from where? the future?);
                 }
 
                 qDebug() << QString("Nym Registration Response: %1").arg(QString::fromStdString(response));
 
-                int32_t nReturnVal = opentxs::VerifyMessageSuccess(Moneychanger::It()->OT(), response);
+//                int32_t nReturnVal = opentxs::VerifyMessageSuccess(Moneychanger::It()->OT(), response);
+                int32_t nReturnVal = 1;
 
                 if (1 != nReturnVal)
                 {
@@ -2544,6 +2587,9 @@ bool MTCompose::verifySenderAgainstServer(bool bAsk/*=true*/, QString qstrNotary
 
 bool MTCompose::verifyRecipientAgainstServer(bool bAsk/*=true*/, QString qstrNotaryID/*=QString("")*/) // Assumes m_senderNymId, m_recipientNymId and NotaryID are set.
 {
+    const auto& ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (bCanMessage_)
         return true;
 
@@ -2585,12 +2631,16 @@ bool MTCompose::verifyRecipientAgainstServer(bool bAsk/*=true*/, QString qstrNot
                     {
                         MTSpinner theSpinner;
 
-                        auto action = Moneychanger::It()->OT().ServerAction().DownloadNym(
-                                opentxs::Identifier::Factory(sender_id), opentxs::Identifier::Factory(notary_id), opentxs::Identifier::Factory(recipient_id));
-                        response = action->Run();
+                        const auto senderNymId = ot.Factory().NymID(sender_id);
+                        const auto recipientNymId = ot.Factory().NymID(recipient_id);
+                        const auto notaryId = ot.Factory().ServerID(notary_id);
+
+                        auto action = ot.OTX().DownloadNym(senderNymId, notaryId, recipientNymId);
+                        //response = action->Run();
                     }
 
-                    int32_t nReturnVal = opentxs::VerifyMessageSuccess(Moneychanger::It()->OT(), response);
+                    int32_t nReturnVal = -1;
+//                    int32_t nReturnVal = opentxs::VerifyMessageSuccess(Moneychanger::It()->OT(), response);
 
                     if (1 != nReturnVal)
                     {
@@ -2616,6 +2666,9 @@ bool MTCompose::verifyRecipientAgainstServer(bool bAsk/*=true*/, QString qstrNot
 
 void MTCompose::on_fromButton_clicked()
 {
+    const auto& ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (bCanMessage_)
         return;
 
@@ -2637,12 +2690,12 @@ void MTCompose::on_fromButton_clicked()
     mapIDName & the_map = theChooser.m_map;
     bool bFoundDefault = false;
     // -----------------------------------------------
-    const int32_t nym_count = Moneychanger::It()->OT().Exec().GetNymCount();
-    // -----------------------------------------------
-    for (int32_t ii = 0; ii < nym_count; ++ii)
+    const auto nyms = ot.Wallet().LocalNyms();
+
+    for (const auto nymId : nyms)
     {
         //Get OT Nym ID
-        QString OT_nym_id = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_ID(ii));
+        QString OT_nym_id = QString::fromStdString(nymId->str());
         QString OT_nym_name("");
         // -----------------------------------------------
         if (!OT_nym_id.isEmpty())
@@ -2650,7 +2703,8 @@ void MTCompose::on_fromButton_clicked()
             if (!m_senderNymId.isEmpty() && (OT_nym_id == m_senderNymId))
                 bFoundDefault = true;
             // -----------------------------------------------
-            OT_nym_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_Name(OT_nym_id.toStdString()));
+            const auto nym = ot.Wallet().Nym(nymId, reason);
+            OT_nym_name = QString::fromStdString(nym->Alias());
             // -----------------------------------------------
             the_map.insert(OT_nym_id, OT_nym_name);
         }
@@ -2939,6 +2993,9 @@ void MTCompose::dialog()
 
 void MTCompose::setVariousIds(QString senderNymId, QString recipientNymId, QString senderAddress, QString recipientAddress)
 {
+    const auto& ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     m_forwardSenderNymId      = senderNymId;
     m_forwardRecipientNymId   = recipientNymId;
     m_forwardSenderAddress    = senderAddress;
@@ -2946,7 +3003,9 @@ void MTCompose::setVariousIds(QString senderNymId, QString recipientNymId, QStri
     // ----------------------------------------------
     if (!m_forwardSenderNymId.isEmpty())
     {
-        m_forwardSenderName = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_Name(m_forwardSenderNymId.toStdString()));
+        const auto senderNymIdObj = ot.Factory().NymID(senderNymId.toStdString());
+        const auto nym = ot.Wallet().Nym(senderNymIdObj, reason);
+        m_forwardSenderName = QString::fromStdString(nym->Alias());
     }
 //    if (m_forwardSenderName.isEmpty() && !m_forwardSenderAddress.isEmpty())
 //    {
@@ -2960,11 +3019,15 @@ void MTCompose::setVariousIds(QString senderNymId, QString recipientNymId, QStri
     // ----------------------------------------------
     if (!m_forwardRecipientNymId.isEmpty())
     {
-        m_forwardRecipientName = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_Name(m_forwardRecipientNymId.toStdString()));
+        const auto recipientNymIdObj = ot.Factory().NymID(m_forwardRecipientNymId.toStdString());
+        const auto nym = ot.Wallet().Nym(recipientNymIdObj, reason);
+
+        m_forwardRecipientName = QString::fromStdString(nym->Alias());
     }
     if (m_forwardRecipientName.isEmpty() && !m_forwardRecipientAddress.isEmpty())
     {
-        m_forwardRecipientName = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_Name(m_forwardRecipientAddress.toStdString()));
+        m_forwardRecipientName = m_forwardRecipientAddress;
+//        m_forwardRecipientName = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_Name(m_forwardRecipientAddress.toStdString()));
     }
     if (m_forwardRecipientName.isEmpty() && !m_forwardRecipientNymId.isEmpty())
         m_forwardRecipientName = m_forwardRecipientNymId;

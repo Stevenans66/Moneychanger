@@ -74,147 +74,147 @@ MTCashPurse::MTCashPurse(QWidget *parent, MTDetailEdit & theOwner) :
 
 void MTCashPurse::refresh(QString strID, QString strName)
 {
-//    this->blockSignals(true);
-    ui->tableWidget->blockSignals(true);
-    // -----------------------------------
-    ui->tableWidget->clearContents();
-    ui->tableWidget->setRowCount (0);
-    // -----------------------------------
-    if ((NULL != ui) && !strID.isEmpty())
-    {
-        m_qstrAcctId   = strID;
-        m_qstrAcctName = strName;
-        // ----------------------------------
-        if (Moneychanger::rawAcctBalance(strID) > 0)
-            ui->pushButtonWithdraw->setEnabled(true);
-        else
-            ui->pushButtonWithdraw->setEnabled(false);
-        // ----------------------------------
-        ui->pushButtonDeposit ->setText(tr("Deposit Cash"));
-        // ----------------------------------
-        QStringList selectedIndices;
-        int64_t     lAmount=0;
+////    this->blockSignals(true);
+//    ui->tableWidget->blockSignals(true);
+//    // -----------------------------------
+//    ui->tableWidget->clearContents();
+//    ui->tableWidget->setRowCount (0);
+//    // -----------------------------------
+//    if ((NULL != ui) && !strID.isEmpty())
+//    {
+//        m_qstrAcctId   = strID;
+//        m_qstrAcctName = strName;
+//        // ----------------------------------
+//        if (Moneychanger::rawAcctBalance(strID) > 0)
+//            ui->pushButtonWithdraw->setEnabled(true);
+//        else
+//            ui->pushButtonWithdraw->setEnabled(false);
+//        // ----------------------------------
+//        ui->pushButtonDeposit ->setText(tr("Deposit Cash"));
+//        // ----------------------------------
+//        QStringList selectedIndices;
+//        int64_t     lAmount=0;
 
-//      int nNumberChecked =
-                this->TallySelections(selectedIndices, lAmount);
-        // ----------------------------------
-        QString   qstrAmount    = Moneychanger::shortAcctBalance(strID);
-        QWidget * pHeaderWidget = MTEditDetails::CreateDetailHeaderWidget(MTDetailEdit::DetailEditTypeAccount, strID, strName, qstrAmount, "", ":/icons/icons/vault.png", false);
+////      int nNumberChecked =
+//                this->TallySelections(selectedIndices, lAmount);
+//        // ----------------------------------
+//        QString   qstrAmount    = Moneychanger::shortAcctBalance(strID);
+//        QWidget * pHeaderWidget = MTEditDetails::CreateDetailHeaderWidget(MTDetailEdit::DetailEditTypeAccount, strID, strName, qstrAmount, "", ":/icons/icons/vault.png", false);
 
-        pHeaderWidget->setObjectName(QString("DetailHeader")); // So the stylesheet doesn't get applied to all its sub-widgets.
+//        pHeaderWidget->setObjectName(QString("DetailHeader")); // So the stylesheet doesn't get applied to all its sub-widgets.
 
-        if (m_pHeaderWidget)
-        {
-            ui->verticalLayoutPage->removeWidget(m_pHeaderWidget);
+//        if (m_pHeaderWidget)
+//        {
+//            ui->verticalLayoutPage->removeWidget(m_pHeaderWidget);
 
-            m_pHeaderWidget->setParent(NULL);
-            m_pHeaderWidget->disconnect();
-            m_pHeaderWidget->deleteLater();
+//            m_pHeaderWidget->setParent(NULL);
+//            m_pHeaderWidget->disconnect();
+//            m_pHeaderWidget->deleteLater();
 
-            m_pHeaderWidget = NULL;
-        }
-        ui->verticalLayoutPage->insertWidget(0, pHeaderWidget);
-        m_pHeaderWidget = pHeaderWidget;
-        // ----------------------------------
-        std::string str_acct_id     = strID.toStdString();
-        std::string str_acct_nym    = Moneychanger::It()->OT().Exec().GetAccountWallet_NymID(str_acct_id);
-        std::string str_acct_server = Moneychanger::It()->OT().Exec().GetAccountWallet_NotaryID(str_acct_id);
-        std::string str_acct_asset  = Moneychanger::It()->OT().Exec().GetAccountWallet_InstrumentDefinitionID(str_acct_id);
-        // -----------------------------------
-        QString qstr_acct_nym    = QString::fromStdString(str_acct_nym);
-        QString qstr_acct_server = QString::fromStdString(str_acct_server);
-        QString qstr_acct_asset  = QString::fromStdString(str_acct_asset);
-        // -----------------------------------
-        m_qstrInstrumentDefinitionID = qstr_acct_asset;
-        // -----------------------------------
-        QString qstr_asset_name;
+//            m_pHeaderWidget = NULL;
+//        }
+//        ui->verticalLayoutPage->insertWidget(0, pHeaderWidget);
+//        m_pHeaderWidget = pHeaderWidget;
+//        // ----------------------------------
+//        std::string str_acct_id     = strID.toStdString();
+//        std::string str_acct_nym    = Moneychanger::It()->OT().Exec().GetAccountWallet_NymID(str_acct_id);
+//        std::string str_acct_server = Moneychanger::It()->OT().Exec().GetAccountWallet_NotaryID(str_acct_id);
+//        std::string str_acct_asset  = Moneychanger::It()->OT().Exec().GetAccountWallet_InstrumentDefinitionID(str_acct_id);
+//        // -----------------------------------
+//        QString qstr_acct_nym    = QString::fromStdString(str_acct_nym);
+//        QString qstr_acct_server = QString::fromStdString(str_acct_server);
+//        QString qstr_acct_asset  = QString::fromStdString(str_acct_asset);
+//        // -----------------------------------
+//        m_qstrInstrumentDefinitionID = qstr_acct_asset;
+//        // -----------------------------------
+//        QString qstr_asset_name;
 
-        if (!qstr_acct_asset.isEmpty())
-            qstr_asset_name = QString("   (%1)").arg(
-                    QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_Name(str_acct_asset)));
-        // -----------------------------------
-        int64_t  raw_cash_balance = Moneychanger::rawCashBalance(qstr_acct_server, qstr_acct_asset, qstr_acct_nym);
+//        if (!qstr_acct_asset.isEmpty())
+//            qstr_asset_name = QString("   (%1)").arg(
+//                    QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_Name(str_acct_asset)));
+//        // -----------------------------------
+//        int64_t  raw_cash_balance = Moneychanger::rawCashBalance(qstr_acct_server, qstr_acct_asset, qstr_acct_nym);
 
-        ui->labelCashBalance->setText(QString("<font color=grey><big>%1</big></font>").
-                                      arg(Moneychanger::cashBalance(qstr_acct_server, qstr_acct_asset, qstr_acct_nym)) );
-        ui->labelAssetType->setText(QString("<font color=grey>%1</font>").arg(qstr_asset_name) );
-        // -----------------------------------
-        if (raw_cash_balance > 0)
-        {
-#if OT_CASH
-            std::string str_purse = Moneychanger::It()->OT().Exec().LoadPurse(str_acct_server, str_acct_asset, str_acct_nym);
+//        ui->labelCashBalance->setText(QString("<font color=grey><big>%1</big></font>").
+//                                      arg(Moneychanger::cashBalance(qstr_acct_server, qstr_acct_asset, qstr_acct_nym)) );
+//        ui->labelAssetType->setText(QString("<font color=grey>%1</font>").arg(qstr_asset_name) );
+//        // -----------------------------------
+//        if (raw_cash_balance > 0)
+//        {
+//#if OT_CASH
+//            std::string str_purse = Moneychanger::It()->OT().Exec().LoadPurse(str_acct_server, str_acct_asset, str_acct_nym);
 
-            if (!str_purse.empty())
-            {
-                int32_t purse_count = Moneychanger::It()->OT().Exec().Purse_Count(str_acct_server, str_acct_asset, str_purse);
+//            if (!str_purse.empty())
+//            {
+//                int32_t purse_count = Moneychanger::It()->OT().Exec().Purse_Count(str_acct_server, str_acct_asset, str_purse);
 
-                // -------------------------------------------------------
-                ui->tableWidget->setRowCount(static_cast<int>(purse_count));
-                // -------------------------------------------------------
-                for (int ii = 0; ii < purse_count; ii++)
-                {
-                    std::string cash_token = Moneychanger::It()->OT().Exec().Purse_Peek(str_acct_server, str_acct_asset, str_acct_nym, str_purse);
+//                // -------------------------------------------------------
+//                ui->tableWidget->setRowCount(static_cast<int>(purse_count));
+//                // -------------------------------------------------------
+//                for (int ii = 0; ii < purse_count; ii++)
+//                {
+//                    std::string cash_token = Moneychanger::It()->OT().Exec().Purse_Peek(str_acct_server, str_acct_asset, str_acct_nym, str_purse);
 
-                    if (!cash_token.empty())
-                    {
-                        std::string str_amount = Moneychanger::It()->OT().Exec().FormatAmount(str_acct_asset,
-                                                                          Moneychanger::It()->OT().Exec().Token_GetDenomination(str_acct_server,
-                                                                                                            str_acct_asset,
-                                                                                                            cash_token));
-                        // ------------------------------------------------------
-                        QDateTime qdate_expires     = QDateTime::fromTime_t(Moneychanger::It()->OT().Exec().Token_GetValidTo(str_acct_server, str_acct_asset, cash_token));
-                        QString   qstr_token_id     = QString::fromStdString(Moneychanger::It()->OT().Exec().Token_GetID(str_acct_server, str_acct_asset, cash_token));
-                        QString   qstr_denomination = QString::fromStdString(str_amount);
-                        QString   qstr_series       = QString("%1").arg(Moneychanger::It()->OT().Exec().Token_GetSeries(str_acct_server, str_acct_asset, cash_token));
-                        QString   qstr_expires      = qdate_expires.toString(QString("MMM d yyyy hh:mm:ss"));
+//                    if (!cash_token.empty())
+//                    {
+//                        std::string str_amount = Moneychanger::It()->OT().Exec().FormatAmount(str_acct_asset,
+//                                                                          Moneychanger::It()->OT().Exec().Token_GetDenomination(str_acct_server,
+//                                                                                                            str_acct_asset,
+//                                                                                                            cash_token));
+//                        // ------------------------------------------------------
+//                        QDateTime qdate_expires     = QDateTime::fromTime_t(Moneychanger::It()->OT().Exec().Token_GetValidTo(str_acct_server, str_acct_asset, cash_token));
+//                        QString   qstr_token_id     = QString::fromStdString(Moneychanger::It()->OT().Exec().Token_GetID(str_acct_server, str_acct_asset, cash_token));
+//                        QString   qstr_denomination = QString::fromStdString(str_amount);
+//                        QString   qstr_series       = QString("%1").arg(Moneychanger::It()->OT().Exec().Token_GetSeries(str_acct_server, str_acct_asset, cash_token));
+//                        QString   qstr_expires      = qdate_expires.toString(QString("MMM d yyyy hh:mm:ss"));
 
-                        QLabel * pLabelDenomination = new QLabel(qstr_denomination);
-                        QLabel * pLabelExpires      = new QLabel(QString("<small>%1</small>").arg(qstr_expires));
-                        QLabel * pLabelSeries       = new QLabel(qstr_series);
-                        QLabel * pLabelTokenID      = new QLabel(QString("<small>%1</small>").arg(qstr_token_id));
+//                        QLabel * pLabelDenomination = new QLabel(qstr_denomination);
+//                        QLabel * pLabelExpires      = new QLabel(QString("<small>%1</small>").arg(qstr_expires));
+//                        QLabel * pLabelSeries       = new QLabel(qstr_series);
+//                        QLabel * pLabelTokenID      = new QLabel(QString("<small>%1</small>").arg(qstr_token_id));
 
-                        pLabelDenomination  ->setAlignment(Qt::AlignCenter);
-                        pLabelExpires       ->setAlignment(Qt::AlignCenter);
-                        pLabelSeries        ->setAlignment(Qt::AlignCenter);
-                        pLabelTokenID       ->setAlignment(Qt::AlignCenter);
+//                        pLabelDenomination  ->setAlignment(Qt::AlignCenter);
+//                        pLabelExpires       ->setAlignment(Qt::AlignCenter);
+//                        pLabelSeries        ->setAlignment(Qt::AlignCenter);
+//                        pLabelTokenID       ->setAlignment(Qt::AlignCenter);
 
-//                      pLabelDenomination  ->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
-//                      pLabelExpires       ->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
-//                      pLabelSeries        ->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
-//                      pLabelTokenID       ->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+////                      pLabelDenomination  ->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+////                      pLabelExpires       ->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+////                      pLabelSeries        ->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+////                      pLabelTokenID       ->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
 
-                        // ------------------------------
-                        QWidget     * wdg       = new QWidget;
-                        QCheckBox   * pCheckbox = new QCheckBox(wdg);
-                        QHBoxLayout * layout    = new QHBoxLayout(wdg);
+//                        // ------------------------------
+//                        QWidget     * wdg       = new QWidget;
+//                        QCheckBox   * pCheckbox = new QCheckBox(wdg);
+//                        QHBoxLayout * layout    = new QHBoxLayout(wdg);
 
-                        layout->setContentsMargins(0,0,0,0);
-                        layout->addWidget(pCheckbox);
-                        layout->setAlignment( Qt::AlignCenter );
-                        wdg->setLayout(layout);
-                        ui->tableWidget->setCellWidget ( ii, 0, wdg);
-//                      ui->tableWidget->setCellWidget ( ii, 0, pCheckbox );
+//                        layout->setContentsMargins(0,0,0,0);
+//                        layout->addWidget(pCheckbox);
+//                        layout->setAlignment( Qt::AlignCenter );
+//                        wdg->setLayout(layout);
+//                        ui->tableWidget->setCellWidget ( ii, 0, wdg);
+////                      ui->tableWidget->setCellWidget ( ii, 0, pCheckbox );
 
-                        ui->tableWidget->setCellWidget ( ii, 1, pLabelDenomination );
-                        ui->tableWidget->setCellWidget ( ii, 2, pLabelExpires );
-                        ui->tableWidget->setCellWidget ( ii, 3, pLabelSeries );
-                        ui->tableWidget->setCellWidget ( ii, 4, pLabelTokenID );
+//                        ui->tableWidget->setCellWidget ( ii, 1, pLabelDenomination );
+//                        ui->tableWidget->setCellWidget ( ii, 2, pLabelExpires );
+//                        ui->tableWidget->setCellWidget ( ii, 3, pLabelSeries );
+//                        ui->tableWidget->setCellWidget ( ii, 4, pLabelTokenID );
 
-                        connect(pCheckbox, SIGNAL(stateChanged(int) ), this, SLOT(checkboxClicked(int)));
-                    }
+//                        connect(pCheckbox, SIGNAL(stateChanged(int) ), this, SLOT(checkboxClicked(int)));
+//                    }
 
-#if OT_CASH
-                    str_purse = Moneychanger::It()->OT().Exec().Purse_Pop(str_acct_server, str_acct_asset, str_acct_nym, str_purse);
-#endif  // OT_CASH
-                } // for
-                // -------------------------------------------------------
-            } // if purse not empty.
-#endif  // OT_CASH
-        } // if cash balance > 0.
-    }
-    // --------------------------------------------
-//    this->blockSignals(false);
-    ui->tableWidget->blockSignals(false);
+//#if OT_CASH
+//                    str_purse = Moneychanger::It()->OT().Exec().Purse_Pop(str_acct_server, str_acct_asset, str_acct_nym, str_purse);
+//#endif  // OT_CASH
+//                } // for
+//                // -------------------------------------------------------
+//            } // if purse not empty.
+//#endif  // OT_CASH
+//        } // if cash balance > 0.
+//    }
+//    // --------------------------------------------
+////    this->blockSignals(false);
+//    ui->tableWidget->blockSignals(false);
 }
 
 
@@ -237,60 +237,60 @@ void MTCashPurse::checkboxClicked(int state)
 
 void MTCashPurse::on_pushButtonWithdraw_clicked()
 {
-    // ----------------------------------------------------------------
-    if (m_qstrAcctId.isEmpty() || m_qstrInstrumentDefinitionID.isEmpty())
-    {
-        qDebug() << "MTCashPurse::on_pushButtonWithdraw_clicked: Strange: Acct ID or Asset ID was empty.";
-        return;
-    }
-    // ----------------------------------------------------------------
-    std::string accountID = m_qstrAcctId.toStdString();
-    // ----------------------------------------------------------------
-    QString qstrReason(tr("How much cash would you like to withdraw?"));
-    // ----------------------------------------------------------------
-    // Let's find out the withdrawal amount.
-    //
-    DlgGetAmount dlgAmount(this, m_qstrAcctId, m_qstrInstrumentDefinitionID, qstrReason);
+//    // ----------------------------------------------------------------
+//    if (m_qstrAcctId.isEmpty() || m_qstrInstrumentDefinitionID.isEmpty())
+//    {
+//        qDebug() << "MTCashPurse::on_pushButtonWithdraw_clicked: Strange: Acct ID or Asset ID was empty.";
+//        return;
+//    }
+//    // ----------------------------------------------------------------
+//    std::string accountID = m_qstrAcctId.toStdString();
+//    // ----------------------------------------------------------------
+//    QString qstrReason(tr("How much cash would you like to withdraw?"));
+//    // ----------------------------------------------------------------
+//    // Let's find out the withdrawal amount.
+//    //
+//    DlgGetAmount dlgAmount(this, m_qstrAcctId, m_qstrInstrumentDefinitionID, qstrReason);
 
-    dlgAmount.setWindowTitle("Withdrawal Amount");
+//    dlgAmount.setWindowTitle("Withdrawal Amount");
 
-    if (dlgAmount.exec() != QDialog::Accepted)
-        return;
-    // ----------------------------------------------------------------
-    // If we're in here, that means the person entered a valid (larger-than-zero)
-    // withdrawal amount, and then clicked "OK".
-    //
-    bool bSent = false;
-    {
+//    if (dlgAmount.exec() != QDialog::Accepted)
+//        return;
+//    // ----------------------------------------------------------------
+//    // If we're in here, that means the person entered a valid (larger-than-zero)
+//    // withdrawal amount, and then clicked "OK".
+//    //
+//    bool bSent = false;
+//    {
 
-        int64_t lAmount = dlgAmount.GetAmount();
+//        int64_t lAmount = dlgAmount.GetAmount();
 
-        MTSpinner theSpinner;
+//        MTSpinner theSpinner;
 
-        bSent = (1 == Moneychanger::It()->OT().Cash().easy_withdraw_cash(accountID, lAmount));
-    }
-    // -----------------------------------------------------------------
-    if (!bSent)
-    {
-        const std::string str_server = Moneychanger::It()->OT().Exec().GetAccountWallet_NotaryID(accountID);
-        const std::string str_nym    = Moneychanger::It()->OT().Exec().GetAccountWallet_NymID   (accountID);
+//        bSent = (1 == Moneychanger::It()->OT().Cash().easy_withdraw_cash(accountID, lAmount));
+//    }
+//    // -----------------------------------------------------------------
+//    if (!bSent)
+//    {
+//        const std::string str_server = Moneychanger::It()->OT().Exec().GetAccountWallet_NotaryID(accountID);
+//        const std::string str_nym    = Moneychanger::It()->OT().Exec().GetAccountWallet_NymID   (accountID);
 
-        const int64_t lUsageCredits  = Moneychanger::It()->HasUsageCredits(str_server, str_nym);
+//        const int64_t lUsageCredits  = Moneychanger::It()->HasUsageCredits(str_server, str_nym);
 
-        // In the cases of -2 and 0, HasUsageCredits already pops up its own message box.
-        //
-        if (((-2) != lUsageCredits) && (0 != lUsageCredits))
-            QMessageBox::warning(this, tr("Failed Withdrawing Cash"),
-                                 tr("Failed trying to withdraw cash."));
-    }
-    else
-    {
-        QMessageBox::information(this, tr("Success Withdrawing Cash"),
-                                tr("Success withdrawing cash!"));
-        // --------------------------------------------------------
-        emit balancesChanged(m_qstrAcctId);
-    }
-    // -----------------------------------------------------------------
+//        // In the cases of -2 and 0, HasUsageCredits already pops up its own message box.
+//        //
+//        if (((-2) != lUsageCredits) && (0 != lUsageCredits))
+//            QMessageBox::warning(this, tr("Failed Withdrawing Cash"),
+//                                 tr("Failed trying to withdraw cash."));
+//    }
+//    else
+//    {
+//        QMessageBox::information(this, tr("Success Withdrawing Cash"),
+//                                tr("Success withdrawing cash!"));
+//        // --------------------------------------------------------
+//        emit balancesChanged(m_qstrAcctId);
+//    }
+//    // -----------------------------------------------------------------
 }
 
 
@@ -298,210 +298,210 @@ void MTCashPurse::on_pushButtonWithdraw_clicked()
 
 void MTCashPurse::on_pushButtonExport_clicked()
 {
-    bool bSuccess = false;
-    QStringList selectedIndices;
-    int64_t     lAmount=0;
+//    bool bSuccess = false;
+//    QStringList selectedIndices;
+//    int64_t     lAmount=0;
 
-    //int nNumberChecked =
-            this->TallySelections(selectedIndices, lAmount);
-    // ------------------------------------------------------------------
-    std::string str_acct_id     = m_qstrAcctId.toStdString();
-    std::string str_acct_nym    = Moneychanger::It()->OT().Exec().GetAccountWallet_NymID(str_acct_id);
-    std::string str_acct_server = Moneychanger::It()->OT().Exec().GetAccountWallet_NotaryID(str_acct_id);
-    std::string str_acct_asset  = Moneychanger::It()->OT().Exec().GetAccountWallet_InstrumentDefinitionID(str_acct_id);
-    // ------------------------------------------------------------------
-    QString qstrSelectedIndices = selectedIndices.join(","); // Create a comma-separated list of selected indices.
+//    //int nNumberChecked =
+//            this->TallySelections(selectedIndices, lAmount);
+//    // ------------------------------------------------------------------
+//    std::string str_acct_id     = m_qstrAcctId.toStdString();
+//    std::string str_acct_nym    = Moneychanger::It()->OT().Exec().GetAccountWallet_NymID(str_acct_id);
+//    std::string str_acct_server = Moneychanger::It()->OT().Exec().GetAccountWallet_NotaryID(str_acct_id);
+//    std::string str_acct_asset  = Moneychanger::It()->OT().Exec().GetAccountWallet_InstrumentDefinitionID(str_acct_id);
+//    // ------------------------------------------------------------------
+//    QString qstrSelectedIndices = selectedIndices.join(","); // Create a comma-separated list of selected indices.
 
-    // This "should never happen" since the export button is disabled
-    // when none of the cash indices are selected in the GUI.
-    //
-    if (qstrSelectedIndices.isEmpty())
-        return;
-    // ------------------------------------
-    std::string str_amount = Moneychanger::It()->OT().Exec().FormatAmount(str_acct_asset, lAmount);
-    // ------------------------------------
-    // Find out if they want it to be password-protected, and if not,
-    // find out who the recipient Nym is meant to be.
-    //
-    DlgExportCash dlgExport(this);
+//    // This "should never happen" since the export button is disabled
+//    // when none of the cash indices are selected in the GUI.
+//    //
+//    if (qstrSelectedIndices.isEmpty())
+//        return;
+//    // ------------------------------------
+//    std::string str_amount = Moneychanger::It()->OT().Exec().FormatAmount(str_acct_asset, lAmount);
+//    // ------------------------------------
+//    // Find out if they want it to be password-protected, and if not,
+//    // find out who the recipient Nym is meant to be.
+//    //
+//    DlgExportCash dlgExport(this);
 
-    dlgExport.setWindowTitle("Export Cash");
+//    dlgExport.setWindowTitle("Export Cash");
 
-    if (dlgExport.exec() != QDialog::Accepted)
-        return;
-    // ----------------------------------------------------------------
-    // Now dlgExport can tell us whether the cash should be exported to a
-    // particular Nym, or whether it should be password-protected.
-    //
-    bool    bExportToPassphrase = dlgExport.IsExportToPassphrase();
-    QString qstrRecipNymID(""),
-            qstrRecipName(""),
-            qstrRecipientWarning(""),
-            qstrRemovedFromPurse = tr("WARNING: the cash will be removed from your purse!");
-    // ----------------------------------------------------------------
-    if (bExportToPassphrase)
-        qstrRecipientWarning = QString("%1.<br/><br/>%2").arg(tr("The cash will be exported to a passphrase")).arg(qstrRemovedFromPurse);
-    else
-    {
-        qstrRecipNymID       = dlgExport.GetHisNymID();
-        qstrRecipName        = dlgExport.GetHisName ();
-        // ---------------------------------------------
-        qstrRecipientWarning = QString("%1: '%2'<br/>%3: %4<br/><br/>%5").arg(tr("The cash will be exported to")).
-                arg(qstrRecipName).arg(tr("Using his NymID")).arg(qstrRecipNymID).arg(qstrRemovedFromPurse);
-    }
-    // ----------------------------------------------------------------
-    QMessageBox::StandardButton reply;
+//    if (dlgExport.exec() != QDialog::Accepted)
+//        return;
+//    // ----------------------------------------------------------------
+//    // Now dlgExport can tell us whether the cash should be exported to a
+//    // particular Nym, or whether it should be password-protected.
+//    //
+//    bool    bExportToPassphrase = dlgExport.IsExportToPassphrase();
+//    QString qstrRecipNymID(""),
+//            qstrRecipName(""),
+//            qstrRecipientWarning(""),
+//            qstrRemovedFromPurse = tr("WARNING: the cash will be removed from your purse!");
+//    // ----------------------------------------------------------------
+//    if (bExportToPassphrase)
+//        qstrRecipientWarning = QString("%1.<br/><br/>%2").arg(tr("The cash will be exported to a passphrase")).arg(qstrRemovedFromPurse);
+//    else
+//    {
+//        qstrRecipNymID       = dlgExport.GetHisNymID();
+//        qstrRecipName        = dlgExport.GetHisName ();
+//        // ---------------------------------------------
+//        qstrRecipientWarning = QString("%1: '%2'<br/>%3: %4<br/><br/>%5").arg(tr("The cash will be exported to")).
+//                arg(qstrRecipName).arg(tr("Using his NymID")).arg(qstrRecipNymID).arg(qstrRemovedFromPurse);
+//    }
+//    // ----------------------------------------------------------------
+//    QMessageBox::StandardButton reply;
 
-    QString qstrQuestion = QString("%1 %2<br/>%3<br/><br/>%4").arg(tr("Are you sure you wish to export")).
-                                                          arg(QString::fromStdString(str_amount)).
-                                                          arg(tr("from your cash purse?")).
-                                                          arg(qstrRecipientWarning); // Perhaps not all languages have the same question mark...
+//    QString qstrQuestion = QString("%1 %2<br/>%3<br/><br/>%4").arg(tr("Are you sure you wish to export")).
+//                                                          arg(QString::fromStdString(str_amount)).
+//                                                          arg(tr("from your cash purse?")).
+//                                                          arg(qstrRecipientWarning); // Perhaps not all languages have the same question mark...
 
-    reply = QMessageBox::question(this, "Confirm Export", qstrQuestion,
-                                  QMessageBox::Yes|QMessageBox::No);
-    // ------------------------------------
-    if (reply == QMessageBox::Yes)
-    {
+//    reply = QMessageBox::question(this, "Confirm Export", qstrQuestion,
+//                                  QMessageBox::Yes|QMessageBox::No);
+//    // ------------------------------------
+//    if (reply == QMessageBox::Yes)
+//    {
 
-        std::string str_selected_indices(qstrSelectedIndices.toStdString()); // (FYI, you can also use "all" for all indices.)
+//        std::string str_selected_indices(qstrSelectedIndices.toStdString()); // (FYI, you can also use "all" for all indices.)
 
-        std::string str_exported,  // The exported cash, encrypted to recipient (or passphrase.)
-                    str_retained;  // The exported cash, encrypted to sender (just in case...)
+//        std::string str_exported,  // The exported cash, encrypted to recipient (or passphrase.)
+//                    str_retained;  // The exported cash, encrypted to sender (just in case...)
 
-        str_exported = Moneychanger::It()->OT().Cash().export_cash(str_acct_server,
-                                            str_acct_nym,
-                                            str_acct_asset,
-                                            qstrRecipNymID.toStdString(),
-                                            str_selected_indices,
-                                            bExportToPassphrase,
-                                            str_retained); // output
-        // ------------------------------------
-        if (str_exported.empty())
-            QMessageBox::warning(this, tr("Failed Exporting Cash"),
-                                 tr("Failed trying to export cash."));
-        else if (bExportToPassphrase)
-        {
-            DlgExportedToPass dlgExported(this, QString::fromStdString(str_exported));
-            dlgExported.exec();
-            // --------------------------------------------------------
-            bSuccess = true;
-        }
-        else
-        {
-            DlgExportedCash dlgExported(this,
-                                        QString::fromStdString(str_exported),
-                                        QString::fromStdString(str_retained));
-            dlgExported.exec();
-            // --------------------------------------------------------
-            bSuccess = true;
-        }
-    }
-    // -----------------------------------
-    if (bSuccess)
-    {
-        for (int ii = 0; ii < ui->tableWidget->rowCount(); ii++)
-        {
-            QWidget * pWidget = ui->tableWidget->cellWidget(ii, 0);
+//        str_exported = Moneychanger::It()->OT().Cash().export_cash(str_acct_server,
+//                                            str_acct_nym,
+//                                            str_acct_asset,
+//                                            qstrRecipNymID.toStdString(),
+//                                            str_selected_indices,
+//                                            bExportToPassphrase,
+//                                            str_retained); // output
+//        // ------------------------------------
+//        if (str_exported.empty())
+//            QMessageBox::warning(this, tr("Failed Exporting Cash"),
+//                                 tr("Failed trying to export cash."));
+//        else if (bExportToPassphrase)
+//        {
+//            DlgExportedToPass dlgExported(this, QString::fromStdString(str_exported));
+//            dlgExported.exec();
+//            // --------------------------------------------------------
+//            bSuccess = true;
+//        }
+//        else
+//        {
+//            DlgExportedCash dlgExported(this,
+//                                        QString::fromStdString(str_exported),
+//                                        QString::fromStdString(str_retained));
+//            dlgExported.exec();
+//            // --------------------------------------------------------
+//            bSuccess = true;
+//        }
+//    }
+//    // -----------------------------------
+//    if (bSuccess)
+//    {
+//        for (int ii = 0; ii < ui->tableWidget->rowCount(); ii++)
+//        {
+//            QWidget * pWidget = ui->tableWidget->cellWidget(ii, 0);
 
-            if (NULL != pWidget)
-            {
-                QCheckBox * pCheckbox = pWidget->findChild<QCheckBox *>();
+//            if (NULL != pWidget)
+//            {
+//                QCheckBox * pCheckbox = pWidget->findChild<QCheckBox *>();
 
-                if ( (NULL != pCheckbox) && (Qt::Checked == pCheckbox->checkState()))
-                    pCheckbox->setChecked(false);
-            }
-        }
-        // --------------------------------------------------------
-        //int nNumberSelected =
-                this->TallySelections(selectedIndices, lAmount);
-        // --------------------------------------------------------
-        emit balancesChanged(m_qstrAcctId);
-    }
+//                if ( (NULL != pCheckbox) && (Qt::Checked == pCheckbox->checkState()))
+//                    pCheckbox->setChecked(false);
+//            }
+//        }
+//        // --------------------------------------------------------
+//        //int nNumberSelected =
+//                this->TallySelections(selectedIndices, lAmount);
+//        // --------------------------------------------------------
+//        emit balancesChanged(m_qstrAcctId);
+//    }
 }
 
 // -----------------------------------------------------------------
 
 void MTCashPurse::on_pushButtonDeposit_clicked()
 {
-    QStringList selectedIndices;
-    int64_t     lAmount=0;
+//    QStringList selectedIndices;
+//    int64_t     lAmount=0;
 
-    //int nNumberChecked =
-            this->TallySelections(selectedIndices, lAmount);
-    // ------------------------------------------------------------------
-    std::string str_acct_id     = m_qstrAcctId.toStdString();
-    std::string str_acct_nym    = Moneychanger::It()->OT().Exec().GetAccountWallet_NymID(str_acct_id);
-    std::string str_acct_server = Moneychanger::It()->OT().Exec().GetAccountWallet_NotaryID(str_acct_id);
-    std::string str_acct_asset  = Moneychanger::It()->OT().Exec().GetAccountWallet_InstrumentDefinitionID(str_acct_id);
-    // ------------------------------------------------------------------
-    QString qstrSelectedIndices = selectedIndices.join(","); // Create a comma-separated list of selected indices.
+//    //int nNumberChecked =
+//            this->TallySelections(selectedIndices, lAmount);
+//    // ------------------------------------------------------------------
+//    std::string str_acct_id     = m_qstrAcctId.toStdString();
+//    std::string str_acct_nym    = Moneychanger::It()->OT().Exec().GetAccountWallet_NymID(str_acct_id);
+//    std::string str_acct_server = Moneychanger::It()->OT().Exec().GetAccountWallet_NotaryID(str_acct_id);
+//    std::string str_acct_asset  = Moneychanger::It()->OT().Exec().GetAccountWallet_InstrumentDefinitionID(str_acct_id);
+//    // ------------------------------------------------------------------
+//    QString qstrSelectedIndices = selectedIndices.join(","); // Create a comma-separated list of selected indices.
 
-    // This "should never happen" since the deposit button is disabled
-    // when none of the cash indices are selected in the GUI.
-    //
-    if (qstrSelectedIndices.isEmpty())
-        return;
-    // ------------------------------------
-    std::string str_amount = Moneychanger::It()->OT().Exec().FormatAmount(str_acct_asset, lAmount);
-    // ------------------------------------
-    QMessageBox::StandardButton reply;
+//    // This "should never happen" since the deposit button is disabled
+//    // when none of the cash indices are selected in the GUI.
+//    //
+//    if (qstrSelectedIndices.isEmpty())
+//        return;
+//    // ------------------------------------
+//    std::string str_amount = Moneychanger::It()->OT().Exec().FormatAmount(str_acct_asset, lAmount);
+//    // ------------------------------------
+//    QMessageBox::StandardButton reply;
 
-    QString qstrQuestion = QString("%1 %2<br/>%3: %4 %5").arg(tr("Are you sure you wish to deposit")).
-                                                          arg(QString::fromStdString(str_amount)).
-                                                          arg(tr("into the account")).
-                                                          arg(m_qstrAcctName).arg(tr("?")); // Perhaps not all languages have the same question mark...
+//    QString qstrQuestion = QString("%1 %2<br/>%3: %4 %5").arg(tr("Are you sure you wish to deposit")).
+//                                                          arg(QString::fromStdString(str_amount)).
+//                                                          arg(tr("into the account")).
+//                                                          arg(m_qstrAcctName).arg(tr("?")); // Perhaps not all languages have the same question mark...
 
-    reply = QMessageBox::question(this, "Confirm Deposit", qstrQuestion,
-                                  QMessageBox::Yes|QMessageBox::No);
-    if (reply == QMessageBox::Yes)
-    {
-        bool bSent = false;
-        {
+//    reply = QMessageBox::question(this, "Confirm Deposit", qstrQuestion,
+//                                  QMessageBox::Yes|QMessageBox::No);
+//    if (reply == QMessageBox::Yes)
+//    {
+//        bool bSent = false;
+//        {
 
-            MTSpinner    theSpinner;
-            std::string  str_selected_indices(qstrSelectedIndices.toStdString()); // (FYI, you can also use "all" for all indices.)
+//            MTSpinner    theSpinner;
+//            std::string  str_selected_indices(qstrSelectedIndices.toStdString()); // (FYI, you can also use "all" for all indices.)
 
-            bSent = (1 == Moneychanger::It()->OT().Cash().deposit_local_purse(str_acct_server, // <=======
-                                                       str_acct_nym,
-                                                       str_acct_id,
-                                                       str_selected_indices));
-        }
-        // -----------------------------------------------------------------
-        if (!bSent)
-        {
-            const int64_t lUsageCredits = Moneychanger::It()->HasUsageCredits(str_acct_server, str_acct_nym);
+//            bSent = (1 == Moneychanger::It()->OT().Cash().deposit_local_purse(str_acct_server, // <=======
+//                                                       str_acct_nym,
+//                                                       str_acct_id,
+//                                                       str_selected_indices));
+//        }
+//        // -----------------------------------------------------------------
+//        if (!bSent)
+//        {
+//            const int64_t lUsageCredits = Moneychanger::It()->HasUsageCredits(str_acct_server, str_acct_nym);
 
-            // In the cases of -2 and 0, HasUsageCredits already pops up its own error box.
-            //
-            if (((-2) != lUsageCredits) && (0 != lUsageCredits))
-                QMessageBox::warning(this, tr("Failed Depositing Cash"),
-                                     tr("Failed trying to deposit cash."));
-        }
-        else
-        {
-            QMessageBox::information(this, tr("Success Depositing Cash"),
-                                    tr("Success depositing cash!"));
-            // --------------------------------------------------------
-            for (int ii = 0; ii < ui->tableWidget->rowCount(); ii++)
-            {
-                QWidget * pWidget = ui->tableWidget->cellWidget(ii, 0);
+//            // In the cases of -2 and 0, HasUsageCredits already pops up its own error box.
+//            //
+//            if (((-2) != lUsageCredits) && (0 != lUsageCredits))
+//                QMessageBox::warning(this, tr("Failed Depositing Cash"),
+//                                     tr("Failed trying to deposit cash."));
+//        }
+//        else
+//        {
+//            QMessageBox::information(this, tr("Success Depositing Cash"),
+//                                    tr("Success depositing cash!"));
+//            // --------------------------------------------------------
+//            for (int ii = 0; ii < ui->tableWidget->rowCount(); ii++)
+//            {
+//                QWidget * pWidget = ui->tableWidget->cellWidget(ii, 0);
 
-                if (NULL != pWidget)
-                {
-                    QCheckBox * pCheckbox = pWidget->findChild<QCheckBox *>();
+//                if (NULL != pWidget)
+//                {
+//                    QCheckBox * pCheckbox = pWidget->findChild<QCheckBox *>();
 
-                    if ( (NULL != pCheckbox) && (Qt::Checked == pCheckbox->checkState()))
-                        pCheckbox->setChecked(false);
-                }
-            }
-            // --------------------------------------------------------
-            //int nNumberSelected =
-                    this->TallySelections(selectedIndices, lAmount);
-            // --------------------------------------------------------
-            emit balancesChanged(m_qstrAcctId);
-        }
-    }
-    // -----------------------------------------------------------------
+//                    if ( (NULL != pCheckbox) && (Qt::Checked == pCheckbox->checkState()))
+//                        pCheckbox->setChecked(false);
+//                }
+//            }
+//            // --------------------------------------------------------
+//            //int nNumberSelected =
+//                    this->TallySelections(selectedIndices, lAmount);
+//            // --------------------------------------------------------
+//            emit balancesChanged(m_qstrAcctId);
+//        }
+//    }
+//    // -----------------------------------------------------------------
 }
 
 
@@ -510,72 +510,73 @@ void MTCashPurse::on_pushButtonDeposit_clicked()
 //
 int MTCashPurse::TallySelections(QStringList & selectedIndices, int64_t & lAmount)
 {
-    selectedIndices.clear();
-    // -------------------------
-    int64_t lSelectedAmount=0;
-    int     nNumberSelected=0;
-    // -------------------------
-    for (int ii = 0; ii < ui->tableWidget->rowCount(); ii++)
-    {
-        QWidget * pWidget = ui->tableWidget->cellWidget(ii, 0);
+    return 0;
+//    selectedIndices.clear();
+//    // -------------------------
+//    int64_t lSelectedAmount=0;
+//    int     nNumberSelected=0;
+//    // -------------------------
+//    for (int ii = 0; ii < ui->tableWidget->rowCount(); ii++)
+//    {
+//        QWidget * pWidget = ui->tableWidget->cellWidget(ii, 0);
 
-        if (NULL != pWidget)
-        {
-            QCheckBox * pCheckbox = pWidget->findChild<QCheckBox *>();
+//        if (NULL != pWidget)
+//        {
+//            QCheckBox * pCheckbox = pWidget->findChild<QCheckBox *>();
 
-            if ( (NULL != pCheckbox) && (Qt::Checked == pCheckbox->checkState()))
-            {
-                // Add to tally.
-                //
-                nNumberSelected++;
-                // -------------------------
-                QWidget * pValueItem = ui->tableWidget->cellWidget(ii, 1); // the amount.
-                QWidget * pIDItem    = ui->tableWidget->cellWidget(ii, 4); // the token ID.
-                // -------------------------
-                QLabel * pValueLabel = (QLabel *)pValueItem; // todo cast
-                QLabel * pIDLabel    = (QLabel *)pIDItem; // todo cast
-                // -------------------------
-                if (NULL != pValueLabel)
-                {
-                    int64_t lTokenAmount = Moneychanger::It()->OT().Exec().StringToAmount(m_qstrInstrumentDefinitionID.toStdString(),
-                                                                      pValueLabel->text().toStdString());
-                    lSelectedAmount += lTokenAmount;
-                }
-                // -------------------------
-                if (NULL != pIDLabel) // NOTE that we now attach the index here, instead of the ID.
-                    selectedIndices.append(QString("%1").arg(ii));
-//                  selectedIndices.append(pIDLabel->text());
-                // -------------------------
-            }
-        }
-    }
-    // -------------------------
-    lAmount = lSelectedAmount;
-    // -------------------------
-    if (nNumberSelected > 0)
-    {
-        ui->pushButtonDeposit->setEnabled(true);
-        ui->pushButtonExport ->setEnabled(true);
-        // ---------------------------------------
-        QString qstr_amount("");
+//            if ( (NULL != pCheckbox) && (Qt::Checked == pCheckbox->checkState()))
+//            {
+//                // Add to tally.
+//                //
+//                nNumberSelected++;
+//                // -------------------------
+//                QWidget * pValueItem = ui->tableWidget->cellWidget(ii, 1); // the amount.
+//                QWidget * pIDItem    = ui->tableWidget->cellWidget(ii, 4); // the token ID.
+//                // -------------------------
+//                QLabel * pValueLabel = (QLabel *)pValueItem; // todo cast
+//                QLabel * pIDLabel    = (QLabel *)pIDItem; // todo cast
+//                // -------------------------
+//                if (NULL != pValueLabel)
+//                {
+//                    int64_t lTokenAmount = Moneychanger::It()->OT().Exec().StringToAmount(m_qstrInstrumentDefinitionID.toStdString(),
+//                                                                      pValueLabel->text().toStdString());
+//                    lSelectedAmount += lTokenAmount;
+//                }
+//                // -------------------------
+//                if (NULL != pIDLabel) // NOTE that we now attach the index here, instead of the ID.
+//                    selectedIndices.append(QString("%1").arg(ii));
+////                  selectedIndices.append(pIDLabel->text());
+//                // -------------------------
+//            }
+//        }
+//    }
+//    // -------------------------
+//    lAmount = lSelectedAmount;
+//    // -------------------------
+//    if (nNumberSelected > 0)
+//    {
+//        ui->pushButtonDeposit->setEnabled(true);
+//        ui->pushButtonExport ->setEnabled(true);
+//        // ---------------------------------------
+//        QString qstr_amount("");
 
-        if (m_qstrInstrumentDefinitionID.isEmpty())
-            qstr_amount = QString("%1").arg(lAmount);
-        else
-            qstr_amount = QString::fromStdString(Moneychanger::It()->OT().Exec().FormatAmount(m_qstrInstrumentDefinitionID.toStdString(), lAmount));
-        // ---------------------------------------
-        ui->pushButtonDeposit ->setText(QString("%1: %2").arg(tr("Deposit Cash")).arg(qstr_amount));
-    }
-    // -------------------------
-    else
-    {
-        ui->pushButtonDeposit->setEnabled(false);
-        ui->pushButtonExport ->setEnabled(false);
+//        if (m_qstrInstrumentDefinitionID.isEmpty())
+//            qstr_amount = QString("%1").arg(lAmount);
+//        else
+//            qstr_amount = QString::fromStdString(Moneychanger::It()->OT().Exec().FormatAmount(m_qstrInstrumentDefinitionID.toStdString(), lAmount));
+//        // ---------------------------------------
+//        ui->pushButtonDeposit ->setText(QString("%1: %2").arg(tr("Deposit Cash")).arg(qstr_amount));
+//    }
+//    // -------------------------
+//    else
+//    {
+//        ui->pushButtonDeposit->setEnabled(false);
+//        ui->pushButtonExport ->setEnabled(false);
 
-        ui->pushButtonDeposit ->setText(tr("Deposit Cash"));
-    }
-    // -------------------------
-    return nNumberSelected;
+//        ui->pushButtonDeposit ->setText(tr("Deposit Cash"));
+//    }
+//    // -------------------------
+//    return nNumberSelected;
 }
 
 

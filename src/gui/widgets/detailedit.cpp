@@ -688,6 +688,9 @@ void MTDetailEdit::RefreshMarketCombo()
 
 void MTDetailEdit::RefreshLawyerCombo()
 {
+    const auto& ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (MTDetailEdit::DetailEditTypeAgreement != m_Type)
         return;
     // ----------------------------
@@ -697,20 +700,17 @@ void MTDetailEdit::RefreshLawyerCombo()
     // -----------------------------------------------
     m_mapLawyers.clear();
     // -----------------------------------------------
-    const int32_t the_count = Moneychanger::It()->OT().Exec().GetNymCount();
-    // -----------------------------------------------
-    for (int32_t ii = 0; ii < the_count; ++ii)
+    const auto nyms = ot.Wallet().LocalNyms();
+
+    for (const auto nymId : nyms)
     {
-        QString OT_id = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_ID(ii));
-        QString OT_name("");
-        // -----------------------------------------------
-        if (!OT_id.isEmpty())
-        {
-            OT_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_Name(OT_id.toStdString()));
-            // -----------------------------------------------
-            m_mapLawyers.insert(OT_id, OT_name);
-        }
-     }
+        const auto nym = ot.Wallet().Nym(nymId, reason);
+        const auto nymName = nym->Alias();
+
+        QString OT_id = QString::fromStdString(nymId->str());
+        QString OT_name = QString::fromStdString(nymName);
+        m_mapLawyers.insert(OT_id, OT_name);
+    }
     // -----------------------------------------------
     int32_t nCurrentLawyerIndex = 0;
     bool    bFoundCurrentLawyer = false;
@@ -856,6 +856,9 @@ void MTDetailEdit::ClearContents()
 
 void MTDetailEdit::RefreshRecords()
 {
+    const auto& ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     // -------------------------------------------
     // This does nothing unless it's a smart contract DetailEdit.
     RefreshLawyerCombo();
@@ -995,8 +998,10 @@ void MTDetailEdit::RefreshRecords()
                     if (nullptr != pMarketData) // Should never be NULL.
                     {
                         // ------------------------------------------------------
-                        int64_t     lScale    = Moneychanger::It()->OT().Exec().StringToLong(pMarketData->scale);
-                        std::string str_scale = Moneychanger::It()->OT().Exec().FormatAmount(pMarketData->instrument_definition_id, lScale);
+                        int64_t     lScale    = opentxs::String::StringToLong(pMarketData->scale);
+                        const auto unitId = ot.Factory().UnitID(pMarketData->instrument_definition_id);
+//                      const auto unitDefinition = ot.Wallet().UnitDefinition(unitId, reason);
+                        std::string str_scale = Moneychanger::It()->formatAmount(unitId, lScale);
                         // ------------------------------------------------------
                         QString qstrFormattedScale = QString::fromStdString(str_scale);
                         // ------------------------------------------------------
@@ -1036,14 +1041,17 @@ void MTDetailEdit::RefreshRecords()
                     {
                         bool        bSelling          = pOfferData->selling;
                         // ------------------------------------------------------
-                        int64_t     lTotalAssets      = Moneychanger::It()->OT().Exec().StringToLong(pOfferData->total_assets);
-                        int64_t     lFinished         = Moneychanger::It()->OT().Exec().StringToLong(pOfferData->finished_so_far);
+                        const auto assetId = ot.Factory().UnitID(pOfferData->instrument_definition_id);
+                        const auto currencyId = ot.Factory().UnitID(pOfferData->currency_type_id);
                         // ------------------------------------------------------
-                        int64_t     lScale            = Moneychanger::It()->OT().Exec().StringToLong(pOfferData->scale);
-                        std::string str_scale         = Moneychanger::It()->OT().Exec().FormatAmount(pOfferData->instrument_definition_id, lScale);
+                        int64_t     lTotalAssets      = opentxs::String::StringToLong(pOfferData->total_assets);
+                        int64_t     lFinished         = opentxs::String::StringToLong(pOfferData->finished_so_far);
                         // ------------------------------------------------------
-                        int64_t     lPrice            = Moneychanger::It()->OT().Exec().StringToLong(pOfferData->price_per_scale);
-                        std::string str_price         = Moneychanger::It()->OT().Exec().FormatAmount(pOfferData->currency_type_id, lPrice);
+                        int64_t     lScale            = opentxs::String::StringToLong(pOfferData->scale);
+                        std::string str_scale         = Moneychanger::It()->formatAmount(assetId, lScale);
+                        // ------------------------------------------------------
+                        int64_t     lPrice            = opentxs::String::StringToLong(pOfferData->price_per_scale);
+                        std::string str_price         = Moneychanger::It()->formatAmount(currencyId, lPrice);
                         // ------------------------------------------------------
                         QString qstrPrice(tr("market order"));
 
@@ -1054,10 +1062,11 @@ void MTDetailEdit::RefreshRecords()
 
                         qstrPrice += QString(" (%1 %2)").arg(tr("per")).arg(qstrFormattedScale);
                         // ------------------------------------------------------
-                        QString qstrTotalAssets       = QString::fromStdString(Moneychanger::It()->OT().Exec().FormatAmount(pOfferData->instrument_definition_id, lTotalAssets));
-                        QString qstrSoldOrPurchased   = QString::fromStdString(Moneychanger::It()->OT().Exec().FormatAmount(pOfferData->instrument_definition_id, lFinished));
+                        QString qstrTotalAssets       = QString::fromStdString(Moneychanger::It()->formatAmount(assetId, lTotalAssets));
+                        QString qstrSoldOrPurchased   = QString::fromStdString(Moneychanger::It()->formatAmount(assetId, lFinished));
                         // ------------------------------------------------------
-                        std::string str_asset_name    = Moneychanger::It()->OT().Exec().GetAssetType_Name(pOfferData->instrument_definition_id);
+                        const auto unitDefinition     = ot.Wallet().UnitDefinition(assetId, reason);
+                        std::string str_asset_name    = unitDefinition->Alias();
                         // -----------------------------------------------------------------------
                         QString qstrBuySell = bSelling ? tr("Sell") : tr("Buy");
                         QString qstrAmounts;

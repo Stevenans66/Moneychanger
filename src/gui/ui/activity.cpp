@@ -328,7 +328,7 @@ void Activity::RefreshUserBar()
 {
 //    const std::string str_my_nym_id = Moneychanger::It()->get_default_nym_id().toStdString();
 //    // ----------------------------------------
-//    const QString qstrNymName = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_Name(str_my_nym_id));
+//    const QString qstrNymName = QString::fromStdString(ot.Exec().GetNym_Name(str_my_nym_id));
 //    ui->toolButtonMyIdentity->setText(qstrNymName);
 //    ui->toolButtonMyIdentity2->setText(qstrNymName);
 }
@@ -481,17 +481,26 @@ void Activity::ClearAccountTree()
 
 void Activity::GetAssetContractIdsInWallet(std::map<std::string, std::string> & map_output)
 {
-    const int32_t  asset_count = Moneychanger::It()->OT().Exec().GetAssetTypeCount();
-    for (int32_t ii = 0; ii < asset_count; ii++)
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
+    const auto assets = ot.Wallet().UnitDefinitionList();
+
+//    const int32_t  asset_count = ot.Exec().GetAssetTypeCount();
+//    for (int32_t ii = 0; ii < asset_count; ii++)
+    for (const auto& [id, name] : assets)
     {
-        const std::string OT_id   = Moneychanger::It()->OT().Exec().GetAssetType_ID(ii);
-        const std::string OT_name = Moneychanger::It()->OT().Exec().GetAssetType_Name(OT_id);
+        const std::string OT_id   = id;
+        const std::string OT_name = name;
         map_output.insert(std::pair<std::string, std::string>(OT_id, OT_name));
     }
 }
 
 void Activity::GetCurrencyTypesByAssetContractsInWallet(std::set<StringIntPair> & set_output)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     std::map<std::string, std::string> map_units;
     GetAssetContractIdsInWallet(map_units);
 
@@ -499,9 +508,9 @@ void Activity::GetCurrencyTypesByAssetContractsInWallet(std::set<StringIntPair> 
     {
         const auto & unit_type_id = unit.first;
         const auto & unit_Name    = unit.second;
-        auto unitTypeId = opentxs::Identifier::Factory(unit_type_id);
+        auto unitTypeId = ot.Factory().UnitID(unit_type_id);
         const opentxs::proto::ContactItemType currency_type =
-                Moneychanger::It()->OT().Wallet().CurrencyTypeBasedOnUnitType(unitTypeId);
+                ot.Wallet().CurrencyTypeBasedOnUnitType(unitTypeId, reason);
         std::string display_currency_name;
         const auto currency_name = opentxs::proto::TranslateItemType(currency_type);
         if (currency_name.empty()) {
@@ -520,12 +529,12 @@ void Activity::GetCurrencyTypesByAssetContractsInWallet(std::set<StringIntPair> 
 
 //void Activity::GetAssetIdMapsByCurrencyCode(mapOfMapIDName & bigMap)
 //{
-//    int32_t  asset_count = Moneychanger::It()->OT().Exec().GetAssetTypeCount();
+//    int32_t  asset_count = ot.Exec().GetAssetTypeCount();
 //    for (int32_t ii = 0; ii < asset_count; ii++)
 //    {
-//        const QString OT_id   = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_ID(ii));
-//        const QString OT_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_Name(OT_id.toStdString()));
-//        const QString qstrTLA = QString::fromStdString(Moneychanger::It()->OT().Exec().GetCurrencyTLA(OT_id.toStdString()));
+//        const QString OT_id   = QString::fromStdString(ot.Exec().GetAssetType_ID(ii));
+//        const QString OT_name = QString::fromStdString(ot.Exec().GetAssetType_Name(OT_id.toStdString()));
+//        const QString qstrTLA = QString::fromStdString(ot.Exec().GetCurrencyTLA(OT_id.toStdString()));
 //        mapIDName & mapTLA = GetOrCreateAssetIdMapByCurrencyCode(qstrTLA, bigMap);
 //        mapTLA.insert(OT_id, OT_name);
 //    }
@@ -533,6 +542,9 @@ void Activity::GetCurrencyTypesByAssetContractsInWallet(std::set<StringIntPair> 
 
 int64_t Activity::GetAccountBalancesTotaledForUnitTypes(const mapIDName & mapUnitTypeIds)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     int64_t lTotal = 0;
 
     mapIDName::const_iterator ci = mapUnitTypeIds.begin();
@@ -540,14 +552,16 @@ int64_t Activity::GetAccountBalancesTotaledForUnitTypes(const mapIDName & mapUni
     {
         QString qstrUnitTypeId = ci.key();
 
-        for (const auto& [accountID, alias] : Moneychanger::It()->OT().Storage().AccountList())
+        for (const auto& [accountID, alias] : ot.Storage().AccountList())
         {
-            std::string assetTypeID = Moneychanger::It()->OT().Exec().GetAccountWallet_InstrumentDefinitionID(accountID);
+            const auto accountId = ot.Factory().Identifier(accountID);
+            const auto account = ot.Wallet().Account(accountId, reason);
+            std::string assetTypeID = account.get().GetInstrumentDefinitionID().str();
 
             QString qstrAssetTypeId = QString::fromStdString(assetTypeID);
             if (0 == qstrAssetTypeId.compare(qstrUnitTypeId))
             {
-                const int64_t lSubtotal = Moneychanger::It()->OT().Exec().GetAccountWallet_Balance(accountID);
+                const int64_t lSubtotal = account.get().GetBalance();
 
                 // We don't count the negative balances, since those are for issuer accounts,
                 // and if we included them, the total would always balance out to zero anyway.
@@ -580,7 +594,7 @@ int64_t Activity::GetAccountBalancesTotaledForUnitTypes(const mapIDName & mapUni
 
 //    pUniqueServers->clear();
 
-//    //auto servers = Moneychanger::It()->OT().Wallet().ServerList();
+//    //auto servers = ot.Wallet().ServerList();
 
 //    /*
 //    Justus
@@ -597,15 +611,15 @@ int64_t Activity::GetAccountBalancesTotaledForUnitTypes(const mapIDName & mapUni
 //    You have to use OTAPI_Exec still
 //    */
 //    opentxs::ObjectList myNyms;
-//    const auto nNymCount = Moneychanger::It()->OT().Exec().GetNymCount();
+//    const auto nNymCount = ot.Exec().GetNymCount();
 
 //    for (int nym_index = 0; nym_index < nNymCount; ++nym_index)
 //    {
-//        const std::string nym_id = Moneychanger::It()->OT().Exec().GetNym_ID(nym_index);
+//        const std::string nym_id = ot.Exec().GetNym_ID(nym_index);
 
 //        if (!nym_id.empty())
 //        {
-//            const std::string nym_name = Moneychanger::It()->OT().Exec().GetNym_Name(nym_id);
+//            const std::string nym_name = ot.Exec().GetNym_Name(nym_id);
 //            myNyms.push_back(std::pair<std::string, std::string>{nym_id, nym_name});
 //        }
 //    }
@@ -614,12 +628,12 @@ int64_t Activity::GetAccountBalancesTotaledForUnitTypes(const mapIDName & mapUni
 //    }
 //    // ----------------------------------------------------
 //    const auto & nyms = myNyms;
-////  const auto   nyms = Moneychanger::It()->OT().Wallet().NymList();
+////  const auto   nyms = ot.Wallet().NymList();
 
 //    for (const auto & [ nym_id, nym_alias] : nyms)
 //    {
 //        const auto nymId = opentxs::Identifier::Factory(nym_id);
-//        auto setIssuerIDs = Moneychanger::It()->OT().Wallet().IssuerList(nymId);
+//        auto setIssuerIDs = ot.Wallet().IssuerList(nymId);
 
 //        auto it_issuer = setIssuerIDs.begin();
 
@@ -628,7 +642,7 @@ int64_t Activity::GetAccountBalancesTotaledForUnitTypes(const mapIDName & mapUni
 //            const auto issuerId = opentxs::Identifier::Factory(*it_issuer);
 //            it_issuer++;
 
-//            auto pIssuer = Moneychanger::It()->OT().Wallet().Issuer(nymId, issuerId);
+//            auto pIssuer = ot.Wallet().Issuer(nymId, issuerId);
 
 //            if (!pIssuer) {
 //                continue;
@@ -652,7 +666,7 @@ int64_t Activity::GetAccountBalancesTotaledForUnitTypes(const mapIDName & mapUni
 //                // by, for example, being able to search for accounts of a given unit
 //                // type or on a given notary.
 //                //
-//                auto pIssuerNym = Moneychanger::It()->OT().Wallet().Nym(issuerId);
+//                auto pIssuerNym = ot.Wallet().Nym(issuerId);
 
 //                if (pIssuerNym)
 //                {
@@ -699,7 +713,7 @@ int64_t Activity::GetAccountBalancesTotaledForUnitTypes(const mapIDName & mapUni
 /*
 To loop through an issuer's claims about the currencies he's issued:
 
-auto issuerNym = Moneychanger::It()->OT().Wallet().Nym(Issuer.IssuerID());
+auto issuerNym = ot.Wallet().Nym(Issuer.IssuerID());
 
 auto issued_unit_types = issuerNym->Claims().Section(proto::CONTACTSECTION_CONTRACT)
 
@@ -714,7 +728,7 @@ for (const auto& [type, group] : *issued_unit_types) {
 
 //bool Activity::PairingStarted(const opentxs::Identifier & nymId, const opentxs::Identifier & issuerNymId)
 //{
-//    auto pIssuer = Moneychanger::It()->OT().Wallet().Issuer(nymId, issuerNymId);
+//    auto pIssuer = ot.Wallet().Issuer(nymId, issuerNymId);
 
 //    if (!pIssuer) {
 //        return false;
@@ -733,38 +747,41 @@ for (const auto& [type, group] : *issued_unit_types) {
 void Activity::GetAccountIdMapsByServerId(mapOfMapIDName & bigMap, const bool bTrusted, // true == paired, false == hosted.
                                           mapIDName * pMapTLAbyAccountId/*=nullptr*/)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     const bool bCallerWantsToSeePairedNodes = bTrusted;
-    const auto myAccounts = Moneychanger::It()->OT().Storage().AccountList();
+    const auto myAccounts = ot.Storage().AccountList();
 
     for (const auto & [ account_id, account_name] : myAccounts)
     {
+        const auto accountId = ot.Factory().Identifier(account_id);
+        const auto account = ot.Wallet().Account(accountId, reason);
         const QString OT_id   = QString::fromStdString(account_id);
         const QString OT_name = QString::fromStdString(account_name);
-        const std::string str_nym_id = Moneychanger::It()->OT().Exec().GetAccountWallet_NymID(account_id);
-        const auto nymId = opentxs::Identifier::Factory(str_nym_id);
-        const std::string str_server_id = Moneychanger::It()->OT().Exec().GetAccountWallet_NotaryID(account_id);
+        const std::string str_nym_id = account.get().GetNymID().str();
+        const auto nymId = ot.Factory().NymID(str_nym_id);
+        const std::string str_server_id = account.get().GetPurportedNotaryID().str();
         const QString qstrServerId = QString::fromStdString(str_server_id);
 
-        const std::string str_unit_type_id = Moneychanger::It()->OT().Exec().GetAccountWallet_InstrumentDefinitionID(account_id);
-        const auto unit_type_id = opentxs::Identifier::Factory(str_unit_type_id);
+        const auto & unitId = account.get().GetInstrumentDefinitionID();
+        const std::string str_unit_type_id = unitId.str();
         const QString qstrUnitTypeId = QString::fromStdString(str_unit_type_id);
 
-        const std::string OT_asset_TLA  = Moneychanger::It()->OT().Exec().GetCurrencyTLA(str_unit_type_id);
-        const QString qstrTLA = QString::fromStdString(OT_asset_TLA);
-
-        auto unitTypeContract = Moneychanger::It()->OT().Wallet().UnitDefinition(unit_type_id);
-
-        if (!unitTypeContract) {
+        const auto unitDefinition = ot.Wallet().UnitDefinition(unitId, reason);
+        if (!unitDefinition) {
             qDebug() << "GetAccountIdMapsByServerId: I own an account yet somehow dont have the unit type contract in my wallet.";
             continue;
         }
+        const std::string OT_asset_TLA  = unitDefinition->TLA();
+        const QString qstrTLA = QString::fromStdString(OT_asset_TLA);
 
-        const auto issuerNymId = opentxs::Identifier::Factory(unitTypeContract->Nym()->ID());
+        const auto issuerNymId = opentxs::Identifier::Factory(unitDefinition->Nym()->ID());
         //std::string GetSignerNymID(const std::string& str_Contract) const;
 
         // bPaireding means, paired or in the process of pairing.
         const bool bPaireding = false; //PairingStarted(nymId, issuerNymId);
-        //const bool bPaireding = Moneychanger::It()->OT().OTME_TOO().PairingStarted(str_server_id);
+        //const bool bPaireding = ot.OTME_TOO().PairingStarted(str_server_id);
 
         // Basically the caller either wants a list of accounts by server ID for PAIRED servers,
         // OR he wants a list of accounts by server ID for NON-Paired (hosted) servers.
@@ -888,7 +905,7 @@ mapIDName & Activity::GetOrCreateAccountIdMapByTLA(QString qstrTLA, mapOfMapIDNa
 //void blah(QString strID) // asset ID
 //{
 //    // ----------------------------------
-//    const QString qstrContents = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_Contract(strID.toStdString()));
+//    const QString qstrContents = QString::fromStdString(ot.Exec().GetAssetType_Contract(strID.toStdString()));
 //    opentxs::proto::UnitDefinition contractProto = opentxs::proto::StringToProto<opentxs::proto::UnitDefinition>
 //                                                    (opentxs::String(qstrContents.toStdString()));
 //    // ----------------------------------
@@ -995,6 +1012,9 @@ void print_line(
 //
 void Activity::RefreshSummaryTree()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
 //    opentxs::otErr << "Activity::RefreshSummaryTree was called!! We're at the top now!!" << std::endl;
 
 
@@ -1025,7 +1045,7 @@ void Activity::RefreshSummaryTree()
     const std::string mynym = currentDataMyNym.toString().toStdString();
 
     const auto currencyType = opentxs::proto::ContactItemType(currency_type);
-    const auto nymID = opentxs::Identifier::Factory(mynym);
+    const auto nymID = ot.Factory().NymID(mynym);
     // ------------------------------------
     //resume
 
@@ -1046,7 +1066,7 @@ void Activity::RefreshSummaryTree()
     pHostedAccountsItem->setFlags(pHostedAccountsItem->flags()&~Qt::ItemIsSelectable);
     // ----------------------------------------
 
-    auto& list = Moneychanger::It()->OT().UI().AccountSummary(nymID, currencyType);
+    auto& list = ot.UI().AccountSummary(nymID, currencyType);
     auto issuer = list.First();
 
     active_account_summary_issuer_widget_id_ = "";
@@ -1142,6 +1162,9 @@ void Activity::RefreshSummaryTree()
             }
         }
 
+        const auto accountId = ot.Factory().Identifier(account_id);
+        const auto account = ot.Wallet().Account(accountId, reason);
+
         const QString qstrAccountId = QString::fromStdString(account_id);
         const QString qstrAccountWidgetId = QString::fromStdString(account_widget_id);
         const QString qstrName = QString::fromStdString(account_name);
@@ -1190,12 +1213,12 @@ void Activity::RefreshSummaryTree()
         if (!qstrAccountId.isEmpty()) {
             pWidgetItem->setData(0, USER_ROLE_ACCOUNT_ID, QVariant(qstrAccountId));
         }
-        const std::string str_asset_id = Moneychanger::It()->OT().Exec().GetAccountWallet_InstrumentDefinitionID(account_id);
+        const std::string str_asset_id = account.get().GetInstrumentDefinitionID().str();
         const QString qstrUnitTypeId = QString::fromStdString(str_asset_id);
         if (!qstrUnitTypeId.isEmpty()) {
             pWidgetItem->setData(0, USER_ROLE_ACCOUNT_UNIT_TYPE, QVariant(qstrUnitTypeId));
         }
-        const std::string str_server_id = Moneychanger::It()->OT().Exec().GetAccountWallet_NotaryID(account_id);
+        const std::string str_server_id = account.get().GetPurportedNotaryID().str();
         const QString qstrServerId = QString::fromStdString(str_server_id);
         if (!qstrServerId.isEmpty()) {
             pWidgetItem->setData(0, USER_ROLE_ACCOUNT_SERVER_ID, QVariant(qstrServerId));
@@ -1220,99 +1243,99 @@ void Activity::RefreshSummaryTree()
         }
 
 
-        auto lastAccount = account->Last();
-        while (false == lastAccount) {
-            account = issuer->Next();
-            if (false == account->Valid()) { break; }
-            lastAccount = account->Last();
-            // ---------------------------------------------------------------
-            const std::string account_id(account->AccountID());
-            const std::string account_widget_id(account->WidgetID()->str());
-            std::string account_name(account->Name());
-            const std::string display_balance(account->DisplayBalance());
+//        auto lastAccount = account->Last();
+//        while (false == lastAccount) {
+//            account = issuer->Next();
+//            if (false == account->Valid()) { break; }
+//            lastAccount = account->Last();
+//            // ---------------------------------------------------------------
+//            const std::string account_id(account->AccountID());
+//            const std::string account_widget_id(account->WidgetID()->str());
+//            std::string account_name(account->Name());
+//            const std::string display_balance(account->DisplayBalance());
 
-            if (account_name.empty()) {
-                const auto currency_name = opentxs::proto::TranslateItemType(currencyType);
-                if (currency_name.empty())
-                    account_name = std::string(__FUNCTION__) + std::string(": Blank TranslateItemType(") + std::to_string(currency_type) + ") in Opentxs";
-                else
-                    account_name = currency_name;
-            }
+//            if (account_name.empty()) {
+//                const auto currency_name = opentxs::proto::TranslateItemType(currencyType);
+//                if (currency_name.empty())
+//                    account_name = std::string(__FUNCTION__) + std::string(": Blank TranslateItemType(") + std::to_string(currency_type) + ") in Opentxs";
+//                else
+//                    account_name = currency_name;
+//            }
 
-            const QString qstrAccountId = QString::fromStdString(account_id);
-            const QString qstrAccountWidgetId = QString::fromStdString(account_widget_id);
-            const QString qstrName = QString::fromStdString(account_name);
-            const QString qstrDisplayBalance = QString::fromStdString(display_balance);
+//            const QString qstrAccountId = QString::fromStdString(account_id);
+//            const QString qstrAccountWidgetId = QString::fromStdString(account_widget_id);
+//            const QString qstrName = QString::fromStdString(account_name);
+//            const QString qstrDisplayBalance = QString::fromStdString(display_balance);
 
-            QTreeWidgetItem * pWidgetItem = new QTreeWidgetItem((QTreeWidget *)nullptr,
-                QStringList(qstrName) << qstrDisplayBalance);
-            items.append(pWidgetItem);
-            pWidgetItem->setExpanded(false);
+//            QTreeWidgetItem * pWidgetItem = new QTreeWidgetItem((QTreeWidget *)nullptr,
+//                QStringList(qstrName) << qstrDisplayBalance);
+//            items.append(pWidgetItem);
+//            pWidgetItem->setExpanded(false);
 
-            if (!account_widget_id_to_select.empty() &&
-                0 == account_widget_id_to_select.compare(account_widget_id)) {
-                bFoundAccountToSelect = true;
-                pWidgetItemToSelect = pWidgetItem;
-            }
+//            if (!account_widget_id_to_select.empty() &&
+//                0 == account_widget_id_to_select.compare(account_widget_id)) {
+//                bFoundAccountToSelect = true;
+//                pWidgetItemToSelect = pWidgetItem;
+//            }
 
-            pWidgetItem->setData(0, USER_ROLE_NODE_TYPE, QVariant(AC_NODE_TYPE_HOSTED_ACCOUNT));
-            pWidgetItem->setData(0, USER_ROLE_HEADER_TYPE, QVariant(ACTIVITY_TREE_HEADER_HOSTED));
-            if (currentDataCurrency.isValid()) {
-                pWidgetItem->setData(0, USER_ROLE_CURRENCY_TYPE, currentDataCurrency);
-            }
-            if (currentDataMyNym.isValid()) {
-                pWidgetItem->setData(0, USER_ROLE_MY_NYM_ID, currentDataMyNym);
-            }
-            if (!qstrAccountId.isEmpty()) {
-                pWidgetItem->setData(0, USER_ROLE_ACCOUNT_ID, QVariant(qstrAccountId));
-            }
-            const std::string str_asset_id = Moneychanger::It()->OT().Exec().GetAccountWallet_InstrumentDefinitionID(account_id);
-            const QString qstrUnitTypeId = QString::fromStdString(str_asset_id);
-            if (!qstrUnitTypeId.isEmpty()) {
-                pWidgetItem->setData(0, USER_ROLE_ACCOUNT_UNIT_TYPE, QVariant(qstrUnitTypeId));
-            }
-            const std::string str_server_id = Moneychanger::It()->OT().Exec().GetAccountWallet_NotaryID(account_id);
-            const QString qstrServerId = QString::fromStdString(str_server_id);
-            if (!qstrServerId.isEmpty()) {
-                pWidgetItem->setData(0, USER_ROLE_ACCOUNT_SERVER_ID, QVariant(qstrServerId));
-            }
-            if (!qstrIssuerWidgetId.isEmpty()) {
-                pWidgetItem->setData(0, USER_ROLE_ISSUER_WIDGET_ID, QVariant(qstrIssuerWidgetId));
-            }
-            if (!qstrAccountWidgetId.isEmpty()) {
-                pWidgetItem->setData(0, USER_ROLE_ACCOUNT_WIDGET_ID, QVariant(qstrAccountWidgetId));
-            }
-            pWidgetItem->setChildIndicatorPolicy(QTreeWidgetItem::DontShowIndicator);
+//            pWidgetItem->setData(0, USER_ROLE_NODE_TYPE, QVariant(AC_NODE_TYPE_HOSTED_ACCOUNT));
+//            pWidgetItem->setData(0, USER_ROLE_HEADER_TYPE, QVariant(ACTIVITY_TREE_HEADER_HOSTED));
+//            if (currentDataCurrency.isValid()) {
+//                pWidgetItem->setData(0, USER_ROLE_CURRENCY_TYPE, currentDataCurrency);
+//            }
+//            if (currentDataMyNym.isValid()) {
+//                pWidgetItem->setData(0, USER_ROLE_MY_NYM_ID, currentDataMyNym);
+//            }
+//            if (!qstrAccountId.isEmpty()) {
+//                pWidgetItem->setData(0, USER_ROLE_ACCOUNT_ID, QVariant(qstrAccountId));
+//            }
+//            const std::string str_asset_id = ot.Exec().GetAccountWallet_InstrumentDefinitionID(account_id);
+//            const QString qstrUnitTypeId = QString::fromStdString(str_asset_id);
+//            if (!qstrUnitTypeId.isEmpty()) {
+//                pWidgetItem->setData(0, USER_ROLE_ACCOUNT_UNIT_TYPE, QVariant(qstrUnitTypeId));
+//            }
+//            const std::string str_server_id = ot.Exec().GetAccountWallet_NotaryID(account_id);
+//            const QString qstrServerId = QString::fromStdString(str_server_id);
+//            if (!qstrServerId.isEmpty()) {
+//                pWidgetItem->setData(0, USER_ROLE_ACCOUNT_SERVER_ID, QVariant(qstrServerId));
+//            }
+//            if (!qstrIssuerWidgetId.isEmpty()) {
+//                pWidgetItem->setData(0, USER_ROLE_ISSUER_WIDGET_ID, QVariant(qstrIssuerWidgetId));
+//            }
+//            if (!qstrAccountWidgetId.isEmpty()) {
+//                pWidgetItem->setData(0, USER_ROLE_ACCOUNT_WIDGET_ID, QVariant(qstrAccountWidgetId));
+//            }
+//            pWidgetItem->setChildIndicatorPolicy(QTreeWidgetItem::DontShowIndicator);
 
-//            EXPORT virtual OTIdentifier WidgetID() const = 0;
-//            EXPORT virtual bool Last() const = 0;
-//            EXPORT virtual bool Valid() const = 0;
-//            EXPORT virtual std::string AccountID() const = 0;
-//            EXPORT virtual Amount Balance() const = 0;
-//            EXPORT virtual std::string DisplayBalance() const = 0;
-//            EXPORT virtual std::string Name() const = 0;
+////            EXPORT virtual OTIdentifier WidgetID() const = 0;
+////            EXPORT virtual bool Last() const = 0;
+////            EXPORT virtual bool Valid() const = 0;
+////            EXPORT virtual std::string AccountID() const = 0;
+////            EXPORT virtual Amount Balance() const = 0;
+////            EXPORT virtual std::string DisplayBalance() const = 0;
+////            EXPORT virtual std::string Name() const = 0;
 
-            //#define USER_ROLE_NODE_TYPE         (Qt::UserRole+0)
-            //#define USER_ROLE_HEADER_TYPE       (Qt::UserRole+1)
-            //#define USER_ROLE_CURRENCY_TYPE     (Qt::UserRole+2)
-            //#define USER_ROLE_MY_NYM_ID         (Qt::UserRole+3)
-            //#define USER_ROLE_ACCOUNT_ID        (Qt::UserRole+4)
-            //#define USER_ROLE_ACCOUNT_UNIT_TYPE (Qt::UserRole+5)
-            //#define USER_ROLE_ACCOUNT_SERVER_ID (Qt::UserRole+6)
-            //#define USER_ROLE_CONTACT_ID        (Qt::UserRole+7)
-            //#define USER_ROLE_ISSUER_WIDGET_ID  (Qt::UserRole+8)
-            //#define USER_ROLE_ACCOUNT_WIDGET_ID (Qt::UserRole+9)
+//            //#define USER_ROLE_NODE_TYPE         (Qt::UserRole+0)
+//            //#define USER_ROLE_HEADER_TYPE       (Qt::UserRole+1)
+//            //#define USER_ROLE_CURRENCY_TYPE     (Qt::UserRole+2)
+//            //#define USER_ROLE_MY_NYM_ID         (Qt::UserRole+3)
+//            //#define USER_ROLE_ACCOUNT_ID        (Qt::UserRole+4)
+//            //#define USER_ROLE_ACCOUNT_UNIT_TYPE (Qt::UserRole+5)
+//            //#define USER_ROLE_ACCOUNT_SERVER_ID (Qt::UserRole+6)
+//            //#define USER_ROLE_CONTACT_ID        (Qt::UserRole+7)
+//            //#define USER_ROLE_ISSUER_WIDGET_ID  (Qt::UserRole+8)
+//            //#define USER_ROLE_ACCOUNT_WIDGET_ID (Qt::UserRole+9)
 
-//            pWidgetItem->setData(0, Qt::UserRole+0, QVariant(AC_NODE_TYPE_ASSET_TOTAL));
-//            pWidgetItem->setData(0, Qt::UserRole+1, QVariant(ACTIVITY_TREE_HEADER_TOTALS));
-//            pWidgetItem->setData(0, Qt::UserRole+2, QVariant(qstrCurrencyCode));
+////            pWidgetItem->setData(0, Qt::UserRole+0, QVariant(AC_NODE_TYPE_ASSET_TOTAL));
+////            pWidgetItem->setData(0, Qt::UserRole+1, QVariant(ACTIVITY_TREE_HEADER_TOTALS));
+////            pWidgetItem->setData(0, Qt::UserRole+2, QVariant(qstrCurrencyCode));
 
-            pWidgetItem->setChildIndicatorPolicy(QTreeWidgetItem::DontShowIndicator);
-
-
+//            pWidgetItem->setChildIndicatorPolicy(QTreeWidgetItem::DontShowIndicator);
 
 
-        }
+
+
+//        }
     }
 
 
@@ -1569,6 +1592,9 @@ bool Activity::RetrieveSelectedIdsChatTab(
 
 QSharedPointer<QStandardItemModel>  Activity::getAccountActivityModel()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     QSharedPointer<QStandardItemModel> pModel{new QStandardItemModel(nullptr)};
 
     if (!pModel)
@@ -1640,10 +1666,10 @@ QSharedPointer<QStandardItemModel>  Activity::getAccountActivityModel()
     const std::string str_my_nym_id      = qstrMyNymId.toStdString();
     const std::string str_account_id     = qstrAccountId.toStdString();
     // --------------------------------------------
-    const opentxs::OTIdentifier nymID     = opentxs::Identifier::Factory(str_my_nym_id);
+    const auto nymID     = ot.Factory().NymID(str_my_nym_id);
     const opentxs::OTIdentifier accountID = opentxs::Identifier::Factory(str_account_id);
     // --------------------------------------------
-    auto& list = Moneychanger::It()->OT().UI().AccountActivity(nymID, accountID);  // <================
+    auto& list = ot.UI().AccountActivity(nymID, accountID);  // <================
     // --------------------------------------------
     opentxs::LogNormal(OT_METHOD)(__FUNCTION__)(
 	     " Columns: ")(opentxs::String::LongToString(column))
@@ -1789,10 +1815,10 @@ QSharedPointer<QStandardItemModel>  Activity::getAccountActivityModel()
 //            const int64_t nBalanceTotal = GetAccountBalancesTotaledForUnitTypes(mapTLA);
 //            const QString qstrFirstAssetTypeId = mapTLA.begin().key();
 //            const std::string first_unit_type  = qstrFirstAssetTypeId.toStdString();
-//            const std::string str_formatted_amount = Moneychanger::It()->OT().Exec().FormatAmountWithoutSymbol(first_unit_type, nBalanceTotal);
+//            const std::string str_formatted_amount = ot.Exec().FormatAmountWithoutSymbol(first_unit_type, nBalanceTotal);
 //            const QString qstrFormattedAmount = QString::fromStdString(str_formatted_amount);
 
-//            const std::string asset_contract = Moneychanger::It()->OT().Exec().GetAssetType_Contract(first_unit_type);
+//            const std::string asset_contract = ot.Exec().GetAssetType_Contract(first_unit_type);
 //            opentxs::proto::UnitDefinition contractProto = opentxs::proto::StringToProto<opentxs::proto::UnitDefinition>
 //                                                            (opentxs::String(asset_contract));
 //            const std::string str_shortname = contractProto.has_shortname() ? contractProto.shortname() : "";
@@ -1886,7 +1912,7 @@ QSharedPointer<QStandardItemModel>  Activity::getAccountActivityModel()
 //        // bPaireding means, paired or in the process of pairing.
 //        // UPDATE: the fact we're even in this loop at all means we're paireding.
 //        //
-//        const bool bPaireding = true; //Moneychanger::It()->OT().OTME_TOO().PairingStarted(str_index);
+//        const bool bPaireding = true; //ot.OTME_TOO().PairingStarted(str_index);
 //        bool bConnected = false;
 //        // ------------------------------------------------------------------------
 //        if (bPaireding)  // If paired or pairing.
@@ -1894,20 +1920,20 @@ QSharedPointer<QStandardItemModel>  Activity::getAccountActivityModel()
 //            opentxs::String strServerId{serverId};
 
 //            const std::string str_snp_server_id{strServerId.Get()};
-////          const std::string str_snp_server_id = Moneychanger::It()->OT().OTME_TOO().GetPairedServer(str_index);
+////          const std::string str_snp_server_id = ot.OTME_TOO().GetPairedServer(str_index);
 //            const bool bGotNotaryId = str_snp_server_id.size() > 0;
 
 //            if (bGotNotaryId)
 //            {
 //                qstrServerId = QString::fromStdString(str_snp_server_id);
 
-//                bConnected = Moneychanger::It()->OT().Exec().CheckConnection(str_snp_server_id);
+//                bConnected = ot.Exec().CheckConnection(str_snp_server_id);
 //                QString strConnected = QString(bConnected ? "Connected" : "Not connected");
 
 //                //String strLog = "SNP Notary ID: " + str_snp_server_id + " - " + strConnected;
 //                //Log.d("MService", strLog);
 
-//                QString strTemp = QString::fromStdString(Moneychanger::It()->OT().Exec().GetServer_Name(str_snp_server_id));
+//                QString strTemp = QString::fromStdString(ot.Exec().GetServer_Name(str_snp_server_id));
 //                if (strTemp.size() > 0)
 //                {
 //                    qstrSnpName = strTemp;
@@ -1950,7 +1976,7 @@ QSharedPointer<QStandardItemModel>  Activity::getAccountActivityModel()
 ////                mapOfMapIDName bigMapAccountsByTLA;
 ////                const mapIDName & mapAccounts = ci_paired.value();
 ////                const std::string str_server_id = qstrServerId.toStdString();
-////                qstrSnpName = QString::fromStdString(Moneychanger::It()->OT().Exec().GetServer_Name(str_server_id));
+////                qstrSnpName = QString::fromStdString(ot.Exec().GetServer_Name(str_server_id));
 ////                // ------------------------------------------------------
 ////                this->GetAccountsByTLAFromMap(mapAccounts, // input
 ////                                              mapTLAByAccountId, // input
@@ -2021,21 +2047,21 @@ QSharedPointer<QStandardItemModel>  Activity::getAccountActivityModel()
 
 
 ////                        const std::string str_acct_id = qstrAccountId.toStdString();
-////                        const std::string str_asset_id = Moneychanger::It()->OT().Exec().GetAccountWallet_InstrumentDefinitionID(str_acct_id);
-////                        const int64_t lBalance = Moneychanger::It()->OT().Exec().GetAccountWallet_Balance(str_acct_id);
-////                        const std::string str_formatted_amount = Moneychanger::It()->OT().Exec().FormatAmountWithoutSymbol(str_asset_id, lBalance);
-////    //                  const std::string str_formatted_amount = Moneychanger::It()->OT().Exec().FormatAmount(str_asset_id, lBalance);
+////                        const std::string str_asset_id = ot.Exec().GetAccountWallet_InstrumentDefinitionID(str_acct_id);
+////                        const int64_t lBalance = ot.Exec().GetAccountWallet_Balance(str_acct_id);
+////                        const std::string str_formatted_amount = ot.Exec().FormatAmountWithoutSymbol(str_asset_id, lBalance);
+////    //                  const std::string str_formatted_amount = ot.Exec().FormatAmount(str_asset_id, lBalance);
 ////                        const QString qstrFormattedAmount = QString::fromStdString(str_formatted_amount);
 
-////                        const std::string asset_contract = Moneychanger::It()->OT().Exec().GetAssetType_Contract(str_asset_id);
+////                        const std::string asset_contract = ot.Exec().GetAssetType_Contract(str_asset_id);
 ////                        opentxs::proto::UnitDefinition contractProto = opentxs::proto::StringToProto<opentxs::proto::UnitDefinition>
 ////                                                                        (opentxs::String(asset_contract));
 
 ////                        const std::string str_symbol = (contractProto.has_currency() && contractProto.has_symbol()) ? contractProto.symbol() : "";
 ////                        const QString qstrSymbol(QString::fromStdString(str_symbol));
-////                        const QString qstrAcctName = QString("     %1").arg(QString::fromStdString(Moneychanger::It()->OT().Exec().GetAccountWallet_Name(str_acct_id)));
+////                        const QString qstrAcctName = QString("     %1").arg(QString::fromStdString(ot.Exec().GetAccountWallet_Name(str_acct_id)));
 ////                        const QString qstrAssetTypeId = QString::fromStdString(str_asset_id);
-////                        //const QString qstrTLA = QString::fromStdString(Moneychanger::It()->OT().Exec().GetCurrencyTLA(str_asset_id));
+////                        //const QString qstrTLA = QString::fromStdString(ot.Exec().GetCurrencyTLA(str_asset_id));
 ////                        // ------------------
 ////                        QTreeWidgetItem * pSubItem = new QTreeWidgetItem((QTreeWidget *)nullptr, QStringList(qstrAcctName) << qstrSymbol << qstrFormattedAmount << qstrTLA);
 ////                        items.append(pSubItem);
@@ -2085,9 +2111,9 @@ QSharedPointer<QStandardItemModel>  Activity::getAccountActivityModel()
 //                const QString qstrServerId = ci_paired.key();
 //                const mapIDName & mapAccounts = ci_paired.value();
 //                const std::string str_server_id = qstrServerId.toStdString();
-//                const bool bConnected = Moneychanger::It()->OT().Exec().CheckConnection(str_server_id);
+//                const bool bConnected = ot.Exec().CheckConnection(str_server_id);
 
-//                QString qstrServerName = QString::fromStdString(Moneychanger::It()->OT().Exec().GetServer_Name(str_server_id));
+//                QString qstrServerName = QString::fromStdString(ot.Exec().GetServer_Name(str_server_id));
 
 
 //                // ------------------------------------------------------
@@ -2173,13 +2199,13 @@ QSharedPointer<QStandardItemModel>  Activity::getAccountActivityModel()
 
 //                                const QString qstrCurrentAccountId = ci_accounts2.key();
 //                                const std::string str_current_acct_id = qstrCurrentAccountId.toStdString();
-//                                str_asset_id_for_formatting = Moneychanger::It()->OT().Exec().GetAccountWallet_InstrumentDefinitionID(str_current_acct_id);
-//                                const QString qstrCurrentAcctName = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAccountWallet_Name(str_current_acct_id));
-//                                const int64_t lCurrentBalance = Moneychanger::It()->OT().Exec().GetAccountWallet_Balance(str_current_acct_id);
+//                                str_asset_id_for_formatting = ot.Exec().GetAccountWallet_InstrumentDefinitionID(str_current_acct_id);
+//                                const QString qstrCurrentAcctName = QString::fromStdString(ot.Exec().GetAccountWallet_Name(str_current_acct_id));
+//                                const int64_t lCurrentBalance = ot.Exec().GetAccountWallet_Balance(str_current_acct_id);
 
 //                                if (str_symbol_for_display.empty())
 //                                {
-//                                    const std::string asset_contract = Moneychanger::It()->OT().Exec().GetAssetType_Contract(str_asset_id_for_formatting);
+//                                    const std::string asset_contract = ot.Exec().GetAssetType_Contract(str_asset_id_for_formatting);
 //                                    opentxs::proto::UnitDefinition contractProto = opentxs::proto::StringToProto<opentxs::proto::UnitDefinition>
 //                                                                                    (opentxs::String(asset_contract));
 //                                    const std::string str_symbol = (contractProto.has_currency() && contractProto.has_symbol()) ? contractProto.symbol() : "";
@@ -2261,17 +2287,17 @@ QSharedPointer<QStandardItemModel>  Activity::getAccountActivityModel()
 //                                // --------------------------------------------------
 //                                qstrAccountId = ci_accounts.key(); // Because we're on the first one.
 //                                str_acct_id = qstrAccountId.toStdString();
-//                                str_asset_id = Moneychanger::It()->OT().Exec().GetAccountWallet_InstrumentDefinitionID(str_acct_id);
+//                                str_asset_id = ot.Exec().GetAccountWallet_InstrumentDefinitionID(str_acct_id);
 //                                str_asset_id_for_formatting = str_asset_id;
 //                                qstrAssetTypeId = QString::fromStdString(str_asset_id);
-//                                lDisplayBalance = Moneychanger::It()->OT().Exec().GetAccountWallet_Balance(str_acct_id);
+//                                lDisplayBalance = ot.Exec().GetAccountWallet_Balance(str_acct_id);
 
 //                                const QString qstrCurrentAcctName = QString("     %1")
-//                                        .arg(QString::fromStdString(Moneychanger::It()->OT().Exec().GetAccountWallet_Name(str_acct_id)));
+//                                        .arg(QString::fromStdString(ot.Exec().GetAccountWallet_Name(str_acct_id)));
 
 //                                qstrDisplayName = qstrCurrentAcctName;
 //                                // ------------------
-//                                const std::string asset_contract = Moneychanger::It()->OT().Exec().GetAssetType_Contract(str_asset_id);
+//                                const std::string asset_contract = ot.Exec().GetAssetType_Contract(str_asset_id);
 //                                opentxs::proto::UnitDefinition contractProto = opentxs::proto::StringToProto<opentxs::proto::UnitDefinition>
 //                                                                                (opentxs::String(asset_contract));
 //                                const std::string str_symbol = (contractProto.has_currency() && contractProto.has_symbol()) ? contractProto.symbol() : "";
@@ -2283,7 +2309,7 @@ QSharedPointer<QStandardItemModel>  Activity::getAccountActivityModel()
 //                                continue;
 //                            }
 //                            // ------------------
-//                            str_formatted_amount = Moneychanger::It()->OT().Exec().FormatAmountWithoutSymbol(str_asset_id_for_formatting, lDisplayBalance);
+//                            str_formatted_amount = ot.Exec().FormatAmountWithoutSymbol(str_asset_id_for_formatting, lDisplayBalance);
 //                            const QString qstrFormattedAmount = QString::fromStdString(str_formatted_amount);
 //                            // ------------------
 //                            const QString qstrSymbol(QString::fromStdString(str_symbol_for_display)); // May be empty
@@ -2401,9 +2427,9 @@ QSharedPointer<QStandardItemModel>  Activity::getAccountActivityModel()
 //            const QString qstrServerId = ci_servers.key();
 //            const mapIDName & mapAccounts = ci_servers.value();
 //            const std::string str_server_id = qstrServerId.toStdString();
-//            const bool bConnected = Moneychanger::It()->OT().Exec().CheckConnection(str_server_id);
+//            const bool bConnected = ot.Exec().CheckConnection(str_server_id);
 
-//            QString qstrServerName = QString::fromStdString(Moneychanger::It()->OT().Exec().GetServer_Name(str_server_id));
+//            QString qstrServerName = QString::fromStdString(ot.Exec().GetServer_Name(str_server_id));
 
 
 //            // ------------------------------------------------------
@@ -2492,13 +2518,13 @@ QSharedPointer<QStandardItemModel>  Activity::getAccountActivityModel()
 
 //                            const QString qstrCurrentAccountId = ci_accounts2.key();
 //                            const std::string str_current_acct_id = qstrCurrentAccountId.toStdString();
-//                            str_asset_id_for_formatting = Moneychanger::It()->OT().Exec().GetAccountWallet_InstrumentDefinitionID(str_current_acct_id);
-//                            const QString qstrCurrentAcctName = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAccountWallet_Name(str_current_acct_id));
-//                            const int64_t lCurrentBalance = Moneychanger::It()->OT().Exec().GetAccountWallet_Balance(str_current_acct_id);
+//                            str_asset_id_for_formatting = ot.Exec().GetAccountWallet_InstrumentDefinitionID(str_current_acct_id);
+//                            const QString qstrCurrentAcctName = QString::fromStdString(ot.Exec().GetAccountWallet_Name(str_current_acct_id));
+//                            const int64_t lCurrentBalance = ot.Exec().GetAccountWallet_Balance(str_current_acct_id);
 
 //                            if (str_symbol_for_display.empty())
 //                            {
-//                                const std::string asset_contract = Moneychanger::It()->OT().Exec().GetAssetType_Contract(str_asset_id_for_formatting);
+//                                const std::string asset_contract = ot.Exec().GetAssetType_Contract(str_asset_id_for_formatting);
 //                                opentxs::proto::UnitDefinition contractProto = opentxs::proto::StringToProto<opentxs::proto::UnitDefinition>
 //                                                                                (opentxs::String(asset_contract));
 //                                const std::string str_symbol = (contractProto.has_currency() && contractProto.has_symbol()) ? contractProto.symbol() : "";
@@ -2582,17 +2608,17 @@ QSharedPointer<QStandardItemModel>  Activity::getAccountActivityModel()
 //                            // --------------------------------------------------
 //                            qstrAccountId = ci_accounts.key(); // Because we're on the first one.
 //                            str_acct_id = qstrAccountId.toStdString();
-//                            str_asset_id = Moneychanger::It()->OT().Exec().GetAccountWallet_InstrumentDefinitionID(str_acct_id);
+//                            str_asset_id = ot.Exec().GetAccountWallet_InstrumentDefinitionID(str_acct_id);
 //                            str_asset_id_for_formatting = str_asset_id;
 //                            qstrAssetTypeId = QString::fromStdString(str_asset_id);
-//                            lDisplayBalance = Moneychanger::It()->OT().Exec().GetAccountWallet_Balance(str_acct_id);
+//                            lDisplayBalance = ot.Exec().GetAccountWallet_Balance(str_acct_id);
 
 //                            const QString qstrCurrentAcctName = QString("     %1")
-//                                    .arg(QString::fromStdString(Moneychanger::It()->OT().Exec().GetAccountWallet_Name(str_acct_id)));
+//                                    .arg(QString::fromStdString(ot.Exec().GetAccountWallet_Name(str_acct_id)));
 
 //                            qstrDisplayName = qstrCurrentAcctName;
 //                            // ------------------
-//                            const std::string asset_contract = Moneychanger::It()->OT().Exec().GetAssetType_Contract(str_asset_id);
+//                            const std::string asset_contract = ot.Exec().GetAssetType_Contract(str_asset_id);
 //                            opentxs::proto::UnitDefinition contractProto = opentxs::proto::StringToProto<opentxs::proto::UnitDefinition>
 //                                                                            (opentxs::String(asset_contract));
 //                            const std::string str_symbol = (contractProto.has_currency() && contractProto.has_symbol()) ? contractProto.symbol() : "";
@@ -2604,7 +2630,7 @@ QSharedPointer<QStandardItemModel>  Activity::getAccountActivityModel()
 //                            continue;
 //                        }
 //                        // ------------------
-//                        str_formatted_amount = Moneychanger::It()->OT().Exec().FormatAmountWithoutSymbol(str_asset_id_for_formatting, lDisplayBalance);
+//                        str_formatted_amount = ot.Exec().FormatAmountWithoutSymbol(str_asset_id_for_formatting, lDisplayBalance);
 //                        const QString qstrFormattedAmount = QString::fromStdString(str_formatted_amount);
 //                        // ------------------
 //                        const QString qstrSymbol(QString::fromStdString(str_symbol_for_display)); // May be empty
@@ -3041,13 +3067,20 @@ void Activity::PopulateConversationsForNym(
    const std::string & activity_summary_id,
    QListWidgetItem  *& pItemToSelect)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     pItemToSelect = nullptr;
 
-    const int  nNymCount = Moneychanger::It()->OT().Exec().GetNymCount();
+    const auto nyms = ot.Wallet().LocalNyms();
+
+    const int  nNymCount = nyms.size();
     OT_ASSERT(nNymCount > 0);
     const bool bOnlyOneNymInWallet = (1 == nNymCount);
     // ------------------
-    std::string str_my_nym_name ("");
+    const auto myNymId = ot.Factory().NymID(str_my_nym_id);
+    const auto myNym = ot.Wallet().Nym(myNymId, reason);
+    std::string str_my_nym_name = myNym->Alias();
     // ------------------
     if (bOnlyOneNymInWallet)
     {
@@ -3055,26 +3088,26 @@ void Activity::PopulateConversationsForNym(
     }
     else
     {
-        str_my_nym_name = Moneychanger::It()->OT().Exec().GetNym_Name(str_my_nym_id);
+        str_my_nym_name = myNym->Alias();
 
         if (str_my_nym_name.empty()) {
             str_my_nym_name = "Me";
         }
     }
-//  const auto response = Moneychanger::It()->OT().Contacts().NewContact(label, opentxs::Identifier{hisnym}, opentxs::PaymentCode{paymentCode});
-//  const auto pContact = Moneychanger::It()->OT().Contacts().Contact(opentxs::Identifier{contact});
+//  const auto response = ot.Contacts().NewContact(label, opentxs::Identifier{hisnym}, opentxs::PaymentCode{paymentCode});
+//  const auto pContact = ot.Contacts().Contact(opentxs::Identifier{contact});
 
     //NOTE: no point here, since the above lookup already uses the below code.
     //      It finds the contact based on NymID and then gets the Label() for that contact.
 //    if (str_my_nym_name.empty()) { // still empty?
 //        get contact ID from Nym ID here. Then get pointer to contact.
-//        const auto pContact = Moneychanger::It()->OT().Contacts().Contact(opentxs::Identifier{contact});
+//        const auto pContact = ot.Contacts().Contact(opentxs::Identifier{contact});
 //        pContact->
 //    }
     // ------------------------
     const QString qstrMyNymName = QString::fromStdString(str_my_nym_name);
     // ------------------------
-    opentxs::ObjectList threadList = Moneychanger::It()->OT().Activity().Threads(opentxs::Identifier::Factory(str_my_nym_id));
+    opentxs::ObjectList threadList = ot.Activity().Threads(myNymId, reason);
     opentxs::ObjectList::const_iterator ci = threadList.begin();
 
     while (threadList.end() != ci)
@@ -3085,7 +3118,7 @@ void Activity::PopulateConversationsForNym(
         const std::string & str_thread_name = threadInfo.second;
         // ----------------------------------------------
         std::shared_ptr<opentxs::proto::StorageThread> thread;
-        Moneychanger::It()->OT().Storage().Load(str_my_nym_id, str_thread_id, thread);
+        ot.Storage().Load(str_my_nym_id, str_thread_id, thread);
         // ----------------------------------------------
         if (!thread) {
             ++ci;
@@ -3114,8 +3147,7 @@ void Activity::PopulateConversationsForNym(
 
         if (!qstrMyNymId.isEmpty())
         {
-            auto & thread_summary = Moneychanger::It()->OT().UI().ActivitySummary(
-                opentxs::Identifier::Factory(str_my_nym_id));
+            auto & thread_summary = ot.UI().ActivitySummary(myNymId);
 
             std::map<std::string,std::string>::iterator
                 it_thread_summary =
@@ -3155,6 +3187,9 @@ void Activity::PopulateConversationsForNym(
 
 void Activity::RefreshConversationsTab()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     QListWidget * pListWidgetConversations = ui->listWidgetConversations;
     if (nullptr == pListWidgetConversations) {
         return;
@@ -3219,15 +3254,16 @@ void Activity::RefreshConversationsTab()
 
 
     opentxs::ObjectList myNyms;
-    const auto nNymCount = Moneychanger::It()->OT().Exec().GetNymCount();
-
-    for (int nym_index = 0; nym_index < nNymCount; ++nym_index)
+    const auto nNymCount = ot.Wallet().LocalNymCount();
+    const auto nyms =  ot.Wallet().LocalNyms();
+    for (const auto & nymId : nyms)
+//    for (int nym_index = 0; nym_index < nNymCount; ++nym_index)
     {
-        const std::string nym_id = Moneychanger::It()->OT().Exec().GetNym_ID(nym_index);
-
+        const std::string nym_id = nymId->str();
+        const auto nym = ot.Wallet().Nym(nymId, reason);
         if (!nym_id.empty())
         {
-            const std::string nym_name = Moneychanger::It()->OT().Exec().GetNym_Name(nym_id);
+            const std::string nym_name = nym->Alias();
             myNyms.push_back(std::pair<std::string, std::string>{nym_id, nym_name});
         }
     }
@@ -3235,12 +3271,11 @@ void Activity::RefreshConversationsTab()
     QListWidgetItem * pItemToSelect     {nullptr};
     QListWidgetItem * pItemToSelectLoop {nullptr};
 
-    const auto & nyms = myNyms;
-//  const auto   nyms = Moneychanger::It()->OT().Wallet().NymList();
+//  const auto   nyms = ot.Wallet().NymList();
 
-    for (const auto & [ nym_id, nym_alias] : nyms)
+    for (const auto & [ nym_id, nym_alias] : myNyms)
     {
-        const auto nymId = opentxs::Identifier::Factory(nym_id);
+        const auto nymId = ot.Factory().NymID(nym_id);
 
         bool bMatchesActivitySummaryId {false};
         this->PopulateConversationsForNym(pListWidgetConversations,
@@ -3337,7 +3372,7 @@ void Activity::resetConversationItemsDataModel(const bool bProvidedIds/*=false*/
 
 //    {
 //        const opentxs::Identifier nymID{mynym};
-//        auto& activity = Moneychanger::It()->OT().UI().ActivitySummary(nymID);
+//        auto& activity = ot.UI().ActivitySummary(nymID);
 //        otOut << "Activity:\n";
 //        dashLine();
 //        auto& line = activity.First();
@@ -3483,6 +3518,9 @@ void Activity::onOpentxsWidgetUpdated(QString qstrWidgetID)
 
 void Activity::RefreshConversationDetails(int nRow)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (nRow < 0)
     {
         qDebug() << "WARNING!!! I'm setting active_thread_ to an empty string in Activity::RefreshConversationDetails!!!!";
@@ -3531,8 +3569,8 @@ void Activity::RefreshConversationDetails(int nRow)
         // -------------------------------------------
         if (!qstrMyNymId.isEmpty())
         {
-            auto & thread_summary = Moneychanger::It()->OT().UI().ActivitySummary(
-                opentxs::Identifier::Factory(str_my_nym_id));
+            const auto myNymId = ot.Factory().NymID(str_my_nym_id);
+            auto & thread_summary = ot.UI().ActivitySummary(myNymId);
 
             std::map<std::string,std::string>::iterator
                 it_thread_summary =
@@ -3566,14 +3604,13 @@ void Activity::RefreshConversationDetails(int nRow)
         // thread ID is the group ID (and thus NOT a contact ID). But it's okay
         // to pass it either way, because Opentxs handles it properly either way.
         //
-        const auto nymID = opentxs::Identifier::Factory(str_my_nym_id);
+        const auto nymID = ot.Factory().NymID(str_my_nym_id);
         const auto threadID = opentxs::Identifier::Factory(str_thread_id);
 
         qDebug() << "str_my_nym_id: " << QString::fromStdString(str_my_nym_id);
         qDebug() << "str_thread_id: " << QString::fromStdString(str_thread_id);
 
-        if (opentxs::Messagability::READY !=
-            Moneychanger::It()->OT().Sync().CanMessage(nymID, threadID))
+        if (opentxs::Messagability::READY != ot.OTX().CanMessage(nymID, threadID))
         {
             qDebug() << "Skipping contact since he is not yet messagable.";
 
@@ -3582,7 +3619,7 @@ void Activity::RefreshConversationDetails(int nRow)
             return;
         }
         // --------------------------------------------
-        const auto& thread = Moneychanger::It()->OT().UI().ActivityThread(nymID, threadID);
+        const auto& thread = ot.UI().ActivityThread(nymID, threadID);
         const auto first = thread.First();
 
     //    qDebug() << QString::fromStdString(thread.DisplayName()) << "\n";
@@ -3630,7 +3667,7 @@ void Activity::RefreshConversationDetails(int nRow)
 //        const std::string str_my_nym_id = qstrMyNymId.toStdString();
 //        const std::string str_thread_id = qstrThreadId.toStdString();
 //
-//        const auto& thread = Moneychanger::It()->OT().UI().ActivityThread(
+//        const auto& thread = ot.UI().ActivityThread(
 //            opentxs::Identifier(str_my_nym_id),
 //            opentxs::Identifier(str_thread_id));
 //        const auto& first = thread.First();
@@ -3663,7 +3700,7 @@ void Activity::RefreshConversationDetails(int nRow)
         // it that way from the database.
         //
 //        std::shared_ptr<opentxs::proto::StorageThread> thread;
-//        Moneychanger::It()->OT().Storage().Load(str_my_nym_id, str_thread_id, thread);
+//        ot.Storage().Load(str_my_nym_id, str_thread_id, thread);
 //        // ----------------------------------------------
 //        if (!thread) {
 //            return;
@@ -3867,17 +3904,22 @@ void Activity::dialog(int nSourceRow/*=-1*/, int nFolder/*=-1*/)
 
 void Activity::populateNymComboBox(QComboBox * pComboBox)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     const int index_before_refresh = pComboBox->currentIndex();
     // ----------------------------------------
     pComboBox->blockSignals(true);
     // ----------------------------------------
     pComboBox->clear();
 
-    const std::set<std::string> localNyms = Moneychanger::It()->OT().Storage().LocalNyms();
+    const std::set<std::string> localNyms = ot.Storage().LocalNyms();
 
     for (const auto & nym_id_str : localNyms)
     {
-        const std::string nym_name = opentxs::SwigWrap::GetNym_Name(nym_id_str);
+        const auto nymId = ot.Factory().NymID(nym_id_str);
+        const auto nym = ot.Wallet().Nym(nymId, reason);
+        const std::string nym_name = nym->Alias();
         const QString qstrNymId    = QString::fromStdString(nym_id_str);
         const QString qstrNymName  = QString::fromStdString(nym_name);
         const QVariant qvarUserData(qstrNymId);
@@ -3961,12 +4003,15 @@ void Activity::on_comboBoxCurrency_activated(int index)
 
 std::set<int> Activity::GetCurrencyTypesForLocalAccounts()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     std::set<int> set_currency;
-    opentxs::ObjectList account_list = Moneychanger::It()->OT().Storage().AccountList();
+    opentxs::ObjectList account_list = ot.Storage().AccountList();
 
     for (const auto& [id, alias] : account_list) {
         const auto account_id = opentxs::Identifier::Factory(id);
-        const auto currency_type = Moneychanger::It()->OT().Storage().AccountUnit(account_id);
+        const auto currency_type = ot.Storage().AccountUnit(account_id);
         set_currency.insert(static_cast<int>(currency_type));
     }
 
@@ -3975,19 +4020,23 @@ std::set<int> Activity::GetCurrencyTypesForLocalAccounts()
 
 void Activity::PopulateIssuerWidgetIds()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     std::set<int> currency_types = GetCurrencyTypesForLocalAccounts();
 
     for (const auto currency_type : currency_types)
     {
         const auto currencyType = opentxs::proto::ContactItemType(currency_type);
 
-        const int32_t nymCount = Moneychanger::It()->OT().Exec().GetNymCount();
-        for (int32_t nymIndex = 0; nymIndex < nymCount; ++nymIndex)
+        const auto nyms = ot.Wallet().LocalNyms();
+        const int32_t nymCount = nyms.size();
+        for (const auto & nymId : nyms)
+//        for (int32_t nymIndex = 0; nymIndex < nymCount; ++nymIndex)
         {
-            std::string mynym = Moneychanger::It()->OT().Exec().GetNym_ID(nymIndex);
+            std::string mynym = nymId->str();
 
-            const auto nymID = opentxs::Identifier::Factory(mynym);
-            auto& list = Moneychanger::It()->OT().UI().AccountSummary(nymID, currencyType);
+            auto& list = ot.UI().AccountSummary(nymId, currencyType);
             auto issuer = list.First();
 
             if (false == issuer->Valid()) {
@@ -4211,6 +4260,9 @@ void Activity::on_tableViewPaymentsSelectionModel_currentRowChanged(const QModel
 
 void Activity::on_plainTextEditMsg_textChanged()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     const QString qstrPlainText = ui->plainTextEditMsg->toPlainText().simplified();
 
     if (!qstrPlainText.isEmpty())
@@ -4246,7 +4298,7 @@ void Activity::on_plainTextEditMsg_textChanged()
                 // thread ID is the group ID (and thus NOT a contact ID). But it's okay
                 // to pass it either way, because Opentxs handles it properly either way.
                 //
-                const auto nymID = opentxs::Identifier::Factory(str_my_nym_id);
+                const auto nymID = ot.Factory().NymID(str_my_nym_id);
                 const auto threadID = opentxs::Identifier::Factory(str_thread_id);
 
                 qDebug() << "str_my_nym_id: " << QString::fromStdString(str_my_nym_id);
@@ -4254,7 +4306,7 @@ void Activity::on_plainTextEditMsg_textChanged()
 
 
                 if (opentxs::Messagability::READY !=
-                    Moneychanger::It()->OT().Sync().CanMessage(nymID, threadID))
+                   ot.OTX().CanMessage(nymID, threadID))
                 {
         //          QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME), tr("Sorry, but the selected contact is not yet messagable.") );
 
@@ -4264,7 +4316,7 @@ void Activity::on_plainTextEditMsg_textChanged()
                 }
                 // --------------------------------------------
 
-                auto& thread = Moneychanger::It()->OT().UI().ActivityThread(nymID, threadID);
+                auto& thread = ot.UI().ActivityThread(nymID, threadID);
 
 //                if (thread.Participants().empty() || thread.DisplayName().empty()) {
 //                    return;
@@ -4956,7 +5008,7 @@ void Activity::onClaimsUpdatedForNym(QString nymId)
 //                        {
 //                            qstrMethodName = tr("Notary");
 //                            // ------------------------------
-//                            QString qstrTemp = QString::fromStdString(Moneychanger::It()->OT().Exec().GetServer_Name(qstrViaTransport.toStdString()));
+//                            QString qstrTemp = QString::fromStdString(ot.Exec().GetServer_Name(qstrViaTransport.toStdString()));
 //                            if (!qstrTemp.isEmpty())
 //                                qstrTransportName = qstrTemp;
 //                        }
@@ -5149,8 +5201,8 @@ void Activity::tableViewPayments_PopupMenu(const QPoint &pos, QTableView * pTabl
 ////      qstrSubject        = varSubject      .isValid() ? varSubject      .toString()   : QString("");
 
 //        // new-style
-//        const auto senderContactId    = Moneychanger::It()->OT().Contacts().ContactID(opentxs::Identifier::Factory(qstrSenderNymId.toStdString()));
-//        const auto recipientContactId = Moneychanger::It()->OT().Contacts().ContactID(opentxs::Identifier::Factory(qstrRecipientNymId.toStdString()));
+//        const auto senderContactId    = ot.Contacts().ContactID(opentxs::Identifier::Factory(qstrSenderNymId.toStdString()));
+//        const auto recipientContactId = ot.Contacts().ContactID(opentxs::Identifier::Factory(qstrRecipientNymId.toStdString()));
 //        const opentxs::String     strSenderContactId(senderContactId);
 //        const opentxs::String     strRecipientContactId(recipientContactId);
 
@@ -5517,7 +5569,7 @@ void Activity::tableViewPayments_PopupMenu(const QPoint &pos, QTableView * pTabl
 //            return;
 //        // Below this point we're guaranteed that there's a NymID.
 //        // ---------------------------------------------------
-//        const auto contactId    = Moneychanger::It()->OT().Contacts().ContactID(opentxs::Identifier::Factory(qstrNymId.toStdString()));
+//        const auto contactId    = ot.Contacts().ContactID(opentxs::Identifier::Factory(qstrNymId.toStdString()));
 
 //        if (!contactId->empty())
 //        {
@@ -6163,79 +6215,82 @@ bool Activity::GetUnitAndTLAMapForAccountsOnServer(mapIDName& mapUnitTLA, // out
                                                    QString qstrServerId, // primary input
                                                    const std::string & str_my_nym_id)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     bool bFoundSome = false;
 
-    // So let's see if there are any accounts for that server Id.
-    mapOfMapIDName::const_iterator ci_paired = bigMapAccountsByServer.find(qstrServerId);
+//    // So let's see if there are any accounts for that server Id.
+//    mapOfMapIDName::const_iterator ci_paired = bigMapAccountsByServer.find(qstrServerId);
 
-    if (ci_paired != bigMapAccountsByServer.end() && (0 == qstrServerId.compare(ci_paired.key()))) // Found some.
-    {
-        const mapIDName & mapAccounts = ci_paired.value();
-        mapIDName::const_iterator ci_accounts = mapAccounts.begin();
-        while (ci_accounts != mapAccounts.end())
-        {
-            const QString qstrAccountId = ci_accounts.key();
-            const std::string str_acct_id = qstrAccountId.toStdString();
-            const std::string str_current_nym_id = Moneychanger::It()->OT().Exec().GetAccountWallet_NymID(str_acct_id);
+//    if (ci_paired != bigMapAccountsByServer.end() && (0 == qstrServerId.compare(ci_paired.key()))) // Found some.
+//    {
+//        const mapIDName & mapAccounts = ci_paired.value();
+//        mapIDName::const_iterator ci_accounts = mapAccounts.begin();
+//        while (ci_accounts != mapAccounts.end())
+//        {
+//            const QString qstrAccountId = ci_accounts.key();
+//            const std::string str_acct_id = qstrAccountId.toStdString();
+//            const std::string str_current_nym_id = ot.Exec().GetAccountWallet_NymID(str_acct_id);
 
-            if (0 != str_current_nym_id.compare(str_my_nym_id)) {
-                continue;
-            }
-            // ---------------------------------
-            const std::string str_asset_id = Moneychanger::It()->OT().Exec().GetAccountWallet_InstrumentDefinitionID(str_acct_id);
-            const QString qstrUnitTypeId = QString::fromStdString(str_asset_id);
-            const QString qstrTLA = QString::fromStdString(Moneychanger::It()->OT().Exec().GetCurrencyTLA(str_asset_id));
-            // ---------------------------------
-            mapIDName::iterator it_unit_type = mapUnitTLA.find(qstrUnitTypeId);
+//            if (0 != str_current_nym_id.compare(str_my_nym_id)) {
+//                continue;
+//            }
+//            // ---------------------------------
+//            const std::string str_asset_id = ot.Exec().GetAccountWallet_InstrumentDefinitionID(str_acct_id);
+//            const QString qstrUnitTypeId = QString::fromStdString(str_asset_id);
+//            const QString qstrTLA = QString::fromStdString(ot.Exec().GetCurrencyTLA(str_asset_id));
+//            // ---------------------------------
+//            mapIDName::iterator it_unit_type = mapUnitTLA.find(qstrUnitTypeId);
 
-            if (it_unit_type != mapUnitTLA.end() && it_unit_type.key() == qstrUnitTypeId) {
-                // TRhe unit type is already there. (Which is to be expected, since many
-                // users will have multiple accounts of the same asset type).
-                //
-            }
-            else { // It's not already there. Let's add it.
-                // This map tracks the TLA for each unit type.
-                mapUnitTLA.insert(qstrUnitTypeId, qstrTLA);
-                bFoundSome = true;
-            }
-            // ---------------------------------
-            const auto asset_id = opentxs::Identifier::Factory(str_asset_id);
-            opentxs::ConstUnitDefinition unit_definition = Moneychanger::It()->OT().Wallet().UnitDefinition(asset_id);
-            opentxs::ConstNym issuer_nym = unit_definition->Nym();
-            const opentxs::Identifier & issuer_nym_id = issuer_nym->ID();
-            const auto strIssuerNymId = opentxs::String::Factory();
-            const std::string str_issuer_nym_id(strIssuerNymId->Get());
-            const QString qstrIssuerNymId(QString::fromStdString(str_issuer_nym_id));
+//            if (it_unit_type != mapUnitTLA.end() && it_unit_type.key() == qstrUnitTypeId) {
+//                // TRhe unit type is already there. (Which is to be expected, since many
+//                // users will have multiple accounts of the same asset type).
+//                //
+//            }
+//            else { // It's not already there. Let's add it.
+//                // This map tracks the TLA for each unit type.
+//                mapUnitTLA.insert(qstrUnitTypeId, qstrTLA);
+//                bFoundSome = true;
+//            }
+//            // ---------------------------------
+//            const auto asset_id = opentxs::Identifier::Factory(str_asset_id);
+//            opentxs::ConstUnitDefinition unit_definition = ot.Wallet().UnitDefinition(asset_id);
+//            opentxs::ConstNym issuer_nym = unit_definition->Nym();
+//            const opentxs::Identifier & issuer_nym_id = issuer_nym->ID();
+//            const auto strIssuerNymId = opentxs::String::Factory();
+//            const std::string str_issuer_nym_id(strIssuerNymId->Get());
+//            const QString qstrIssuerNymId(QString::fromStdString(str_issuer_nym_id));
 
-            // This map tracks a list of assets for each TLA.
-            //
-            mapOfMapIDName::iterator it_TLA = bigMapAssetsByTLA.find(qstrTLA);
+//            // This map tracks a list of assets for each TLA.
+//            //
+//            mapOfMapIDName::iterator it_TLA = bigMapAssetsByTLA.find(qstrTLA);
 
-            if (it_TLA != bigMapAssetsByTLA.end() && (0 == qstrTLA.compare(it_TLA.key()))) {
-                // There's a map of assets existing for the TLA searched.
-                mapIDName & mapAssets = it_TLA.value();
-                // Let's see if our unit type is already on that map...
-                mapIDName::iterator it_assets = mapAssets.find(qstrUnitTypeId);
-                if (it_assets != mapAssets.end() && (0 == qstrUnitTypeId.compare(it_assets.key()))) {
-                    // It's already there.
-                }
-                else { // Add our unit type to the map of unit types for that TLA.
-                    // The map connects unit type to issuer nym id.
-                    mapAssets.insert(qstrUnitTypeId, qstrIssuerNymId);
-                }
-            }
-            else { // There's not (yet) a map of assets in existence for the TLA searched.
-                // Let's create it, and add the unit/issuer pair to it.
-                //
-                bigMapAssetsByTLA[qstrTLA] = mapIDName{};
-                it_TLA = bigMapAssetsByTLA.find(qstrTLA);
-                mapIDName & mapAssets = it_TLA.value();
-                mapAssets.insert(qstrUnitTypeId, qstrIssuerNymId);
-            }
-            // ---------------------------------
-            ci_accounts++;
-        }
-    }
+//            if (it_TLA != bigMapAssetsByTLA.end() && (0 == qstrTLA.compare(it_TLA.key()))) {
+//                // There's a map of assets existing for the TLA searched.
+//                mapIDName & mapAssets = it_TLA.value();
+//                // Let's see if our unit type is already on that map...
+//                mapIDName::iterator it_assets = mapAssets.find(qstrUnitTypeId);
+//                if (it_assets != mapAssets.end() && (0 == qstrUnitTypeId.compare(it_assets.key()))) {
+//                    // It's already there.
+//                }
+//                else { // Add our unit type to the map of unit types for that TLA.
+//                    // The map connects unit type to issuer nym id.
+//                    mapAssets.insert(qstrUnitTypeId, qstrIssuerNymId);
+//                }
+//            }
+//            else { // There's not (yet) a map of assets in existence for the TLA searched.
+//                // Let's create it, and add the unit/issuer pair to it.
+//                //
+//                bigMapAssetsByTLA[qstrTLA] = mapIDName{};
+//                it_TLA = bigMapAssetsByTLA.find(qstrTLA);
+//                mapIDName & mapAssets = it_TLA.value();
+//                mapAssets.insert(qstrUnitTypeId, qstrIssuerNymId);
+//            }
+//            // ---------------------------------
+//            ci_accounts++;
+//        }
+//    }
     return bFoundSome;
 }
 
@@ -6386,7 +6441,7 @@ void Activity::treeWidgetSummary_PopupMenu(const QPoint &pos, QTreeWidget * pTre
 //    //
 //    else if (bSelectedContact) {
 //        pActionViewContact = popupMenuAccounts_->addAction(tr("View this contact"));
-//        if (opentxs::Messagability::READY == Moneychanger::It()->OT().Sync().CanMessage(opentxs::Identifier(str_my_nym_id), opentxs::Identifier(qstrContactId.toStdString())))
+//        if (opentxs::Messagability::READY ==ot.OTX().CanMessage(opentxs::Identifier(str_my_nym_id), opentxs::Identifier(qstrContactId.toStdString())))
 //        {
 //            pActionContactMsg = popupMenuAccounts_->addAction(tr("Message this contact"));
 //            pActionContactPay = popupMenuAccounts_->addAction(tr("Pay this contact"));
@@ -6496,7 +6551,7 @@ void Activity::treeWidgetSummary_PopupMenu(const QPoint &pos, QTreeWidget * pTre
 //            qDebug() << "Unable to download credentials without a default Nym ID being set";
 //            return;
 //        }
-//        Moneychanger::It()->OT().Sync().CanMessage(opentxs::Identifier(str_my_nym_id), opentxs::Identifier(qstrContactId.toStdString()));
+//       ot.OTX().CanMessage(opentxs::Identifier(str_my_nym_id), opentxs::Identifier(qstrContactId.toStdString()));
 
 //        // Todo: emit some signal in a few seconds that an Opentxs Contact was just re-downloaded recently probably?
 
@@ -6518,7 +6573,7 @@ void Activity::treeWidgetSummary_PopupMenu(const QPoint &pos, QTreeWidget * pTre
 //        const QString strNewContactLabel = nameDlg.GetOutputString();
 //        const std::string str_new_contact_label = strNewContactLabel.toStdString();
 //        // --------------------------------------------------
-//        auto pContact = Moneychanger::It()->OT().Contacts().NewContact(str_new_contact_label);
+//        auto pContact = ot.Contacts().NewContact(str_new_contact_label);
 
 //        if (!pContact) {
 //            qDebug() << "Error: Failed trying to create new Contact.";
@@ -6650,7 +6705,7 @@ void Activity::treeWidgetSummary_PopupMenu(const QPoint &pos, QTreeWidget * pTre
 //                : qstrDefaultAssetId.toStdString();
 //        const QString qstrDefaultTLA = qstrDefaultAssetId.isEmpty()
 //                ? QString("")
-//                : QString::fromStdString(Moneychanger::It()->OT().Exec().GetCurrencyTLA( default_asset_id ));
+//                : QString::fromStdString(ot.Exec().GetCurrencyTLA( default_asset_id ));
 //        // -----------------------------------------------
 //        mapIDName mapUnitTLA;
 //        mapOfMapIDName bigMapAccountsByServer, bigMapAssetsByTLA;
@@ -6828,15 +6883,15 @@ void Activity::treeWidgetSummary_PopupMenu(const QPoint &pos, QTreeWidget * pTre
 //                const QString qstrCurrentIssuerNymId = it_assets.value();
 //                const QString qstrKey = QString("%1,%2").arg(qstrCurrentAssetTypeId).arg(qstrCurrentIssuerNymId);
 //                // ------------------------------------------
-//                QString OT_issuer_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_Name(qstrCurrentIssuerNymId.toStdString()));
+//                QString OT_issuer_name = QString::fromStdString(ot.Exec().GetNym_Name(qstrCurrentIssuerNymId.toStdString()));
 //                if (OT_issuer_name.isEmpty()) {
 //                    OT_issuer_name = qstrCurrentIssuerNymId;
 //                }
 //                // ------------------------------------------
 //                const opentxs::Identifier asset_id(qstrCurrentAssetTypeId.toStdString());
-//                opentxs::ConstUnitDefinition unit_definition = Moneychanger::It()->OT().Wallet().UnitDefinition(asset_id);
+//                opentxs::ConstUnitDefinition unit_definition = ot.Wallet().UnitDefinition(asset_id);
 //                const QString OT_asset_name = QString::fromStdString(unit_definition->Alias());
-////              const QString OT_asset_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_Name(qstrCurrentAssetTypeId.toStdString()));
+////              const QString OT_asset_name = QString::fromStdString(ot.Exec().GetAssetType_Name(qstrCurrentAssetTypeId.toStdString()));
 //                const QString qstrValue = QString("'%1' %2: %3").arg(OT_asset_name).arg(tr("issued by")).arg(OT_issuer_name);
 //                // ------------------------------------------
 //                the_map.insert(qstrKey, qstrValue);
@@ -6902,7 +6957,7 @@ void Activity::treeWidgetSummary_PopupMenu(const QPoint &pos, QTreeWidget * pTre
 //            const opentxs::Identifier my_nym_id{str_my_nym_id};
 //            const opentxs::Identifier issuer_nym_id{opentxs::String{qstrIssuerNymId.toStdString()}};
 
-//            auto editor = Moneychanger::It()->OT().Wallet().mutable_Issuer(my_nym_id, issuer_nym_id);
+//            auto editor = ot.Wallet().mutable_Issuer(my_nym_id, issuer_nym_id);
 //            auto& issuer = editor.It();
 
 ////          if (pIssuer)
@@ -7007,7 +7062,7 @@ void Activity::treeWidgetSummary_PopupMenu(const QPoint &pos, QTreeWidget * pTre
 //        //
 
 //        const QString qstrMyNymId(QString::fromStdString(str_my_nym_id));
-//        const auto& db = Moneychanger::It()->OT().Storage();
+//        const auto& db = ot.Storage();
 //        std::vector<opentxs::OTIdentifier> filteredAccounts;
 //        const auto nymAccounts = db.AccountsByOwner(opentxs::Identifier::Factory(str_my_nym_id));
 //        const auto serverAccounts = db.AccountsByServer(opentxs::Identifier::Factory(qstrServerId.toStdString()));
@@ -7027,7 +7082,7 @@ void Activity::treeWidgetSummary_PopupMenu(const QPoint &pos, QTreeWidget * pTre
 
 //        for (const auto& accountID : filteredAccounts) {
 //            const auto str_current_acct_id = accountID->str();
-//            const auto account_name = Moneychanger::It()->OT().Exec().GetAccountWallet_Name(str_current_acct_id);
+//            const auto account_name = ot.Exec().GetAccountWallet_Name(str_current_acct_id);
 
 //            theAccountMap.insert(QString::fromStdString(str_current_acct_id),
 //                                 QString::fromStdString(account_name));
@@ -7058,12 +7113,12 @@ void Activity::treeWidgetSummary_PopupMenu(const QPoint &pos, QTreeWidget * pTre
 //                // Looks like the account the user right-clicked on, IS an available account based on
 //                // filtering for the current nym and the selected notary.
 //                //
-//                strBailmentAssetTypeId = Moneychanger::It()->OT().Exec().GetAccountWallet_InstrumentDefinitionID(qstrAccountId.toStdString());
+//                strBailmentAssetTypeId = ot.Exec().GetAccountWallet_InstrumentDefinitionID(qstrAccountId.toStdString());
 
 //                if (!strBailmentAssetTypeId.empty()) {
 //                    const opentxs::Identifier asset_id(strBailmentAssetTypeId);
 //                    if (!asset_id.empty()) {
-//                        opentxs::ConstUnitDefinition unit_definition = Moneychanger::It()->OT().Wallet().UnitDefinition(asset_id);
+//                        opentxs::ConstUnitDefinition unit_definition = ot.Wallet().UnitDefinition(asset_id);
 //                        if (unit_definition) {
 //                            opentxs::ConstNym issuer_nym = unit_definition->Nym();
 //                            if (issuer_nym) {
@@ -7100,7 +7155,7 @@ void Activity::treeWidgetSummary_PopupMenu(const QPoint &pos, QTreeWidget * pTre
 //                    : qstrDefaultAssetId.toStdString();
 //            const QString qstrDefaultTLA = qstrDefaultAssetId.isEmpty()
 //                    ? QString("")
-//                    : QString::fromStdString(Moneychanger::It()->OT().Exec().GetCurrencyTLA( default_asset_id ));
+//                    : QString::fromStdString(ot.Exec().GetCurrencyTLA( default_asset_id ));
 //            // -----------------------------------------------
 //            mapIDName mapUnitTLA;
 //            mapOfMapIDName bigMapAccountsByServer, bigMapAssetsByTLA;
@@ -7272,15 +7327,15 @@ void Activity::treeWidgetSummary_PopupMenu(const QPoint &pos, QTreeWidget * pTre
 //                    const QString qstrCurrentIssuerNymId = it_assets.value();
 //                    const QString qstrKey = QString("%1,%2").arg(qstrCurrentAssetTypeId).arg(qstrCurrentIssuerNymId);
 //                    // ------------------------------------------
-//                    QString OT_issuer_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_Name(qstrCurrentIssuerNymId.toStdString()));
+//                    QString OT_issuer_name = QString::fromStdString(ot.Exec().GetNym_Name(qstrCurrentIssuerNymId.toStdString()));
 //                    if (OT_issuer_name.isEmpty()) {
 //                        OT_issuer_name = qstrCurrentIssuerNymId;
 //                    }
 //                    // ------------------------------------------
 //                    const opentxs::Identifier asset_id(qstrCurrentAssetTypeId.toStdString());
-//                    opentxs::ConstUnitDefinition unit_definition = Moneychanger::It()->OT().Wallet().UnitDefinition(asset_id);
+//                    opentxs::ConstUnitDefinition unit_definition = ot.Wallet().UnitDefinition(asset_id);
 //                    const QString OT_asset_name  = QString::fromStdString(unit_definition->Alias());
-//    //              const QString OT_asset_name  = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_Name(qstrCurrentAssetTypeId.toStdString()));
+//    //              const QString OT_asset_name  = QString::fromStdString(ot.Exec().GetAssetType_Name(qstrCurrentAssetTypeId.toStdString()));
 //                    const QString qstrExtra = QString(" (%1: %2)").arg(tr("ID")).arg(qstrCurrentIssuerNymId);
 //                    const QString qstrValue = QString("'%1' %2: %3%4").arg(OT_asset_name).arg(tr("issued by")).arg(OT_issuer_name)
 //                            .arg( (0 == OT_issuer_name.compare(qstrCurrentIssuerNymId)) ? QString("") :  qstrExtra);
@@ -7396,6 +7451,9 @@ bool Activity::request_outbailment(
     const std::int64_t amount,
     const std::string str_blockchain_address)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     OT_ASSERT(!str_notary_id.empty());
     OT_ASSERT(!str_my_nym_id.empty());
     OT_ASSERT(!str_issuer_nym_id.empty());
@@ -7412,14 +7470,14 @@ bool Activity::request_outbailment(
     std::string result{};
 
     try {
-        auto action = Moneychanger::It()->OT().ServerAction().InitiateOutbailment(
-            opentxs::Identifier::Factory(str_my_nym_id),
-            opentxs::Identifier::Factory(str_notary_id),
-            opentxs::Identifier::Factory(str_issuer_nym_id),
-            opentxs::Identifier::Factory(str_unit_type_id),
-            amount,
-            str_blockchain_address);
-        result = action->Run();
+//        auto action = ot.ServerAction().InitiateOutbailment(
+//            opentxs::Identifier::Factory(str_my_nym_id),
+//            opentxs::Identifier::Factory(str_notary_id),
+//            opentxs::Identifier::Factory(str_issuer_nym_id),
+//            opentxs::Identifier::Factory(str_unit_type_id),
+//            amount,
+//            str_blockchain_address);
+//        result = action->Run();
     } catch (const std::runtime_error& e) {
         opentxs::LogOutput(OT_METHOD)(__FUNCTION__)(": ")(e.what())(".").Flush();
         return false;
@@ -7432,7 +7490,8 @@ bool Activity::request_outbailment(
         return false;
     }
     // -----------------------------
-    const bool output = (1 == opentxs::VerifyMessageSuccess(Moneychanger::It()->OT(), result));
+    const bool output = false;
+//    const bool output = (1 == opentxs::VerifyMessageSuccess(Moneychanger::It()->OT(), result));
 
     if (!output) {
         qDebug() << "Failed trying to request outbailment.";
@@ -7467,6 +7526,9 @@ bool Activity::get_deposit_address(
     opentxs::Identifier & returnBailmentId,
     std::string & returnBailmentInstructions)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     OT_ASSERT(!str_notary_id.empty());
     OT_ASSERT(!str_my_nym_id.empty());
     OT_ASSERT(!str_issuer_nym_id.empty());
@@ -7487,16 +7549,16 @@ bool Activity::get_deposit_address(
     call SetUsed() to cause the state machine to grab a new one.
      */
 
-    const auto nymId = opentxs::Identifier::Factory(str_my_nym_id);
-    const auto issuerNymId = opentxs::Identifier::Factory(str_issuer_nym_id);
-    const auto unitTypeId = opentxs::Identifier::Factory(str_unit_type_id);
+    const auto nymId = ot.Factory().NymID(str_my_nym_id);
+    const auto issuerNymId = ot.Factory().NymID(str_issuer_nym_id);
+    const auto unitTypeId = ot.Factory().UnitID(str_unit_type_id);
 
     if (nymId->empty() || issuerNymId->empty() || unitTypeId->empty()) {
         qDebug() << "get_deposit_address: Error: Local Nym, Issuer Nym, or Unit Type was empty...";
         return false;
     }
     // ---------------------------------------------------------------
-    auto pIssuer = Moneychanger::It()->OT().Wallet().Issuer(nymId, issuerNymId);
+    auto pIssuer = ot.Wallet().Issuer(nymId, issuerNymId);
 
     if (!pIssuer) {
         qDebug() << "get_deposit_address: Somehow failed to retrieve the issuer needed. (Failure).";
@@ -7520,7 +7582,7 @@ bool Activity::get_deposit_address(
     return false;
 
 
-//    auto& me = Moneychanger::It()->OT().OTME();
+//    auto& me = ot.OTME();
 //    opentxs::otErr << __FUNCTION__
 //                   << ": Requesting deposit address." << std::endl;
 //    std::string result{};
@@ -7664,6 +7726,9 @@ Activity::Activity(QWidget *parent) :
 
 void Activity::on_toolButtonAddContact_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     qDebug() << "on_toolButtonAddContact_clicked was successfully called.";
 
     MTDlgNewContact theNewContact(this);
@@ -7687,12 +7752,15 @@ void Activity::on_toolButtonAddContact_clicked()
         return;
     // --------------------------------------------------------
     // Might be a Payment Code.
-    if (!Moneychanger::It()->OT().Exec().IsValidID(raw_id))
+
+    if (!opentxs::Identifier::Validate(str_nym_id))
     {
         nymID = "";
         str_nym_id = "";
 
-        const std::string str_temp = Moneychanger::It()->OT().Exec().NymIDFromPaymentCode(raw_id);
+        const auto paycode = ot.Factory().PaymentCode(raw_id, reason);
+        const auto nymId = paycode->ID();
+        const std::string str_temp = nymId->str();
 
         if (!str_temp.empty())
         {
@@ -7702,7 +7770,7 @@ void Activity::on_toolButtonAddContact_clicked()
         }
     }
     // --------------------------------------------------------
-    if (!Moneychanger::It()->OT().Exec().IsValidID(str_nym_id))
+    if (!opentxs::Identifier::Validate(str_nym_id))
     {
         QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
                              tr("Sorry, that is not a valid Paycode or Nym ID."));
@@ -7712,7 +7780,8 @@ void Activity::on_toolButtonAddContact_clicked()
     // we're adding. (Though a contact may already exist, we'll find out next...)
     // --------------------------------------------------------
     QString qstrContactId;
-    const auto existingContactId = Moneychanger::It()->OT().Contacts().ContactID(opentxs::Identifier::Factory(str_nym_id));
+    const auto nymId = ot.Factory().NymID(str_nym_id);
+    const auto existingContactId = ot.Contacts().ContactID(nymId);
     const bool bPreexistingOpentxsContact{!existingContactId->empty()};
     bool bCreatedOpentxsContactJustNow{false};
 
@@ -7733,7 +7802,8 @@ void Activity::on_toolButtonAddContact_clicked()
         bCreatedOpentxsContactJustNow = !qstrContactId.isEmpty();
     }
     // --------------------------------------------------------
-    const bool bHaveAValidOpentxsContact = Moneychanger::It()->OT().Exec().IsValidID(qstrContactId.toStdString());
+
+    const bool bHaveAValidOpentxsContact = opentxs::Identifier::Validate(qstrContactId.toStdString());
     if (      !bHaveAValidOpentxsContact)
     {
         QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
@@ -8044,6 +8114,9 @@ void Activity::on_toolButtonPay_clicked()
 //
 void Activity::on_toolButtonMsgContact_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     QString  qstrSelectedMyNymId;
     QString  qstrSelectedThreadId;
     QString  qstrActivitySummaryId;
@@ -8115,7 +8188,7 @@ void Activity::on_toolButtonMsgContact_clicked()
     const std::string str_my_nym_id = qstrSelectedMyNymId.toStdString();
     const std::string str_thread_id = qstrSelectedThreadId.toStdString();
     // --------------------------------------------
-    const opentxs::OTIdentifier nymID    = opentxs::Identifier::Factory(str_my_nym_id);
+    const auto nymID    = ot.Factory().NymID(str_my_nym_id);
     const opentxs::OTIdentifier threadID = opentxs::Identifier::Factory(str_thread_id);
     // --------------------------------------------
     const QString qstrPlainText = ui->plainTextEditMsg->toPlainText().simplified();
@@ -8128,13 +8201,13 @@ void Activity::on_toolButtonMsgContact_clicked()
         qDebug() << "str_thread_id: " << QString::fromStdString(str_thread_id);
 
         if (opentxs::Messagability::READY !=
-            Moneychanger::It()->OT().Sync().CanMessage(nymID, threadID))
+           ot.OTX().CanMessage(nymID, threadID))
         {
             QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME), tr("Sorry, but the selected contact is not yet messagable.") );
             return;
         }
         // --------------------------------------------
-        auto& thread = Moneychanger::It()->OT().UI().ActivityThread(nymID, threadID);
+        auto& thread = ot.UI().ActivityThread(nymID, threadID);
 
         // NOTE: Normally I'd assume that the draft is already set by
         // the time we get to this point. But since we're here, might
@@ -8158,8 +8231,11 @@ void Activity::on_toolButtonMsgContact_clicked()
 
 bool Activity::GetAccounts(mapIDName & mapOutput, const int nCurrencyType/*=0*/, const std::string str_nym_id/*=""*/)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     bool bFoundAny = false;
-    const auto & db = Moneychanger::It()->OT().Storage();
+    const auto & db = ot.Storage();
     const auto accounts = db.AccountList();
 
     for (const auto& [account_id, account_alias] : accounts)
@@ -8189,6 +8265,9 @@ bool Activity::GetAccounts(mapIDName & mapOutput, const int nCurrencyType/*=0*/,
 //
 void Activity::on_toolButtonPayContact_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     QString  qstrSelectedMyNymId;
     QString  qstrSelectedThreadId;
     QString  qstrActivitySummaryId;
@@ -8257,11 +8336,11 @@ void Activity::on_toolButtonPayContact_clicked()
     const std::string str_my_nym_id = qstrSelectedMyNymId.toStdString();
     const std::string str_thread_id = qstrSelectedThreadId.toStdString();
     // --------------------------------------------
-    const opentxs::OTIdentifier nymID    = opentxs::Identifier::Factory(str_my_nym_id);
+    const auto nymID    = ot.Factory().NymID(str_my_nym_id);
     const opentxs::OTIdentifier threadID = opentxs::Identifier::Factory(str_thread_id);
     // --------------------------------------------
     if (opentxs::Messagability::READY !=
-        Moneychanger::It()->OT().Sync().CanMessage(nymID, threadID))
+       ot.OTX().CanMessage(nymID, threadID))
     {
         QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
             tr("Sorry, but the selected contact is not yet messagable.") );
@@ -8302,6 +8381,9 @@ void Activity::on_toolButtonPayContact_clicked()
 
 void Activity::on_toolButtonInvoiceContact_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     QString  qstrSelectedMyNymId;
     QString  qstrSelectedThreadId;
     QString  qstrActivitySummaryId;
@@ -8370,11 +8452,11 @@ void Activity::on_toolButtonInvoiceContact_clicked()
     const std::string str_my_nym_id = qstrSelectedMyNymId.toStdString();
     const std::string str_thread_id = qstrSelectedThreadId.toStdString();
     // --------------------------------------------
-    const opentxs::OTIdentifier nymID    = opentxs::Identifier::Factory(str_my_nym_id);
-    const opentxs::OTIdentifier threadID = opentxs::Identifier::Factory(str_thread_id);
+    const auto nymID    = ot.Factory().NymID(str_my_nym_id);
+    const opentxs::OTIdentifier threadID = ot.Factory().Identifier(str_thread_id);
     // --------------------------------------------
     if (opentxs::Messagability::READY !=
-        Moneychanger::It()->OT().Sync().CanMessage(nymID, threadID))
+       ot.OTX().CanMessage(nymID, threadID))
     {
         QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
             tr("Sorry, but the selected contact is not yet messagable.") );
@@ -8415,6 +8497,9 @@ void Activity::on_toolButtonInvoiceContact_clicked()
 // Accounts tab.
 void Activity::on_toolButtonDeposit_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     // See if there's a Nym selected.  (There should be)
     // Ideally an account is already selected. (Should be).
 
@@ -8470,22 +8555,22 @@ void Activity::on_toolButtonDeposit_clicked()
     const std::string str_unit_type_id   = qstrAssetTypeId.toStdString();
     const std::string str_notary_id      = qstrServerId.toStdString();
     // --------------------------------------------
-    const opentxs::OTIdentifier nymID      = opentxs::Identifier::Factory(str_my_nym_id);
-    const opentxs::OTIdentifier accountID  = opentxs::Identifier::Factory(str_account_id);
-    const opentxs::OTIdentifier unitTypeID = opentxs::Identifier::Factory(str_unit_type_id);
-    const opentxs::OTIdentifier notaryID   = opentxs::Identifier::Factory(str_notary_id);
+    const auto nymID      = ot.Factory().NymID(str_my_nym_id);
+    const auto accountID  = ot.Factory().Identifier(str_account_id);
+    const auto unitTypeID = ot.Factory().UnitID(str_unit_type_id);
+    const auto notaryID   = ot.Factory().ServerID(str_notary_id);
     // --------------------------------------------
 //    const auto currencyType = bSelectedCurrencyType
 //            ? opentxs::proto::ContactItemType(nCurrencyType)
 //            : opentxs::proto::ContactItemType(0); // Todo Justus - better value to put here?
     // --------------------------------------------
-    auto unitTypeContract = Moneychanger::It()->OT().Wallet().UnitDefinition(unitTypeID);
+    auto unitTypeContract = ot.Wallet().UnitDefinition(unitTypeID, reason);
 
     if (!unitTypeContract) {
         qDebug() << "Activity::on_toolButtonDeposit_clicked: I own an account, yet somehow dont have the unit type contract in my wallet. Failure.";
         return;
     }
-    const auto issuerNymId = opentxs::Identifier::Factory(unitTypeContract->Nym()->ID());
+    const auto issuerNymId = ot.Factory().NymID(unitTypeContract->Nym()->ID().str());
     const std::string str_issuer_nym_id = issuerNymId->str();
     // --------------------------------------------
     const QString  qstrBailmentAssetTypeId(qstrAssetTypeId);
@@ -8511,8 +8596,8 @@ void Activity::on_toolButtonDeposit_clicked()
 
     if (bGotAddress)
     {
-        auto editor = Moneychanger::It()->OT().Wallet().mutable_Issuer(nymID, issuerNymId);
-        auto& issuer = editor.It();
+        auto editor = ot.Wallet().mutable_Issuer(nymID, issuerNymId);
+        auto& issuer = editor.get();
 
         if (bailmentInstructions.empty())
         {
@@ -8548,6 +8633,9 @@ void Activity::on_toolButtonDeposit_clicked()
 // Accounts tab
 void Activity::on_toolButtonWithdraw_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     // See if there's a Nym selected.  (There should be)
     // Ideally an account is already selected. (Should be).
 
@@ -8603,22 +8691,22 @@ void Activity::on_toolButtonWithdraw_clicked()
     const std::string str_unit_type_id   = qstrAssetTypeId.toStdString();
     const std::string str_notary_id      = qstrServerId.toStdString();
     // --------------------------------------------
-    const opentxs::OTIdentifier nymID      = opentxs::Identifier::Factory(str_my_nym_id);
-    const opentxs::OTIdentifier accountID  = opentxs::Identifier::Factory(str_account_id);
-    const opentxs::OTIdentifier unitTypeID = opentxs::Identifier::Factory(str_unit_type_id);
-    const opentxs::OTIdentifier notaryID   = opentxs::Identifier::Factory(str_notary_id);
+    const auto nymID      = ot.Factory().NymID(str_my_nym_id);
+    const auto accountID  = ot.Factory().Identifier(str_account_id);
+    const auto unitTypeID = ot.Factory().UnitID(str_unit_type_id);
+    const auto notaryID   = ot.Factory().ServerID(str_notary_id);
     // --------------------------------------------
 //    const auto currencyType = bSelectedCurrencyType
 //            ? opentxs::proto::ContactItemType(nCurrencyType)
 //            : opentxs::proto::ContactItemType(0); // Todo Justus - better value to put here?
     // --------------------------------------------
-    auto unitTypeContract = Moneychanger::It()->OT().Wallet().UnitDefinition(unitTypeID);
+    auto unitTypeContract = ot.Wallet().UnitDefinition(unitTypeID, reason);
 
     if (!unitTypeContract) {
         qDebug() << "Activity::on_toolButtonWithdraw_clicked: I own an account, yet somehow dont have the unit type contract in my wallet. Failure.";
         return;
     }
-    const auto issuerNymId = opentxs::Identifier::Factory(unitTypeContract->Nym()->ID());
+    const auto issuerNymId = ot.Factory().NymID(unitTypeContract->Nym()->ID().str());
     const std::string str_issuer_nym_id = issuerNymId->str();
     // --------------------------------------------
     const QString  qstrBailmentAssetTypeId(qstrAssetTypeId);

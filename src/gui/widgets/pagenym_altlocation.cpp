@@ -568,221 +568,221 @@ MTPageNym_AltLocation::MTPageNym_AltLocation(QWidget *parent) :
 
 void MTPageNym_AltLocation::initializePage() //virtual
 {
-    if (!bInitialized)
-    {
-        bInitialized=true;
+//    if (!bInitialized)
+//    {
+//        bInitialized=true;
 
-        WizardEditProfile * pWizard = dynamic_cast<WizardEditProfile *>(wizard());
-        const bool bEditingExistingProfile = (nullptr != pWizard);
+//        WizardEditProfile * pWizard = dynamic_cast<WizardEditProfile *>(wizard());
+//        const bool bEditingExistingProfile = (nullptr != pWizard);
 
-        listContactDataTuples copy_of_list;
-        if (bEditingExistingProfile) copy_of_list = pWizard->listContactDataTuples_;
-        // ------------------------------
-        //QList<QWidget *>  listTabs_;
-        int nCurrentTab = 0;
+//        listContactDataTuples copy_of_list;
+//        if (bEditingExistingProfile) copy_of_list = pWizard->listContactDataTuples_;
+//        // ------------------------------
+//        //QList<QWidget *>  listTabs_;
+//        int nCurrentTab = 0;
 
-        const auto sections =
-            Moneychanger::It()->OT().Exec().ContactSectionList();
+//        const auto sections =
+//            Moneychanger::It()->OT().Exec().ContactSectionList();
 
-        for (auto & indexSection: sections) {
-            if (opentxs::proto::CONTACTSECTION_RELATIONSHIP == indexSection) {
-                continue;
-            }
-            // ----------------------------------------
-            nCurrentTab++;
-            bool bAddedInitialItem = false;
+//        for (auto & indexSection: sections) {
+//            if (opentxs::proto::CONTACTSECTION_RELATIONSHIP == indexSection) {
+//                continue;
+//            }
+//            // ----------------------------------------
+//            nCurrentTab++;
+//            bool bAddedInitialItem = false;
 
-            QMap<uint32_t, QString> mapTypeNames;
-            // ----------------------------------------
-            // Create a new (tab page) Widget.
-            QWidget * pTab = new QWidget;
-            const std::string sectionName =
-                Moneychanger::It()->OT().Exec().ContactSectionName(indexSection);
+//            QMap<uint32_t, QString> mapTypeNames;
+//            // ----------------------------------------
+//            // Create a new (tab page) Widget.
+//            QWidget * pTab = new QWidget;
+//            const std::string sectionName =
+//                Moneychanger::It()->OT().Exec().ContactSectionName(indexSection);
 
-            qDebug() << "-- SECTION NAME: " << QString::fromStdString(sectionName);
-
-
-            QList<GroupBoxContactItems *> * pListGroupBoxes = new QList<GroupBoxContactItems *>;
-
-            const auto sectionTypes =
-                Moneychanger::It()->OT().Exec().ContactSectionTypeList(indexSection);
-
-            for (const auto& indexSectionType: sectionTypes) {
-                const std::string typeName =
-                    Moneychanger::It()->OT().Exec().ContactTypeName(indexSectionType);
-
-//                qDebug() << "  section type: " << QString::fromStdString(typeName);
+//            qDebug() << "-- SECTION NAME: " << QString::fromStdString(sectionName);
 
 
-                mapTypeNames.insert(
-                    indexSectionType,
-                    QString::fromStdString(typeName));
-            }
-            // -------------------------------
-//            QVBoxLayout * pvBox = new QVBoxLayout(pTab);
-            QVBoxLayout * pvBox = new QVBoxLayout;
-            pvBox->setAlignment(Qt::AlignTop);
-            pvBox->setMargin(0);
-            pTab->setContentsMargins(0,0,0,0);
+//            QList<GroupBoxContactItems *> * pListGroupBoxes = new QList<GroupBoxContactItems *>;
 
-//          ui->tabWidget->addTab(pTab, QString::fromStdString(sectionName));
-            // -------------------------------
-            int nContactItemsAdded = 0;
+//            const auto sectionTypes =
+//                Moneychanger::It()->OT().Exec().ContactSectionTypeList(indexSection);
 
-            for (auto & indexSectionType: sectionTypes) // BUSINESS Name (for example)
-            {
-                GroupBoxContactItems   * pGroupBox = new GroupBoxContactItems;
-                QVBoxLayout            * layout    = new QVBoxLayout;
-//                GroupBoxContactItems   * pGroupBox = new GroupBoxContactItems(pTab);
-//                QVBoxLayout            * layout    = new QVBoxLayout(pGroupBox);
-                // -------------------------------
-                pGroupBox->setFlat(true);
-                pGroupBox->setContentsMargins(0,0,0,0);
+//            for (const auto& indexSectionType: sectionTypes) {
+//                const std::string typeName =
+//                    Moneychanger::It()->OT().Exec().ContactTypeName(indexSectionType);
 
-                layout->setMargin(0);
+////                qDebug() << "  section type: " << QString::fromStdString(typeName);
 
-                pGroupBox->indexSection_ = indexSection;
-                pGroupBox->indexSectionType_ = indexSectionType;
-                pGroupBox->mapTypeNames_ = mapTypeNames;
+
+//                mapTypeNames.insert(
+//                    indexSectionType,
+//                    QString::fromStdString(typeName));
+//            }
+//            // -------------------------------
+////            QVBoxLayout * pvBox = new QVBoxLayout(pTab);
+//            QVBoxLayout * pvBox = new QVBoxLayout;
+//            pvBox->setAlignment(Qt::AlignTop);
+//            pvBox->setMargin(0);
+//            pTab->setContentsMargins(0,0,0,0);
+
+////          ui->tabWidget->addTab(pTab, QString::fromStdString(sectionName));
+//            // -------------------------------
+//            int nContactItemsAdded = 0;
+
+//            for (auto & indexSectionType: sectionTypes) // BUSINESS Name (for example)
+//            {
+//                GroupBoxContactItems   * pGroupBox = new GroupBoxContactItems;
+//                QVBoxLayout            * layout    = new QVBoxLayout;
+////                GroupBoxContactItems   * pGroupBox = new GroupBoxContactItems(pTab);
+////                QVBoxLayout            * layout    = new QVBoxLayout(pGroupBox);
+//                // -------------------------------
+//                pGroupBox->setFlat(true);
+//                pGroupBox->setContentsMargins(0,0,0,0);
+
+//                layout->setMargin(0);
+
+//                pGroupBox->indexSection_ = indexSection;
+//                pGroupBox->indexSectionType_ = indexSectionType;
+//                pGroupBox->mapTypeNames_ = mapTypeNames;
+
+////                pGroupBox->pListGroupBoxes_ = pListGroupBoxes;
+////                pListGroupBoxes->append(pGroupBox);
+
+//                if (bEditingExistingProfile) // We're editing pre-existing claims, so need to add them to the UI.
+//                {
+//            //      typedef std::tuple<uint32_t, uint32_t, std::string, bool> tupleContactDataItem;
+//            //      typedef std::list<tupleContactDataItem> listContactDataTuples;
+
+//    //                qDebug() << "===> copy_of_list.size(): " << copy_of_list.size();
+
+//                    int nCounter=0;
+//                    for (auto & data_item: copy_of_list)
+//                    {
+//    //                    qDebug() << "Loop through copy_of_list nCounter: " << nCounter++;
+//    //                    qDebug() << "std::get<0>(data_item): " << std::get<0>(data_item);
+//    //                    qDebug() << "std::get<1>(data_item): " << std::get<1>(data_item);
+//    //                    qDebug() << "std::get<2>(data_item): " << QString::fromStdString(std::get<2>(data_item));
+//    //                    qDebug() << "std::get<3>(data_item): " << std::get<3>(data_item);
+
+//                        const uint32_t    item_section = std::get<0>(data_item);
+//                        const uint32_t    item_type    = std::get<1>(data_item);
+//                        const std::string item_value   = std::get<2>(data_item);
+//                        const bool        item_primary = std::get<3>(data_item);
+
+//                        if ( (item_section == indexSection) &&
+//                             (item_type    == indexSectionType) )
+//                        {
+//                            // Crash isolated to the below line of code:
+//                            //qDebug() << "Crash isolated to below line of code: indexSectionType: " << indexSectionType;
+
+//                            OT_ASSERT(indexSectionType >= 1);
+
+//    //                      QWidget * pItem = createSingleContactItem(pGroupBox);
+//                            QWidget * pItem = createSingleContactItem(pGroupBox, indexSectionType-1,
+//                                                            QString::fromStdString(item_value), item_primary);
+
+//                            if (nullptr != pItem)
+//                            {
+//                                qDebug() << "DEBUGGING: Adding existing contact item widget to layout.";
+
+//                                layout->addWidget(pItem);
+//                                nContactItemsAdded++;
+//                            }
+//                            else {
+//                                qDebug() << "DEBUGGING 1: Failed to createSingleContactItem in MTPageNym_AltLocation::initializePage";
+//                            }
+//                        }
+//    //                    else
+//    //                    {
+//    //                        qDebug() << "DEBUGGING - type and section didn't match this iteration.";
+//    //                    }
+//                    }
+
+//                    if (!bAddedInitialItem
+////                            && (0 == nContactItemsAdded)
+//                        )
+//                    {
+//                        QWidget * pItem = createSingleContactItem(pGroupBox);
+
+//                        if (nullptr != pItem)
+//                        {
+//                            qDebug() << "DEBUGGING: Adding blank new contact item widget to layout for editing.";
+
+//                            layout->addWidget(pItem);
+//                            nContactItemsAdded++;
+//                            bAddedInitialItem = true;
+//                        }
+//                        else {
+//                            qDebug() << "DEBUGGING 2: Failed to createSingleContactItem in MTPageNym_AltLocation::initializePage";
+//                        }
+//                    }
+
+//                }
+//                else // This wizard is for a new Nym being created for the first time. He has no pre-existing claims.
+//                {
+//                    if (!bAddedInitialItem
+////                            &&
+////                            ( (opentxs::proto::CONTACTSECTION_SCOPE != indexSection) ||
+////                              (opentxs::proto::CITEMTYPE_INDIVIDUAL == indexSectionType ))
+//                            )
+//                    {
+//                        QWidget * pInitialItem = nullptr;
+//                        if (   (opentxs::proto::CONTACTSECTION_SCOPE == nCurrentTab)
+//                            && (opentxs::proto::CITEMTYPE_INDIVIDUAL == indexSectionType ))
+//                        {
+//                            // Pre-fill the name on the first tab.
+//                            QString qstrName = wizard()->field("Name").toString();
+//                            pInitialItem = createSingleContactItem(pGroupBox, indexSectionType-1, qstrName, true);
+//                        }
+//                        else {
+//                            pInitialItem = createSingleContactItem(pGroupBox);
+//                            bAddedInitialItem = (nullptr != pInitialItem);
+//                        }
+
+//                        if (nullptr != pInitialItem)
+//                        {
+//                            qDebug() << "DEBUGGING: Adding blank new contact item widget to layout.";
+
+//                            layout->addWidget(pInitialItem);
+//                            nContactItemsAdded++;
+//                        }
+//                        else {
+//                            qDebug() << "DEBUGGING 3: Failed to createSingleContactItem in MTPageNym_AltLocation::initializePage";
+//                        }
+//                    }
+//                }
+//                // -------------------------------
+//                pGroupBox->setLayout(layout);
 
 //                pGroupBox->pListGroupBoxes_ = pListGroupBoxes;
 //                pListGroupBoxes->append(pGroupBox);
+//                pvBox->addWidget(pGroupBox);
 
-                if (bEditingExistingProfile) // We're editing pre-existing claims, so need to add them to the UI.
-                {
-            //      typedef std::tuple<uint32_t, uint32_t, std::string, bool> tupleContactDataItem;
-            //      typedef std::list<tupleContactDataItem> listContactDataTuples;
-
-    //                qDebug() << "===> copy_of_list.size(): " << copy_of_list.size();
-
-                    int nCounter=0;
-                    for (auto & data_item: copy_of_list)
-                    {
-    //                    qDebug() << "Loop through copy_of_list nCounter: " << nCounter++;
-    //                    qDebug() << "std::get<0>(data_item): " << std::get<0>(data_item);
-    //                    qDebug() << "std::get<1>(data_item): " << std::get<1>(data_item);
-    //                    qDebug() << "std::get<2>(data_item): " << QString::fromStdString(std::get<2>(data_item));
-    //                    qDebug() << "std::get<3>(data_item): " << std::get<3>(data_item);
-
-                        const uint32_t    item_section = std::get<0>(data_item);
-                        const uint32_t    item_type    = std::get<1>(data_item);
-                        const std::string item_value   = std::get<2>(data_item);
-                        const bool        item_primary = std::get<3>(data_item);
-
-                        if ( (item_section == indexSection) &&
-                             (item_type    == indexSectionType) )
-                        {
-                            // Crash isolated to the below line of code:
-                            //qDebug() << "Crash isolated to below line of code: indexSectionType: " << indexSectionType;
-
-                            OT_ASSERT(indexSectionType >= 1);
-
-    //                      QWidget * pItem = createSingleContactItem(pGroupBox);
-                            QWidget * pItem = createSingleContactItem(pGroupBox, indexSectionType-1,
-                                                            QString::fromStdString(item_value), item_primary);
-
-                            if (nullptr != pItem)
-                            {
-                                qDebug() << "DEBUGGING: Adding existing contact item widget to layout.";
-
-                                layout->addWidget(pItem);
-                                nContactItemsAdded++;
-                            }
-                            else {
-                                qDebug() << "DEBUGGING 1: Failed to createSingleContactItem in MTPageNym_AltLocation::initializePage";
-                            }
-                        }
-    //                    else
-    //                    {
-    //                        qDebug() << "DEBUGGING - type and section didn't match this iteration.";
-    //                    }
-                    }
-
-                    if (!bAddedInitialItem
-//                            && (0 == nContactItemsAdded)
-                        )
-                    {
-                        QWidget * pItem = createSingleContactItem(pGroupBox);
-
-                        if (nullptr != pItem)
-                        {
-                            qDebug() << "DEBUGGING: Adding blank new contact item widget to layout for editing.";
-
-                            layout->addWidget(pItem);
-                            nContactItemsAdded++;
-                            bAddedInitialItem = true;
-                        }
-                        else {
-                            qDebug() << "DEBUGGING 2: Failed to createSingleContactItem in MTPageNym_AltLocation::initializePage";
-                        }
-                    }
-
-                }
-                else // This wizard is for a new Nym being created for the first time. He has no pre-existing claims.
-                {
-                    if (!bAddedInitialItem
-//                            &&
-//                            ( (opentxs::proto::CONTACTSECTION_SCOPE != indexSection) ||
-//                              (opentxs::proto::CITEMTYPE_INDIVIDUAL == indexSectionType ))
-                            )
-                    {
-                        QWidget * pInitialItem = nullptr;
-                        if (   (opentxs::proto::CONTACTSECTION_SCOPE == nCurrentTab)
-                            && (opentxs::proto::CITEMTYPE_INDIVIDUAL == indexSectionType ))
-                        {
-                            // Pre-fill the name on the first tab.
-                            QString qstrName = wizard()->field("Name").toString();
-                            pInitialItem = createSingleContactItem(pGroupBox, indexSectionType-1, qstrName, true);
-                        }
-                        else {
-                            pInitialItem = createSingleContactItem(pGroupBox);
-                            bAddedInitialItem = (nullptr != pInitialItem);
-                        }
-
-                        if (nullptr != pInitialItem)
-                        {
-                            qDebug() << "DEBUGGING: Adding blank new contact item widget to layout.";
-
-                            layout->addWidget(pInitialItem);
-                            nContactItemsAdded++;
-                        }
-                        else {
-                            qDebug() << "DEBUGGING 3: Failed to createSingleContactItem in MTPageNym_AltLocation::initializePage";
-                        }
-                    }
-                }
-                // -------------------------------
-                pGroupBox->setLayout(layout);
-
-                pGroupBox->pListGroupBoxes_ = pListGroupBoxes;
-                pListGroupBoxes->append(pGroupBox);
-                pvBox->addWidget(pGroupBox);
-
-//              pGroupBox->setVisible(true);
-
-                if (0 == nContactItemsAdded)
-                    qDebug() << "DEBUGGING: somehow ZERO contact items were added!!!!!!!!";
+////              pGroupBox->setVisible(true);
 
 //                if (0 == nContactItemsAdded)
-//                    pGroupBox->setVisible(false);
-//                else
-//                    pGroupBox->setVisible(true);
-                // -------------------------------
-            }
-            pTab->setLayout(pvBox);
-            // ----------------------------
-            // Add new Widget to TabWidget
-            //
-            listTabs_.append(pTab);
-            mapGroupBoxLists_.insert(indexSection, pListGroupBoxes);
-            ui->tabWidget->addTab(pTab, QString::fromStdString(sectionName));
-        }
+//                    qDebug() << "DEBUGGING: somehow ZERO contact items were added!!!!!!!!";
 
-        if (!bEditingExistingProfile)
-        {
-            PrepareOutputData();
-        }
-    }
+////                if (0 == nContactItemsAdded)
+////                    pGroupBox->setVisible(false);
+////                else
+////                    pGroupBox->setVisible(true);
+//                // -------------------------------
+//            }
+//            pTab->setLayout(pvBox);
+//            // ----------------------------
+//            // Add new Widget to TabWidget
+//            //
+//            listTabs_.append(pTab);
+//            mapGroupBoxLists_.insert(indexSection, pListGroupBoxes);
+//            ui->tabWidget->addTab(pTab, QString::fromStdString(sectionName));
+//        }
+
+//        if (!bEditingExistingProfile)
+//        {
+//            PrepareOutputData();
+//        }
+//    }
 }
 
 

@@ -296,7 +296,7 @@ void MTOpentxsContactDetails::DeleteButtonClicked()
         const QString strNewContactLabel = nameDlg.GetOutputString();
         const std::string str_new_contact_label = strNewContactLabel.toStdString();
         // --------------------------------------------------
-        auto pContact = Moneychanger::It()->OT().Contacts().NewContact(str_new_contact_label);
+        auto pContact = ot.Contacts().NewContact(str_new_contact_label);
 
         if (!pContact) {
             qDebug() << "Error: Failed trying to create new Contact.";
@@ -313,7 +313,7 @@ void MTOpentxsContactDetails::DeleteButtonClicked()
             emit showContactAndRefreshHome(qstrContactId);
         }
 
-    const opentxs::Identifier contactId = Moneychanger::It()->OT().Contacts().ContactID(opentxs::Identifier{nym_id_string.toStdString()});
+    const opentxs::Identifier contactId = ot.Contacts().ContactID(opentxs::Identifier{nym_id_string.toStdString()});
 
     if (!contactId.IsEmpty()) // Found an existing one
     {
@@ -326,7 +326,7 @@ void MTOpentxsContactDetails::DeleteButtonClicked()
     // So let's create a new one instead.
     //
     const std::string str_label = qstrLabel.toStdString();
-    const auto response = Moneychanger::It()->OT().Contacts().NewContact(str_label, opentxs::Identifier{nym_id_string.toStdString()}, opentxs::PaymentCode{payment_code.toStdString()});
+    const auto response = ot.Contacts().NewContact(str_label, opentxs::Identifier{nym_id_string.toStdString()}, opentxs::PaymentCode{payment_code.toStdString()});
     return response ? QString::fromStdString(std::string(opentxs::String(response->ID()).Get())) : QString("");
 
 */
@@ -334,164 +334,167 @@ void MTOpentxsContactDetails::DeleteButtonClicked()
 //virtual
 void MTOpentxsContactDetails::AddButtonClicked()
 {
-    MTDlgNewContact theNewContact(this);
-    theNewContact.setWindowTitle(tr("Add Contact"));
-    // -----------------------------------------------
-    if (theNewContact.exec() != QDialog::Accepted)
-        return;
-    // -----------------------------------------------
-    QString     rawId  = theNewContact.GetId();
-    std::string raw_id = rawId.toStdString();
-    std::string str_nym_id = raw_id;
-    std::string payment_code;
+//    const auto & ot = Moneychanger::It()->OT();
+//    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
 
-    int nContactId{0};
+//    MTDlgNewContact theNewContact(this);
+//    theNewContact.setWindowTitle(tr("Add Contact"));
+//    // -----------------------------------------------
+//    if (theNewContact.exec() != QDialog::Accepted)
+//        return;
+//    // -----------------------------------------------
+//    QString     rawId  = theNewContact.GetId();
+//    std::string raw_id = rawId.toStdString();
+//    std::string str_nym_id = raw_id;
+//    std::string payment_code;
 
-    QString qstrNewContactLabel;
-    QString nymID(rawId);
-    //QString nymID = theNewContact.GetId();
+//    int nContactId{0};
 
-    if (nymID.isEmpty())
-        return;
-    // --------------------------------------------------------
-    // Might be a Payment Code.
-    if (!Moneychanger::It()->OT().Exec().IsValidID(raw_id))
-    {
-        nymID = "";
-        str_nym_id = "";
+//    QString qstrNewContactLabel;
+//    QString nymID(rawId);
+//    //QString nymID = theNewContact.GetId();
 
-        const std::string str_temp = Moneychanger::It()->OT().Exec().NymIDFromPaymentCode(raw_id);
+//    if (nymID.isEmpty())
+//        return;
+//    // --------------------------------------------------------
+//    // Might be a Payment Code.
+//    if (!opentxs::Identifier::Validate(raw_id))
+//    {
+//        nymID = "";
+//        str_nym_id = "";
 
-        if (!str_temp.empty())
-        {
-            payment_code = raw_id;
-            str_nym_id = str_temp;
-            nymID = QString::fromStdString(str_nym_id);
-        }
-    }
-    // --------------------------------------------------------
-    if (!Moneychanger::It()->OT().Exec().IsValidID(str_nym_id))
-    {
-        QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
-                             tr("Sorry, that is not a valid Open-Transactions Nym ID."));
-        return;
-    }
-    // Below this point we know we've got a valid Opentxs NymId for the Contact
-    // we're adding. (Though a contact may already exist, we'll find out next...)
-    // --------------------------------------------------------
-    QString qstrContactId;
-    const auto existingContactId = Moneychanger::It()->OT().Contacts().ContactID(opentxs::Identifier::Factory(str_nym_id));
-    const bool bPreexistingOpentxsContact{!existingContactId->empty()};
-    bool bCreatedOpentxsContactJustNow{false};
+//        const std::string str_temp = ot.Exec().NymIDFromPaymentCode(raw_id);
 
-    if (bPreexistingOpentxsContact) // It already exists.
-    {
-        const auto strExistingContact = opentxs::String::Factory(existingContactId);
-        qstrContactId = QString::fromStdString(std::string(strExistingContact->Get()));
-    }
-    else
-    //if (existingContactId.IsEmpty()) so it definitely doesn't exist yet in opentxs...
-    { // Let's create one.
-        MTGetStringDialog nameDlg(this, tr("Enter a display label for the new contact"));
-        if (QDialog::Accepted != nameDlg.exec())
-            return;
-        qstrNewContactLabel = nameDlg.GetOutputString();
-        // --------------------------------------
-        qstrContactId = MTContactHandler::getInstance()->GetOrCreateOpentxsContactBasedOnNym(qstrNewContactLabel, nymID, QString::fromStdString(payment_code));
-        bCreatedOpentxsContactJustNow = !qstrContactId.isEmpty();
-    }
-    // --------------------------------------------------------
-    const bool bHaveAValidOpentxsContact = Moneychanger::It()->OT().Exec().IsValidID(qstrContactId.toStdString());
-    if (      !bHaveAValidOpentxsContact)
-    {
-        QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
-                             tr("Unable to get or create opentxs contact based on provided id: %1").arg(rawId));
-        return;
-    }
-    // Below this point, we know for a fact that an Opentxs Contact now exists for
-    // the provided NymId or PaymentCode. Next, let's make sure we've mirrored that
-    // reality in our local Contacts database (the old style) so all the old dialogs
-    // continue to work until we can switch them all over.
-    // --------------------------------------------------------
-    const int nExistingContactId = MTContactHandler::getInstance()->FindContactIDByNymID(nymID);
-    const bool bPreexistingMnychrContact = (nExistingContactId > 0);
+//        if (!str_temp.empty())
+//        {
+//            payment_code = raw_id;
+//            str_nym_id = str_temp;
+//            nymID = QString::fromStdString(str_nym_id);
+//        }
+//    }
+//    // --------------------------------------------------------
+//    if (!opentxs::Identifier::Validate(str_nym_id))
+//    {
+//        QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
+//                             tr("Sorry, that is not a valid Open-Transactions Nym ID."));
+//        return;
+//    }
+//    // Below this point we know we've got a valid Opentxs NymId for the Contact
+//    // we're adding. (Though a contact may already exist, we'll find out next...)
+//    // --------------------------------------------------------
+//    QString qstrContactId;
+//    const auto existingContactId = ot.Contacts().ContactID(ot.Factory().NymID(str_nym_id));
+//    const bool bPreexistingOpentxsContact{!existingContactId->empty()};
+//    bool bCreatedOpentxsContactJustNow{false};
 
-    if (bPreexistingMnychrContact)
-    {
-        nContactId = nExistingContactId;
+//    if (bPreexistingOpentxsContact) // It already exists.
+//    {
+//        const auto strExistingContact = opentxs::String::Factory(existingContactId);
+//        qstrContactId = QString::fromStdString(std::string(strExistingContact->Get()));
+//    }
+//    else
+//    //if (existingContactId.IsEmpty()) so it definitely doesn't exist yet in opentxs...
+//    { // Let's create one.
+//        MTGetStringDialog nameDlg(this, tr("Enter a display label for the new contact"));
+//        if (QDialog::Accepted != nameDlg.exec())
+//            return;
+//        qstrNewContactLabel = nameDlg.GetOutputString();
+//        // --------------------------------------
+//        qstrContactId = MTContactHandler::getInstance()->GetOrCreateOpentxsContactBasedOnNym(qstrNewContactLabel, nymID, QString::fromStdString(payment_code));
+//        bCreatedOpentxsContactJustNow = !qstrContactId.isEmpty();
+//    }
+//    // --------------------------------------------------------
+//    const bool bHaveAValidOpentxsContact = opentxs::Identifier::Validate(qstrContactId.toStdString());
+//    if (      !bHaveAValidOpentxsContact)
+//    {
+//        QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
+//                             tr("Unable to get or create opentxs contact based on provided id: %1").arg(rawId));
+//        return;
+//    }
+//    // Below this point, we know for a fact that an Opentxs Contact now exists for
+//    // the provided NymId or PaymentCode. Next, let's make sure we've mirrored that
+//    // reality in our local Contacts database (the old style) so all the old dialogs
+//    // continue to work until we can switch them all over.
+//    // --------------------------------------------------------
+//    const int nExistingContactId = MTContactHandler::getInstance()->FindContactIDByNymID(nymID);
+//    const bool bPreexistingMnychrContact = (nExistingContactId > 0);
 
-        if (bCreatedOpentxsContactJustNow) {
-            // We JUST NOW created the Opentxs contact, but the old-style
-            // Moneychanger contact already existed. But since we are currently in the
-            // new-style "Opentxs Contacts" dialog part of the code, we should therefore
-            // still insert the entry into our list in the GUI on this dialog. (Since we
-            // really did just create it, as far as this dialog is concerned).
-            //
-            m_pOwner->m_map.insert(qstrContactId, qstrNewContactLabel);
-            m_pOwner->SetPreSelected(qstrContactId);
-            emit RefreshRecordsAndUpdateMenu();
-        }
-        else if (bPreexistingOpentxsContact) { // This block means the old-style Moneychanger Contact already existed, AND the new-style Opentxs Contact already existed as well!
-            QString contactName = MTContactHandler::getInstance()->GetContactName(nExistingContactId);
-            QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
-                                 tr("Contact '%1' already exists with NymID: %2").arg(contactName).arg(nymID));
-            // Since it already exists, we'll select it in the GUI, so the user can see what we're
-            // talking about when we tell him that it already exists.
-            m_pOwner->SetPreSelected(qstrContactId);
-            emit RefreshRecordsAndUpdateMenu();
-        }
-        else {
-            // This block means the old-style Moneychanger Contact already existed, and the
-            // new-style Opentxs Contact did NOT already exist, but then we failed trying to
-            // create that.
-            QString contactName = MTContactHandler::getInstance()->GetContactName(nExistingContactId);
-            QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME), // Should never happen.
-                                 tr("Old-style contact '%1' already exists with NymID: %2. "
-                                    "However, failed creating a new corresponding Opentxs Contact. (Should never happen).")
-                                 .arg(contactName).arg(nymID));
-        }
-        return;
-    }
-    else // bHaveAValidOpentxsContact && !bPreexistingMnychrContact
-    {
-        // In this block, the old-style Moneychanger Contact does NOT already exist.
-        // But we DO know (for a fact) that we have a valid Opentxs Contact.
-        //
-        // Therefore we need to create the old-style one.
-        // --------------------------------------
-        if (qstrNewContactLabel.isEmpty()) {
-            MTGetStringDialog nameDlg(this, tr("Enter a display label for the new contact"));
-            if (QDialog::Accepted != nameDlg.exec())
-                return;
-            qstrNewContactLabel = nameDlg.GetOutputString();
-        }
-        // --------------------------------------
-        const int nNewContactId  = MTContactHandler::getInstance()->CreateContactBasedOnNym(nymID);
-        if (      nNewContactId <= 0)
-        {
-            QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
-                                 tr("Failed trying to create old-style contact for NymID: %1, "
-                                    "even though the new-style Opentxs Contact exists (%2).").arg(nymID).arg(qstrContactId));
-            m_pOwner->SetPreSelected(qstrContactId);
-            emit RefreshRecordsAndUpdateMenu();
-            return;
-        }
-        else {
-            nContactId = nNewContactId;
-            MTContactHandler::getInstance()->SetContactName(nNewContactId, qstrNewContactLabel);
-        }
-        // Below this point, we know that the old-style Contact exists as nContactId,
-        // and we know that the new-style Opentxs Contact exists as qstrContactId.
-        // We also know that at least some of that was created, since we would have
-        // already returned by now if both had already existed. Therefore, success!
-        // -------------------------------------------------------
-        // Now let's add this contact to the Map, and refresh the dialog,
-        // and then set the new contact as the current one.
-        //
-        m_pOwner->m_map.insert(qstrContactId, qstrNewContactLabel);
-        m_pOwner->SetPreSelected(qstrContactId);
-        emit RefreshRecordsAndUpdateMenu();
-    }
+//    if (bPreexistingMnychrContact)
+//    {
+//        nContactId = nExistingContactId;
+
+//        if (bCreatedOpentxsContactJustNow) {
+//            // We JUST NOW created the Opentxs contact, but the old-style
+//            // Moneychanger contact already existed. But since we are currently in the
+//            // new-style "Opentxs Contacts" dialog part of the code, we should therefore
+//            // still insert the entry into our list in the GUI on this dialog. (Since we
+//            // really did just create it, as far as this dialog is concerned).
+//            //
+//            m_pOwner->m_map.insert(qstrContactId, qstrNewContactLabel);
+//            m_pOwner->SetPreSelected(qstrContactId);
+//            emit RefreshRecordsAndUpdateMenu();
+//        }
+//        else if (bPreexistingOpentxsContact) { // This block means the old-style Moneychanger Contact already existed, AND the new-style Opentxs Contact already existed as well!
+//            QString contactName = MTContactHandler::getInstance()->GetContactName(nExistingContactId);
+//            QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
+//                                 tr("Contact '%1' already exists with NymID: %2").arg(contactName).arg(nymID));
+//            // Since it already exists, we'll select it in the GUI, so the user can see what we're
+//            // talking about when we tell him that it already exists.
+//            m_pOwner->SetPreSelected(qstrContactId);
+//            emit RefreshRecordsAndUpdateMenu();
+//        }
+//        else {
+//            // This block means the old-style Moneychanger Contact already existed, and the
+//            // new-style Opentxs Contact did NOT already exist, but then we failed trying to
+//            // create that.
+//            QString contactName = MTContactHandler::getInstance()->GetContactName(nExistingContactId);
+//            QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME), // Should never happen.
+//                                 tr("Old-style contact '%1' already exists with NymID: %2. "
+//                                    "However, failed creating a new corresponding Opentxs Contact. (Should never happen).")
+//                                 .arg(contactName).arg(nymID));
+//        }
+//        return;
+//    }
+//    else // bHaveAValidOpentxsContact && !bPreexistingMnychrContact
+//    {
+//        // In this block, the old-style Moneychanger Contact does NOT already exist.
+//        // But we DO know (for a fact) that we have a valid Opentxs Contact.
+//        //
+//        // Therefore we need to create the old-style one.
+//        // --------------------------------------
+//        if (qstrNewContactLabel.isEmpty()) {
+//            MTGetStringDialog nameDlg(this, tr("Enter a display label for the new contact"));
+//            if (QDialog::Accepted != nameDlg.exec())
+//                return;
+//            qstrNewContactLabel = nameDlg.GetOutputString();
+//        }
+//        // --------------------------------------
+//        const int nNewContactId  = MTContactHandler::getInstance()->CreateContactBasedOnNym(nymID);
+//        if (      nNewContactId <= 0)
+//        {
+//            QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
+//                                 tr("Failed trying to create old-style contact for NymID: %1, "
+//                                    "even though the new-style Opentxs Contact exists (%2).").arg(nymID).arg(qstrContactId));
+//            m_pOwner->SetPreSelected(qstrContactId);
+//            emit RefreshRecordsAndUpdateMenu();
+//            return;
+//        }
+//        else {
+//            nContactId = nNewContactId;
+//            MTContactHandler::getInstance()->SetContactName(nNewContactId, qstrNewContactLabel);
+//        }
+//        // Below this point, we know that the old-style Contact exists as nContactId,
+//        // and we know that the new-style Opentxs Contact exists as qstrContactId.
+//        // We also know that at least some of that was created, since we would have
+//        // already returned by now if both had already existed. Therefore, success!
+//        // -------------------------------------------------------
+//        // Now let's add this contact to the Map, and refresh the dialog,
+//        // and then set the new contact as the current one.
+//        //
+//        m_pOwner->m_map.insert(qstrContactId, qstrNewContactLabel);
+//        m_pOwner->SetPreSelected(qstrContactId);
+//        emit RefreshRecordsAndUpdateMenu();
+//    }
 }
 
 
@@ -501,554 +504,555 @@ void MTOpentxsContactDetails::AddButtonClicked()
 
 void MTOpentxsContactDetails::on_treeWidget_customContextMenuRequested(const QPoint &pos)
 {
-    if (m_pOwner->m_qstrCurrentID.isEmpty())
-        return;
-    else
-    {
-        QTreeWidgetItem * pItem = treeWidgetClaims_->itemAt(pos);
+//    if (m_pOwner->m_qstrCurrentID.isEmpty())
+//        return;
+//    else
+//    {
+//        QTreeWidgetItem * pItem = treeWidgetClaims_->itemAt(pos);
 
-        if (nullptr != pItem)
-        {
-//          const int nRow = pItem->row();
-//          if (nRow >= 0)
-            {
-                //#define TREE_ITEM_TYPE_RELATIONSHIP    10
-                //#define TREE_ITEM_TYPE_CLAIM           11
-                //#define TREE_ITEM_TYPE_VERIFICATION    12
+//        if (nullptr != pItem)
+//        {
+////          const int nRow = pItem->row();
+////          if (nRow >= 0)
+//            {
+//                //#define TREE_ITEM_TYPE_RELATIONSHIP    10
+//                //#define TREE_ITEM_TYPE_CLAIM           11
+//                //#define TREE_ITEM_TYPE_VERIFICATION    12
 
-                QVariant qvarTreeItemType = pItem->data(0, Qt::UserRole+1);
-                const int nTreeItemType = qvarTreeItemType.isValid() ? qvarTreeItemType.toInt() : 0;
+//                QVariant qvarTreeItemType = pItem->data(0, Qt::UserRole+1);
+//                const int nTreeItemType = qvarTreeItemType.isValid() ? qvarTreeItemType.toInt() : 0;
 
-                const bool bIsRelationship = (TREE_ITEM_TYPE_RELATIONSHIP == nTreeItemType);
-                const bool bIsClaim        = (TREE_ITEM_TYPE_CLAIM        == nTreeItemType);
-                const bool bIsVerification = (TREE_ITEM_TYPE_VERIFICATION == nTreeItemType);
-                const bool bIsMetInPerson  = (pItem == metInPerson_);
-                // -----------------------------------------------------------------------------
-                // Relationships are claims ABOUT a Contact's Nym made by OTHERS. (Including
-                // possibly YOU.)
-                // Thus for some of these, you can only view them. But for others (your own) you
-                // can edit them as well.
-                // Each of these relationship claims can be verified by the Contact himself. He
-                // may sign someone's claim, thus confirming it (or refuting it.) So each of
-                // these relationship claims may also display its "confirmation status" whenever
-                // it's available.
-                //
-                if (bIsRelationship)
-                {
+//                const bool bIsRelationship = (TREE_ITEM_TYPE_RELATIONSHIP == nTreeItemType);
+//                const bool bIsClaim        = (TREE_ITEM_TYPE_CLAIM        == nTreeItemType);
+//                const bool bIsVerification = (TREE_ITEM_TYPE_VERIFICATION == nTreeItemType);
+//                const bool bIsMetInPerson  = (pItem == metInPerson_);
+//                // -----------------------------------------------------------------------------
+//                // Relationships are claims ABOUT a Contact's Nym made by OTHERS. (Including
+//                // possibly YOU.)
+//                // Thus for some of these, you can only view them. But for others (your own) you
+//                // can edit them as well.
+//                // Each of these relationship claims can be verified by the Contact himself. He
+//                // may sign someone's claim, thus confirming it (or refuting it.) So each of
+//                // these relationship claims may also display its "confirmation status" whenever
+//                // it's available.
+//                //
+//                if (bIsRelationship)
+//                {
 
-                    // For now, the Contact is considered "Someone Else."
-                    //
-                    // And since the Contact is "someone else", we can see all the relationship claims made
-                    // by OTHERS, ABOUT him. We cannot alter those. (And for now we'll set aside the case
-                    // where the Contact also happens to be one of the Nyms in your wallet. In which case
-                    // you can go to the Nym Details tab in the meantime, to access that functionality.)
-                    //
-                    // But ALSO since the Contact is "someone else", we can delete our OWN relationship claims
-                    // about him here.
-
-
-                    // Relationships are added as claims made by others, about the contact. His verifications
-                    // of those claims appear on the claim itself. (No need for separate verifications to be
-                    // displayed below the claim, since ONLY the contact can verify relationship claims about
-                    // himself that were made by others.
-                    //
-//                    claim_item->setText(0, qstrClaimantLabel);      // "Alice" (some lady) from NymId
-//                    claim_item->setText(1, qstrTypeName);           // "Has met" (or so she claimed)
-//                    claim_item->setText(2, QString::fromStdString(str_nym_name));  // "Charlie" (one of the Nyms on this Contact.)
-
-//                    claim_item->setData(0, Qt::UserRole+1, TREE_ITEM_TYPE_RELATIONSHIP);
-
-//                    claim_item->setData(0, Qt::UserRole, qstrClaimId);
-//                    claim_item->setData(2, Qt::UserRole, QString::fromStdString(claim_nym_id)); // For now this is Alice's Nym Id. Not sure how we'll use it.
+//                    // For now, the Contact is considered "Someone Else."
+//                    //
+//                    // And since the Contact is "someone else", we can see all the relationship claims made
+//                    // by OTHERS, ABOUT him. We cannot alter those. (And for now we'll set aside the case
+//                    // where the Contact also happens to be one of the Nyms in your wallet. In which case
+//                    // you can go to the Nym Details tab in the meantime, to access that functionality.)
+//                    //
+//                    // But ALSO since the Contact is "someone else", we can delete our OWN relationship claims
+//                    // about him here.
 
 
-                    // TODO here: Menu option to delete an existing relationship claim ABOUT this
-                    // Contact's Nym, IF that claim was made by one of MY Nyms in this wallet.
+//                    // Relationships are added as claims made by others, about the contact. His verifications
+//                    // of those claims appear on the claim itself. (No need for separate verifications to be
+//                    // displayed below the claim, since ONLY the contact can verify relationship claims about
+//                    // himself that were made by others.
+//                    //
+////                    claim_item->setText(0, qstrClaimantLabel);      // "Alice" (some lady) from NymId
+////                    claim_item->setText(1, qstrTypeName);           // "Has met" (or so she claimed)
+////                    claim_item->setText(2, QString::fromStdString(str_nym_name));  // "Charlie" (one of the Nyms on this Contact.)
+
+////                    claim_item->setData(0, Qt::UserRole+1, TREE_ITEM_TYPE_RELATIONSHIP);
+
+////                    claim_item->setData(0, Qt::UserRole, qstrClaimId);
+////                    claim_item->setData(2, Qt::UserRole, QString::fromStdString(claim_nym_id)); // For now this is Alice's Nym Id. Not sure how we'll use it.
 
 
-                    //
-
-                    QVariant qvarClaimId       = pItem->data(0, Qt::UserRole);
-                    QVariant qvarClaimantNymId = pItem->data(2, Qt::UserRole);
-
-                    QString qstrClaimId       = qvarClaimId      .isValid() ? qvarClaimId      .toString() : "";
-                    QString qstrClaimantNymId = qvarClaimantNymId.isValid() ? qvarClaimantNymId.toString() : "";
-                    // --------------------------------
-                    if (qstrClaimantNymId.isEmpty())
-                        return;
-                    // --------------------------------
-                    const std::string str_claimant_nym_id = qstrClaimantNymId.toStdString();
-
-                    if (!Moneychanger::It()->OT().Exec().VerifyUserPrivateKey(str_claimant_nym_id))
-                        return;
-                    // ----------------------------------
-                    pActionConfirm_ = nullptr;
-                    pActionRefute_ = nullptr;
-                    pActionNoComment_ = nullptr;
-                    pActionNewRelationship_ = nullptr;
-                    pActionDeleteRelationship_ = nullptr;
-
-                    popupMenuProfile_.reset(new QMenu(this));
-
-                    pActionDeleteRelationship_ = popupMenuProfile_->addAction(tr("Delete relationship claim"));
-                    // ------------------------
-                    QPoint globalPos = treeWidgetClaims_->mapToGlobal(pos);
-                    // ------------------------
-                    const QAction* selectedAction = popupMenuProfile_->exec(globalPos); // Here we popup the menu, and get the user's click.
-                    // ------------------------
-                    if (nullptr == selectedAction)
-                    {
-                         // This space intentionally left blank.
-                    }
-                    else if (selectedAction == pActionDeleteRelationship_)
-                    {
-                        // ----------------------------------------------
-                        // Get the Nym. Make sure we have the latest copy, since his credentials were apparently
-                        // just downloaded and overwritten.
-                        //
-                        opentxs::OTPasswordData thePWData("Deleting relationship claim.");
-
-                        // ------------------------------------------------
-                        std::string str_claim_id(qstrClaimId.toStdString());
-                        if (Moneychanger::It()->OT().Exec().DeleteClaim(qstrClaimantNymId.toStdString(), str_claim_id))
-                        {
-                            emit nymWasJustChecked(qstrClaimantNymId);
-                            return;
-                        }
-                    }
-                    else
-                    {
-                        // This space intentionally left blank.
-                    }
-
-                } // if is relationship.
-                // -----------------------------------------------
-                // This is for relationships, like above. Except above, someone right-clicked on an
-                // actual pre-existing relationship. Whereas here, someone right-clicked on the parent
-                // node that contains all the relationships. (Probably because he wants to CREATE A
-                // NEW RELATIONSHIP.)
-                //
-                else if (bIsMetInPerson)
-                {
-                    pActionConfirm_ = nullptr;
-                    pActionRefute_ = nullptr;
-                    pActionNoComment_ = nullptr;
-                    pActionNewRelationship_ = nullptr;
-                    pActionDeleteRelationship_ = nullptr;
-
-                    popupMenuProfile_.reset(new QMenu(this));
-
-                    pActionNewRelationship_ = popupMenuProfile_->addAction(tr("I've met this contact in real life..."));
-                    // ------------------------
-                    QPoint globalPos = treeWidgetClaims_->mapToGlobal(pos);
-                    // ------------------------
-                    const QAction* selectedAction = popupMenuProfile_->exec(globalPos); // Here we popup the menu, and get the user's click.
-                    // ------------------------
-                    if (nullptr == selectedAction)
-                    {
-                         // This space intentionally left blank.
-                    }
-                    else if (selectedAction == pActionNewRelationship_)
-                    {
-                        // Get the list of Nym Ids known for this contact.
-                        //
-                        // If there's only one Nym for this contact, select it automatically.
-                        // Otherwise ask the user to choose the Nym where he wants to add the
-                        // relationship.
-                        //
-                        mapIDName theNymMap;
-
-                        if (!MTContactHandler::getInstance()->GetNyms(
-                              theNymMap, m_pOwner->m_qstrCurrentID.toStdString()))
-                        {
-                            QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
-                                                 tr("Sorry, there are no opentxs NymIDs associated with this opentxs contact. "
-                                                    "(Only Open-Transactions identities can create secure relationships.)"));
-                            return;
-                        }
-                        QString qstrContactNymId;
-
-                        if (theNymMap.size() == 1) // This contact has exactly one Nym, so we'll go with it.
-                        {
-                            mapIDName::iterator theNymIt = theNymMap.begin();
-
-                            qstrContactNymId = theNymIt.key();
-            //              QString qstrNymName = theNymIt.value();
-                        }
-                        else // There are multiple Nyms to choose from.
-                        {
-                            // TODO: Grab the primary Nym by default (as denoted on the credentials).
-                            //
-                            DlgChooser theNymChooser(this);
-                            theNymChooser.m_map = theNymMap;
-                            theNymChooser.setWindowTitle(tr("Opentxs Contact has multiple Nyms. (Please choose one.)"));
-                            // -----------------------------------------------
-                            if (theNymChooser.exec() == QDialog::Accepted)
-                                qstrContactNymId = theNymChooser.m_qstrCurrentID;
-                            else // User must have canceled.
-                                qstrContactNymId = QString("");
-                        }
-                        // --------------
-                        if (qstrContactNymId.isEmpty())
-                            return;
-                        // ---------------------------------------
-                        // Then for the claimant, just use the default Nym.
-                        //
-                        const QString qstrDefaultNymId = Moneychanger::It()->getDefaultNymID();
-
-                        if (qstrDefaultNymId.isEmpty())
-                        {
-                            QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
-                                                 QString("%1").arg(tr("Your default identity is not set. Please do that and then try again. "
-                                                                      "(It will be the signing identity used.)")));
-                            return;
-                        }
-                        const QString & qstrClaimantNymId = qstrDefaultNymId;
-                        // -----------------------------------------------
-                        // Make sure the claimant nym is not the same as the contact's selected nym.
-                        // (If so, advise the user to select a different default nym.)
-                        if (0 == qstrClaimantNymId.compare(qstrContactNymId))
-                        {
-                            QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
-                                                 QString("%1").arg(tr("Sorry, an identity (a Nym) cannot make relationship claims about himself. "
-                                                                      "You could try selecting a different default Nym for yourself, "
-                                                                      "or select a different Nym for this contact, if one is available.")));
-                            return;
-                        }
-                        // -----------------------------------------------
-                        // Grab the various relationship type names.
-                        //
-                        DlgChooser theChooser(this);
-                        mapIDName & the_map = theChooser.m_map;
-                        // -----------------------------------------------
-                        auto sectionTypes =
-                                Moneychanger::It()->OT().Exec().ContactSectionTypeList(
-                                    opentxs::proto::CONTACTSECTION_RELATIONSHIP);
-                        QMap<uint32_t, QString> mapTypeNames;
-
-                        for (auto & indexSectionType: sectionTypes) {
-                            auto typeName =
-                                Moneychanger::It()->OT().Exec().ContactTypeName(
-                                    indexSectionType);
-                            mapTypeNames.insert(indexSectionType, QString::fromStdString(typeName));
-
-                            the_map.insert(QString::number(indexSectionType), QString::fromStdString(typeName));
-                        }
-                        // -----------------------------------------------
-                        // Pop up a dialog with a drop-down and select the relationship
-                        // being added.
-                        //
-                        theChooser.setWindowTitle(tr("Your relationship to this contact:"));
-                        if (theChooser.exec() != QDialog::Accepted)
-                            return;
-                        // -----------------------------------------------
-                        QString strSectionTypeId = theChooser.GetCurrentID();
-                        uint32_t sectionType = strSectionTypeId.isEmpty() ? 0 : strSectionTypeId.toUInt();
-
-                        if (0 == sectionType)
-                            return;
-                        // ----------------------------------------------
-                        auto strClaimantNymId = opentxs::String::Factory(qstrClaimantNymId.toStdString());
-                        auto claimant_nym_id = opentxs::Identifier::Factory(strClaimantNymId);
-                        // ----------------------------------------------
-                        // Get the Nym. Make sure we have the latest copy, since his credentials were apparently
-                        // just downloaded and overwritten.
-                        //
-                        opentxs::OTPasswordData thePWData("Adding relationship claim.");
-                        std::shared_ptr<const opentxs::Nym> pClaimantNym = Moneychanger::It()->OT().Wallet().Nym(claimant_nym_id);
-
-                        if (false == bool(pClaimantNym))
-                        {
-                            qDebug() << __FUNCTION__ << "Strange: failed trying to get reloadAndGetNym from the Wallet.";
-                            return;
-                        }
-                        // ------------------------------------------------
-                        opentxs::proto::ContactItem item;
-                        item.set_version(CONTACT_CONTACT_DATA_VERSION);
-                        item.set_type(
-                            static_cast<opentxs::proto::ContactItemType>
-                                (sectionType));
-                        item.set_value(qstrContactNymId.toStdString());
-                        item.set_start(0);
-                        item.set_end(0);
-                        item.add_attribute(opentxs::proto::CITEMATTR_ACTIVE);
-
-                        // If true, that means OT had to CHANGE something in the
-                        // Nym's data. (So we'll need to broadcast that, so
-                        // Moneychanger can re-import the Nym.)
-                        const bool set =
-                            Moneychanger::It()->OT().Exec().SetClaim(
-                                qstrClaimantNymId.toStdString(),
-                                opentxs::proto::CONTACTSECTION_RELATIONSHIP,
-                                opentxs::proto::ProtoAsString(item));
-
-                        if (set) {
-                            emit nymWasJustChecked(qstrClaimantNymId);
-                            return;
-                        }
-                    }
-                    else
-                    {
-                        // This space intentionally left blank.
-                    }
-                }
-                // Else if it's a normal claim made BY this Contact's Nym (versus relationship claims
-                // above, made by others ABOUT him.)
-                //
-                else if (bIsClaim) // A claim this contact's Nym has made about himself.
-                {
-                    // Add ability to create a verification to confirm / refute the contact's selected claim.
-                    // I'll use any of my Nyms in my wallet (the default one, to start) to confirm
-                    // or refute the selected claim by the contact's Nym. (Except for that same Nym
-                    // itself, of course, if it's in both places.)
-                    //
-                    //
-
-                    // For reference purposes only:
-//                    claim_item->setText(0, QString::fromStdString(claim_value)); // "james@blah.com"
-//                    claim_item->setText(1, qstrTypeName);                        // "Personal"
-//                    claim_item->setText(2, QString::fromStdString(nym_names[claim_nym_id]));
-
-//                    claim_item->setData(0, Qt::UserRole+1, TREE_ITEM_TYPE_CLAIM);
-
-//                    claim_item->setData(0, Qt::UserRole, qstrClaimId);
-//                    claim_item->setData(1, Qt::UserRole, claim_type);
-//                    claim_item->setData(2, Qt::UserRole, QString::fromStdString(claim_nym_id)); // Claimant
-//                    claim_item->setData(3, Qt::UserRole, claim_section); // Section
-
-                    QVariant qvarClaimId       = pItem->data(0, Qt::UserRole);
-                    QVariant qvarClaimantNymId = pItem->data(2, Qt::UserRole);
-
-                    QString qstrClaimId       = qvarClaimId      .isValid() ? qvarClaimId      .toString() : "";
-                    QString qstrClaimantNymId = qvarClaimantNymId.isValid() ? qvarClaimantNymId.toString() : "";
-                    // --------------------------------
-                    const QString qstrDefaultNymId = Moneychanger::It()->getDefaultNymID();
-
-                    if (qstrDefaultNymId.isEmpty())
-                    {
-                        QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
-                                             QString("%1").arg(tr("Your default identity is not set. Please do that and then try again. "
-                                                                  "(It will be the signing identity used.)")));
-                        return;
-                    }
-                    const QString & qstrVerifierNymId = qstrDefaultNymId;
-                    // -----------------------------------------------
-                    if (qstrClaimId.isEmpty() || qstrClaimantNymId.isEmpty())
-                    {
-                        QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
-                                             QString("%1").arg(tr("Strange - Either the ClaimId or ClaimantNymId was unexpectedly blank.")));
-                        return;
-                    }
-                    // ----------------------------------
-                    pActionConfirm_ = nullptr;
-                    pActionRefute_ = nullptr;
-                    pActionNoComment_ = nullptr;
-                    pActionNewRelationship_ = nullptr;
-                    pActionDeleteRelationship_ = nullptr;
-
-                    popupMenuProfile_.reset(new QMenu(this));
-
-                    pActionConfirm_   = popupMenuProfile_->addAction(tr("Confirm"));
-                    pActionRefute_    = popupMenuProfile_->addAction(tr("Refute"));
-                    pActionNoComment_ = popupMenuProfile_->addAction(tr("No comment"));
-                    // ------------------------
-                    QPoint globalPos = treeWidgetClaims_->mapToGlobal(pos);
-                    // ------------------------
-                    const QAction* selectedAction = popupMenuProfile_->exec(globalPos); // Here we popup the menu, and get the user's click.
-                    // ------------------------
-                    if (nullptr == selectedAction)
-                    {
-
-                    }
-                    else if (selectedAction == pActionConfirm_)
-                    {
-                        if (0 == qstrClaimantNymId.compare(qstrVerifierNymId))
-                        {
-                            QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
-                                                 QString("%1").arg(tr("An identity can't confirm or refute its own claims. "
-                                                                      "(You can verify using a different Nym - just change the "
-                                                                      "default Nym and then try again.)")));
-                            return;
-                        }
-                        // ----------------------------------
-                        // If true, that means OT had to CHANGE something in the Nym's data.
-                        // (So we'll need to broadcast that, so Moneychanger can re-import the Nym.)
-                        //
-                        if (MTContactHandler::getInstance()->claimVerificationConfirm(qstrClaimId, qstrClaimantNymId, qstrVerifierNymId))
-                        {
-                            emit nymWasJustChecked(qstrVerifierNymId);
-                            return;
-                        }
-                    }
-                    // ------------------------
-                    else if (selectedAction == pActionRefute_)
-                    {
-                        if (0 == qstrClaimantNymId.compare(qstrVerifierNymId))
-                        {
-                            QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
-                                                 QString("%1").arg(tr("An identity can't confirm or refute its own claims. "
-                                                                      "(But you CAN verify this contact, by just using a different Nym - "
-                                                                      "to do that, try selecting a different default Nym for your wallet, "
-                                                                      "and then come back here and try again.)")));
-                            return;
-                        }
-                        // ----------------------------------
-                        if (MTContactHandler::getInstance()->claimVerificationRefute(qstrClaimId, qstrClaimantNymId, qstrVerifierNymId))
-                        {
-                            emit nymWasJustChecked(qstrVerifierNymId);
-                            return;
-                        }
-                    }
-                    // ------------------------
-                    else if (selectedAction == pActionNoComment_)
-                    {
-                        if (0 == qstrClaimantNymId.compare(qstrVerifierNymId))
-                        {
-                            QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
-                                                 QString("%1").arg(tr("An identity can't confirm or refute its own claims. "
-                                                                      "(You can verify using a different Nym - just change "
-                                                                      "the default Nym and then try again.)")));
-                            return;
-                        }
-                        // ----------------------------------
-                        if (MTContactHandler::getInstance()->claimVerificationNoComment(qstrClaimId, qstrClaimantNymId, qstrVerifierNymId))
-                        {
-                            emit nymWasJustChecked(qstrVerifierNymId);
-                            return;
-                        }
-                    }
-
-                    // Also in that case where this Contact's Nym also happens to be one of my own private Nyms
-                    // in  this wallet, we can eventually add here the ability to edit the profile and change the
-                    // claims that I've made. But for NOW, that functionality is already available by clicking the
-                    // "edit profile" button on the Nym details tab.
+//                    // TODO here: Menu option to delete an existing relationship claim ABOUT this
+//                    // Contact's Nym, IF that claim was made by one of MY Nyms in this wallet.
 
 
-                } // if is claim.
-                // -----------------------------------------------
-                else if (bIsVerification) // verification
-                {
-                    // Else if it's a verification of a claim. I make my own claims, and
-                    // other people create verifications for those claims. However, I
-                    // have multiple Nyms in this wallet. So some of these verifications
-                    // may have been created by MY Nyms -- which I have the power to
-                    // edit -- versus other people's Nyms, which I may only view.
+//                    //
+
+//                    QVariant qvarClaimId       = pItem->data(0, Qt::UserRole);
+//                    QVariant qvarClaimantNymId = pItem->data(2, Qt::UserRole);
+
+//                    QString qstrClaimId       = qvarClaimId      .isValid() ? qvarClaimId      .toString() : "";
+//                    QString qstrClaimantNymId = qvarClaimantNymId.isValid() ? qvarClaimantNymId.toString() : "";
+//                    // --------------------------------
+//                    if (qstrClaimantNymId.isEmpty())
+//                        return;
+//                    // --------------------------------
+//                    const std::string str_claimant_nym_id = qstrClaimantNymId.toStdString();
+
+//                    if (!ot.Exec().VerifyUserPrivateKey(str_claimant_nym_id))
+//                        return;
+//                    // ----------------------------------
+//                    pActionConfirm_ = nullptr;
+//                    pActionRefute_ = nullptr;
+//                    pActionNoComment_ = nullptr;
+//                    pActionNewRelationship_ = nullptr;
+//                    pActionDeleteRelationship_ = nullptr;
+
+//                    popupMenuProfile_.reset(new QMenu(this));
+
+//                    pActionDeleteRelationship_ = popupMenuProfile_->addAction(tr("Delete relationship claim"));
+//                    // ------------------------
+//                    QPoint globalPos = treeWidgetClaims_->mapToGlobal(pos);
+//                    // ------------------------
+//                    const QAction* selectedAction = popupMenuProfile_->exec(globalPos); // Here we popup the menu, and get the user's click.
+//                    // ------------------------
+//                    if (nullptr == selectedAction)
+//                    {
+//                         // This space intentionally left blank.
+//                    }
+//                    else if (selectedAction == pActionDeleteRelationship_)
+//                    {
+//                        // ----------------------------------------------
+//                        // Get the Nym. Make sure we have the latest copy, since his credentials were apparently
+//                        // just downloaded and overwritten.
+//                        //
+//                        opentxs::OTPasswordData thePWData("Deleting relationship claim.");
+
+//                        // ------------------------------------------------
+//                        std::string str_claim_id(qstrClaimId.toStdString());
+//                        if (ot.Exec().DeleteClaim(qstrClaimantNymId.toStdString(), str_claim_id))
+//                        {
+//                            emit nymWasJustChecked(qstrClaimantNymId);
+//                            return;
+//                        }
+//                    }
+//                    else
+//                    {
+//                        // This space intentionally left blank.
+//                    }
+
+//                } // if is relationship.
+//                // -----------------------------------------------
+//                // This is for relationships, like above. Except above, someone right-clicked on an
+//                // actual pre-existing relationship. Whereas here, someone right-clicked on the parent
+//                // node that contains all the relationships. (Probably because he wants to CREATE A
+//                // NEW RELATIONSHIP.)
+//                //
+//                else if (bIsMetInPerson)
+//                {
+//                    pActionConfirm_ = nullptr;
+//                    pActionRefute_ = nullptr;
+//                    pActionNoComment_ = nullptr;
+//                    pActionNewRelationship_ = nullptr;
+//                    pActionDeleteRelationship_ = nullptr;
+
+//                    popupMenuProfile_.reset(new QMenu(this));
+
+//                    pActionNewRelationship_ = popupMenuProfile_->addAction(tr("I've met this contact in real life..."));
+//                    // ------------------------
+//                    QPoint globalPos = treeWidgetClaims_->mapToGlobal(pos);
+//                    // ------------------------
+//                    const QAction* selectedAction = popupMenuProfile_->exec(globalPos); // Here we popup the menu, and get the user's click.
+//                    // ------------------------
+//                    if (nullptr == selectedAction)
+//                    {
+//                         // This space intentionally left blank.
+//                    }
+//                    else if (selectedAction == pActionNewRelationship_)
+//                    {
+//                        // Get the list of Nym Ids known for this contact.
+//                        //
+//                        // If there's only one Nym for this contact, select it automatically.
+//                        // Otherwise ask the user to choose the Nym where he wants to add the
+//                        // relationship.
+//                        //
+//                        mapIDName theNymMap;
+
+//                        if (!MTContactHandler::getInstance()->GetNyms(
+//                              theNymMap, m_pOwner->m_qstrCurrentID.toStdString()))
+//                        {
+//                            QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
+//                                                 tr("Sorry, there are no opentxs NymIDs associated with this opentxs contact. "
+//                                                    "(Only Open-Transactions identities can create secure relationships.)"));
+//                            return;
+//                        }
+//                        QString qstrContactNymId;
+
+//                        if (theNymMap.size() == 1) // This contact has exactly one Nym, so we'll go with it.
+//                        {
+//                            mapIDName::iterator theNymIt = theNymMap.begin();
+
+//                            qstrContactNymId = theNymIt.key();
+//            //              QString qstrNymName = theNymIt.value();
+//                        }
+//                        else // There are multiple Nyms to choose from.
+//                        {
+//                            // TODO: Grab the primary Nym by default (as denoted on the credentials).
+//                            //
+//                            DlgChooser theNymChooser(this);
+//                            theNymChooser.m_map = theNymMap;
+//                            theNymChooser.setWindowTitle(tr("Opentxs Contact has multiple Nyms. (Please choose one.)"));
+//                            // -----------------------------------------------
+//                            if (theNymChooser.exec() == QDialog::Accepted)
+//                                qstrContactNymId = theNymChooser.m_qstrCurrentID;
+//                            else // User must have canceled.
+//                                qstrContactNymId = QString("");
+//                        }
+//                        // --------------
+//                        if (qstrContactNymId.isEmpty())
+//                            return;
+//                        // ---------------------------------------
+//                        // Then for the claimant, just use the default Nym.
+//                        //
+//                        const QString qstrDefaultNymId = Moneychanger::It()->getDefaultNymID();
+
+//                        if (qstrDefaultNymId.isEmpty())
+//                        {
+//                            QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
+//                                                 QString("%1").arg(tr("Your default identity is not set. Please do that and then try again. "
+//                                                                      "(It will be the signing identity used.)")));
+//                            return;
+//                        }
+//                        const QString & qstrClaimantNymId = qstrDefaultNymId;
+//                        // -----------------------------------------------
+//                        // Make sure the claimant nym is not the same as the contact's selected nym.
+//                        // (If so, advise the user to select a different default nym.)
+//                        if (0 == qstrClaimantNymId.compare(qstrContactNymId))
+//                        {
+//                            QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
+//                                                 QString("%1").arg(tr("Sorry, an identity (a Nym) cannot make relationship claims about himself. "
+//                                                                      "You could try selecting a different default Nym for yourself, "
+//                                                                      "or select a different Nym for this contact, if one is available.")));
+//                            return;
+//                        }
+//                        // -----------------------------------------------
+//                        // Grab the various relationship type names.
+//                        //
+//                        DlgChooser theChooser(this);
+//                        mapIDName & the_map = theChooser.m_map;
+//                        // -----------------------------------------------
+//                        auto sectionTypes =
+//                                ot.Exec().ContactSectionTypeList(
+//                                    opentxs::proto::CONTACTSECTION_RELATIONSHIP);
+//                        QMap<uint32_t, QString> mapTypeNames;
+
+//                        for (auto & indexSectionType: sectionTypes) {
+//                            auto typeName =
+//                                ot.Exec().ContactTypeName(
+//                                    indexSectionType);
+//                            mapTypeNames.insert(indexSectionType, QString::fromStdString(typeName));
+
+//                            the_map.insert(QString::number(indexSectionType), QString::fromStdString(typeName));
+//                        }
+//                        // -----------------------------------------------
+//                        // Pop up a dialog with a drop-down and select the relationship
+//                        // being added.
+//                        //
+//                        theChooser.setWindowTitle(tr("Your relationship to this contact:"));
+//                        if (theChooser.exec() != QDialog::Accepted)
+//                            return;
+//                        // -----------------------------------------------
+//                        QString strSectionTypeId = theChooser.GetCurrentID();
+//                        uint32_t sectionType = strSectionTypeId.isEmpty() ? 0 : strSectionTypeId.toUInt();
+
+//                        if (0 == sectionType)
+//                            return;
+//                        // ----------------------------------------------
+//                        auto strClaimantNymId = opentxs::String::Factory(qstrClaimantNymId.toStdString());
+//                        auto claimant_nym_id = opentxs::Identifier::Factory(strClaimantNymId);
+//                        // ----------------------------------------------
+//                        // Get the Nym. Make sure we have the latest copy, since his credentials were apparently
+//                        // just downloaded and overwritten.
+//                        //
+
+//                        opentxs::OTPasswordData thePWData("Adding relationship claim.");
+//                        std::shared_ptr<const opentxs::Nym> pClaimantNym = ot.Wallet().Nym(claimant_nym_id);
+
+//                        if (false == bool(pClaimantNym))
+//                        {
+//                            qDebug() << __FUNCTION__ << "Strange: failed trying to get reloadAndGetNym from the Wallet.";
+//                            return;
+//                        }
+//                        // ------------------------------------------------
+//                        opentxs::proto::ContactItem item;
+//                        item.set_version(CONTACT_CONTACT_DATA_VERSION);
+//                        item.set_type(
+//                            static_cast<opentxs::proto::ContactItemType>
+//                                (sectionType));
+//                        item.set_value(qstrContactNymId.toStdString());
+//                        item.set_start(0);
+//                        item.set_end(0);
+//                        item.add_attribute(opentxs::proto::CITEMATTR_ACTIVE);
+
+//                        // If true, that means OT had to CHANGE something in the
+//                        // Nym's data. (So we'll need to broadcast that, so
+//                        // Moneychanger can re-import the Nym.)
+//                        const bool set =
+//                            ot.Exec().SetClaim(
+//                                qstrClaimantNymId.toStdString(),
+//                                opentxs::proto::CONTACTSECTION_RELATIONSHIP,
+//                                opentxs::proto::ProtoAsString(item));
+
+//                        if (set) {
+//                            emit nymWasJustChecked(qstrClaimantNymId);
+//                            return;
+//                        }
+//                    }
+//                    else
+//                    {
+//                        // This space intentionally left blank.
+//                    }
+//                }
+//                // Else if it's a normal claim made BY this Contact's Nym (versus relationship claims
+//                // above, made by others ABOUT him.)
+//                //
+//                else if (bIsClaim) // A claim this contact's Nym has made about himself.
+//                {
+//                    // Add ability to create a verification to confirm / refute the contact's selected claim.
+//                    // I'll use any of my Nyms in my wallet (the default one, to start) to confirm
+//                    // or refute the selected claim by the contact's Nym. (Except for that same Nym
+//                    // itself, of course, if it's in both places.)
+//                    //
+//                    //
+
+//                    // For reference purposes only:
+////                    claim_item->setText(0, QString::fromStdString(claim_value)); // "james@blah.com"
+////                    claim_item->setText(1, qstrTypeName);                        // "Personal"
+////                    claim_item->setText(2, QString::fromStdString(nym_names[claim_nym_id]));
+
+////                    claim_item->setData(0, Qt::UserRole+1, TREE_ITEM_TYPE_CLAIM);
+
+////                    claim_item->setData(0, Qt::UserRole, qstrClaimId);
+////                    claim_item->setData(1, Qt::UserRole, claim_type);
+////                    claim_item->setData(2, Qt::UserRole, QString::fromStdString(claim_nym_id)); // Claimant
+////                    claim_item->setData(3, Qt::UserRole, claim_section); // Section
+
+//                    QVariant qvarClaimId       = pItem->data(0, Qt::UserRole);
+//                    QVariant qvarClaimantNymId = pItem->data(2, Qt::UserRole);
+
+//                    QString qstrClaimId       = qvarClaimId      .isValid() ? qvarClaimId      .toString() : "";
+//                    QString qstrClaimantNymId = qvarClaimantNymId.isValid() ? qvarClaimantNymId.toString() : "";
+//                    // --------------------------------
+//                    const QString qstrDefaultNymId = Moneychanger::It()->getDefaultNymID();
+
+//                    if (qstrDefaultNymId.isEmpty())
+//                    {
+//                        QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
+//                                             QString("%1").arg(tr("Your default identity is not set. Please do that and then try again. "
+//                                                                  "(It will be the signing identity used.)")));
+//                        return;
+//                    }
+//                    const QString & qstrVerifierNymId = qstrDefaultNymId;
+//                    // -----------------------------------------------
+//                    if (qstrClaimId.isEmpty() || qstrClaimantNymId.isEmpty())
+//                    {
+//                        QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
+//                                             QString("%1").arg(tr("Strange - Either the ClaimId or ClaimantNymId was unexpectedly blank.")));
+//                        return;
+//                    }
+//                    // ----------------------------------
+//                    pActionConfirm_ = nullptr;
+//                    pActionRefute_ = nullptr;
+//                    pActionNoComment_ = nullptr;
+//                    pActionNewRelationship_ = nullptr;
+//                    pActionDeleteRelationship_ = nullptr;
+
+//                    popupMenuProfile_.reset(new QMenu(this));
+
+//                    pActionConfirm_   = popupMenuProfile_->addAction(tr("Confirm"));
+//                    pActionRefute_    = popupMenuProfile_->addAction(tr("Refute"));
+//                    pActionNoComment_ = popupMenuProfile_->addAction(tr("No comment"));
+//                    // ------------------------
+//                    QPoint globalPos = treeWidgetClaims_->mapToGlobal(pos);
+//                    // ------------------------
+//                    const QAction* selectedAction = popupMenuProfile_->exec(globalPos); // Here we popup the menu, and get the user's click.
+//                    // ------------------------
+//                    if (nullptr == selectedAction)
+//                    {
+
+//                    }
+//                    else if (selectedAction == pActionConfirm_)
+//                    {
+//                        if (0 == qstrClaimantNymId.compare(qstrVerifierNymId))
+//                        {
+//                            QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
+//                                                 QString("%1").arg(tr("An identity can't confirm or refute its own claims. "
+//                                                                      "(You can verify using a different Nym - just change the "
+//                                                                      "default Nym and then try again.)")));
+//                            return;
+//                        }
+//                        // ----------------------------------
+//                        // If true, that means OT had to CHANGE something in the Nym's data.
+//                        // (So we'll need to broadcast that, so Moneychanger can re-import the Nym.)
+//                        //
+//                        if (MTContactHandler::getInstance()->claimVerificationConfirm(qstrClaimId, qstrClaimantNymId, qstrVerifierNymId))
+//                        {
+//                            emit nymWasJustChecked(qstrVerifierNymId);
+//                            return;
+//                        }
+//                    }
+//                    // ------------------------
+//                    else if (selectedAction == pActionRefute_)
+//                    {
+//                        if (0 == qstrClaimantNymId.compare(qstrVerifierNymId))
+//                        {
+//                            QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
+//                                                 QString("%1").arg(tr("An identity can't confirm or refute its own claims. "
+//                                                                      "(But you CAN verify this contact, by just using a different Nym - "
+//                                                                      "to do that, try selecting a different default Nym for your wallet, "
+//                                                                      "and then come back here and try again.)")));
+//                            return;
+//                        }
+//                        // ----------------------------------
+//                        if (MTContactHandler::getInstance()->claimVerificationRefute(qstrClaimId, qstrClaimantNymId, qstrVerifierNymId))
+//                        {
+//                            emit nymWasJustChecked(qstrVerifierNymId);
+//                            return;
+//                        }
+//                    }
+//                    // ------------------------
+//                    else if (selectedAction == pActionNoComment_)
+//                    {
+//                        if (0 == qstrClaimantNymId.compare(qstrVerifierNymId))
+//                        {
+//                            QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
+//                                                 QString("%1").arg(tr("An identity can't confirm or refute its own claims. "
+//                                                                      "(You can verify using a different Nym - just change "
+//                                                                      "the default Nym and then try again.)")));
+//                            return;
+//                        }
+//                        // ----------------------------------
+//                        if (MTContactHandler::getInstance()->claimVerificationNoComment(qstrClaimId, qstrClaimantNymId, qstrVerifierNymId))
+//                        {
+//                            emit nymWasJustChecked(qstrVerifierNymId);
+//                            return;
+//                        }
+//                    }
+
+//                    // Also in that case where this Contact's Nym also happens to be one of my own private Nyms
+//                    // in  this wallet, we can eventually add here the ability to edit the profile and change the
+//                    // claims that I've made. But for NOW, that functionality is already available by clicking the
+//                    // "edit profile" button on the Nym details tab.
 
 
-                    // Add ability to edit the selected verification to change its status
-                    // to confirm or refute -- or delete the verification entirely.
-                    // One of the Nyms in my wallet (specifically the one who originally created this
-                    // verification) will be the same Nym to edit or delete the verification now.
-                    //
-                    // NOTE: This should ONLY be possible for Verifications made by MY Nyms (that are
-                    // in my wallet). All other Verifications are read-only.
+//                } // if is claim.
+//                // -----------------------------------------------
+//                else if (bIsVerification) // verification
+//                {
+//                    // Else if it's a verification of a claim. I make my own claims, and
+//                    // other people create verifications for those claims. However, I
+//                    // have multiple Nyms in this wallet. So some of these verifications
+//                    // may have been created by MY Nyms -- which I have the power to
+//                    // edit -- versus other people's Nyms, which I may only view.
 
 
-                    // For reference purposes only:
-//                    verification_item->setText(0, qstrVerifierLabel); // "Jim Bob" (the Verifier on this claim verification.)
-//                    verification_item->setText(1, qstrVerifierIdLabel); // with Verifier Nym Id...
-//                    verification_item->setText(2, qstrClaimantIdLabel); // Verifies for Claimant Nym Id...
-//                    verification_item->setText(3, qstrSignatureLabel);
-//                    verification_item->setText(4, qstrSigVerifiedLabel);
-
-//                    verification_item->setData(0, Qt::UserRole+1, TREE_ITEM_TYPE_VERIFICATION);
-
-//                    verification_item->setData(0, Qt::UserRole, qstrVerId); // Verification ID.
-//                    verification_item->setData(1, Qt::UserRole, qstrVerifierId); // Verifier Nym ID.
-//                    verification_item->setData(2, Qt::UserRole, qstrClaimantId); // Claims have the claimant ID at index 2, so I'm matching that here.
-//                    verification_item->setData(3, Qt::UserRole, qstrVerificationClaimId); // Claim ID stored here.
-//                    verification_item->setData(5, Qt::UserRole, bPolarity); // Polarity
-
-                    const QVariant qvarClaimId       = pItem->data(3, Qt::UserRole);
-                    const QVariant qvarClaimantNymId = pItem->data(2, Qt::UserRole);
-                    const QVariant qvarVerifierNymId = pItem->data(1, Qt::UserRole);
-                    const QVariant qvarPolarity      = pItem->data(5, Qt::UserRole);
-
-                    const QString qstrClaimId       = qvarClaimId      .isValid() ? qvarClaimId      .toString() : "";
-                    const QString qstrClaimantNymId = qvarClaimantNymId.isValid() ? qvarClaimantNymId.toString() : "";
-                    const QString qstrVerifierNymId = qvarVerifierNymId.isValid() ? qvarVerifierNymId.toString() : "";
-
-                    const bool bPolarityValid = qvarPolarity.isValid();
-                    const bool bPolarity = bPolarityValid ? qvarPolarity.toBool() : false;
-
-                    const std::string verifier_nym_id = !qstrVerifierNymId.isEmpty() ? qstrVerifierNymId.toStdString() : "";
-                    // -----------------------------------------------
-                    if (qstrClaimId.isEmpty() || qstrClaimantNymId.isEmpty())
-                    {
-                        QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
-                                             QString("%1").arg(tr("Strange - Either the ClaimId or ClaimantNymId was unexpectedly blank. ")));
-                        return;
-                    }
-
-                    // If I'm the verifier, then I can change my verification.
-                    // (Otherwise I can't.)
-                    //
-                    if (!Moneychanger::It()->OT().Exec().VerifyUserPrivateKey(verifier_nym_id))
-                        return;
-                    // ----------------------------------
-                    pActionConfirm_ = nullptr;
-                    pActionRefute_ = nullptr;
-                    pActionNoComment_ = nullptr;
-                    pActionNewRelationship_ = nullptr;
-                    pActionDeleteRelationship_ = nullptr;
-
-                    popupMenuProfile_.reset(new QMenu(this));
-
-                    if (!bPolarityValid || (bPolarityValid && (true  != bPolarity)) )
-                        pActionConfirm_   = popupMenuProfile_->addAction(tr("Confirm"));
-                    if (!bPolarityValid || (bPolarityValid && (false != bPolarity)) )
-                        pActionRefute_    = popupMenuProfile_->addAction(tr("Refute"));
-                    pActionNoComment_ = popupMenuProfile_->addAction(tr("No comment"));
-                    // ------------------------
-                    QPoint globalPos = treeWidgetClaims_->mapToGlobal(pos);
-                    // ------------------------
-                    const QAction* selectedAction = popupMenuProfile_->exec(globalPos); // Here we popup the menu, and get the user's click.
-                    // ------------------------
-                    if (nullptr == selectedAction)
-                    {
-
-                    }
-                    else if (selectedAction == pActionConfirm_)
-                    {
-                        // If true, that means OT had to CHANGE something in the Nym's data.
-                        // (So we'll need to broadcast that, so Moneychanger can re-import the Nym.)
-                        //
-                        if (MTContactHandler::getInstance()->claimVerificationConfirm(qstrClaimId, qstrClaimantNymId, qstrVerifierNymId))
-                        {
-                            emit nymWasJustChecked(qstrVerifierNymId);
-                            return;
-                        }
-                    }
-                    // ------------------------
-                    else if (selectedAction == pActionRefute_)
-                    {
-                        if (MTContactHandler::getInstance()->claimVerificationRefute(qstrClaimId, qstrClaimantNymId, qstrVerifierNymId))
-                        {
-                            emit nymWasJustChecked(qstrVerifierNymId);
-                            return;
-                        }
-                    }
-                    // ------------------------
-                    else if (selectedAction == pActionNoComment_)
-                    {
-                        if (MTContactHandler::getInstance()->claimVerificationNoComment(qstrClaimId, qstrClaimantNymId, qstrVerifierNymId))
-                        {
-                            emit nymWasJustChecked(qstrVerifierNymId);
-                            return;
-                        }
-                    }
+//                    // Add ability to edit the selected verification to change its status
+//                    // to confirm or refute -- or delete the verification entirely.
+//                    // One of the Nyms in my wallet (specifically the one who originally created this
+//                    // verification) will be the same Nym to edit or delete the verification now.
+//                    //
+//                    // NOTE: This should ONLY be possible for Verifications made by MY Nyms (that are
+//                    // in my wallet). All other Verifications are read-only.
 
 
-                } // if is verification
-                // -----------------------------------------------
-                else
-                {
-                    // This space intentionally left blank.
-                }
-                // ------------------------
-            } //nRow >= 0
-        }
-    }
+//                    // For reference purposes only:
+////                    verification_item->setText(0, qstrVerifierLabel); // "Jim Bob" (the Verifier on this claim verification.)
+////                    verification_item->setText(1, qstrVerifierIdLabel); // with Verifier Nym Id...
+////                    verification_item->setText(2, qstrClaimantIdLabel); // Verifies for Claimant Nym Id...
+////                    verification_item->setText(3, qstrSignatureLabel);
+////                    verification_item->setText(4, qstrSigVerifiedLabel);
+
+////                    verification_item->setData(0, Qt::UserRole+1, TREE_ITEM_TYPE_VERIFICATION);
+
+////                    verification_item->setData(0, Qt::UserRole, qstrVerId); // Verification ID.
+////                    verification_item->setData(1, Qt::UserRole, qstrVerifierId); // Verifier Nym ID.
+////                    verification_item->setData(2, Qt::UserRole, qstrClaimantId); // Claims have the claimant ID at index 2, so I'm matching that here.
+////                    verification_item->setData(3, Qt::UserRole, qstrVerificationClaimId); // Claim ID stored here.
+////                    verification_item->setData(5, Qt::UserRole, bPolarity); // Polarity
+
+//                    const QVariant qvarClaimId       = pItem->data(3, Qt::UserRole);
+//                    const QVariant qvarClaimantNymId = pItem->data(2, Qt::UserRole);
+//                    const QVariant qvarVerifierNymId = pItem->data(1, Qt::UserRole);
+//                    const QVariant qvarPolarity      = pItem->data(5, Qt::UserRole);
+
+//                    const QString qstrClaimId       = qvarClaimId      .isValid() ? qvarClaimId      .toString() : "";
+//                    const QString qstrClaimantNymId = qvarClaimantNymId.isValid() ? qvarClaimantNymId.toString() : "";
+//                    const QString qstrVerifierNymId = qvarVerifierNymId.isValid() ? qvarVerifierNymId.toString() : "";
+
+//                    const bool bPolarityValid = qvarPolarity.isValid();
+//                    const bool bPolarity = bPolarityValid ? qvarPolarity.toBool() : false;
+
+//                    const std::string verifier_nym_id = !qstrVerifierNymId.isEmpty() ? qstrVerifierNymId.toStdString() : "";
+//                    // -----------------------------------------------
+//                    if (qstrClaimId.isEmpty() || qstrClaimantNymId.isEmpty())
+//                    {
+//                        QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
+//                                             QString("%1").arg(tr("Strange - Either the ClaimId or ClaimantNymId was unexpectedly blank. ")));
+//                        return;
+//                    }
+
+//                    // If I'm the verifier, then I can change my verification.
+//                    // (Otherwise I can't.)
+//                    //
+//                    if (!ot.Exec().VerifyUserPrivateKey(verifier_nym_id))
+//                        return;
+//                    // ----------------------------------
+//                    pActionConfirm_ = nullptr;
+//                    pActionRefute_ = nullptr;
+//                    pActionNoComment_ = nullptr;
+//                    pActionNewRelationship_ = nullptr;
+//                    pActionDeleteRelationship_ = nullptr;
+
+//                    popupMenuProfile_.reset(new QMenu(this));
+
+//                    if (!bPolarityValid || (bPolarityValid && (true  != bPolarity)) )
+//                        pActionConfirm_   = popupMenuProfile_->addAction(tr("Confirm"));
+//                    if (!bPolarityValid || (bPolarityValid && (false != bPolarity)) )
+//                        pActionRefute_    = popupMenuProfile_->addAction(tr("Refute"));
+//                    pActionNoComment_ = popupMenuProfile_->addAction(tr("No comment"));
+//                    // ------------------------
+//                    QPoint globalPos = treeWidgetClaims_->mapToGlobal(pos);
+//                    // ------------------------
+//                    const QAction* selectedAction = popupMenuProfile_->exec(globalPos); // Here we popup the menu, and get the user's click.
+//                    // ------------------------
+//                    if (nullptr == selectedAction)
+//                    {
+
+//                    }
+//                    else if (selectedAction == pActionConfirm_)
+//                    {
+//                        // If true, that means OT had to CHANGE something in the Nym's data.
+//                        // (So we'll need to broadcast that, so Moneychanger can re-import the Nym.)
+//                        //
+//                        if (MTContactHandler::getInstance()->claimVerificationConfirm(qstrClaimId, qstrClaimantNymId, qstrVerifierNymId))
+//                        {
+//                            emit nymWasJustChecked(qstrVerifierNymId);
+//                            return;
+//                        }
+//                    }
+//                    // ------------------------
+//                    else if (selectedAction == pActionRefute_)
+//                    {
+//                        if (MTContactHandler::getInstance()->claimVerificationRefute(qstrClaimId, qstrClaimantNymId, qstrVerifierNymId))
+//                        {
+//                            emit nymWasJustChecked(qstrVerifierNymId);
+//                            return;
+//                        }
+//                    }
+//                    // ------------------------
+//                    else if (selectedAction == pActionNoComment_)
+//                    {
+//                        if (MTContactHandler::getInstance()->claimVerificationNoComment(qstrClaimId, qstrClaimantNymId, qstrVerifierNymId))
+//                        {
+//                            emit nymWasJustChecked(qstrVerifierNymId);
+//                            return;
+//                        }
+//                    }
+
+
+//                } // if is verification
+//                // -----------------------------------------------
+//                else
+//                {
+//                    // This space intentionally left blank.
+//                }
+//                // ------------------------
+//            } //nRow >= 0
+//        }
+//    }
 }
 
 
@@ -1069,106 +1073,110 @@ void MTOpentxsContactDetails::ClearTree()
 
 void MTOpentxsContactDetails::on_pushButtonRefresh_clicked()
 {
-    if (m_pOwner->m_qstrCurrentID.isEmpty())
-        return;
-    // --------------------------------
-    const QString qstrDefaultNymId = Moneychanger::It()->getDefaultNymID();
+//    const auto & ot = Moneychanger::It()->OT();
+//    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
 
-    if (qstrDefaultNymId.isEmpty())
-    {
-        QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
-                             QString("%1").arg(tr("Your default identity is not set. Please do that and then try again. "
-                                                  "(It's needed since an identity must be used to communicate with your "
-                                                  "Contact's server in order to download the credentials.)")));
-        return;
-    }
-    const std::string my_nym_id = qstrDefaultNymId.toStdString();
-    // --------------------------------
-    mapIDName mapNyms, mapServers;
+//    if (m_pOwner->m_qstrCurrentID.isEmpty())
+//        return;
+//    // --------------------------------
+//    const QString qstrDefaultNymId = Moneychanger::It()->getDefaultNymID();
 
-    // TODO Optimize: We COULD just get the NymIDs here, not the map,
-    // and thus save the time we waste ascertaining the display Name, which here,
-    // we aren't even using.
-    //
-    const bool bGotNyms = MTContactHandler::getInstance()->GetNyms(mapNyms,
-                                                                   m_pOwner->m_qstrCurrentID.toStdString());
-    // --------------------------------
-    if (!bGotNyms)
-    {
-        // TODO:
-        // If bGotNyms is false, we can still potentially download the related Nym based on
-        // the BIP47 payment code, if we have one. That would occur here, and then we could
-        // re-try the GetNyms call.
+//    if (qstrDefaultNymId.isEmpty())
+//    {
+//        QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
+//                             QString("%1").arg(tr("Your default identity is not set. Please do that and then try again. "
+//                                                  "(It's needed since an identity must be used to communicate with your "
+//                                                  "Contact's server in order to download the credentials.)")));
+//        return;
+//    }
+//    const std::string my_nym_id = qstrDefaultNymId.toStdString();
+//    // --------------------------------
+//    mapIDName mapNyms, mapServers;
 
-        QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
-                             QString("%1").arg(tr("Sorry but there are no Nyms associated with this contact yet. "
-                                                  "(This is where we will, in the future, just download those from the DHT.)")));
-        return;
-    }
-    // --------------------------------
-    bTimerFired_ = false; //reset it here just in case.
-    // --------------------------------
-    for (mapIDName::iterator it_nyms = mapNyms.begin(); it_nyms != mapNyms.end(); ++it_nyms)
-    {
-        QString qstrNymID   = it_nyms.key();
-//      QString qstrNymName = it_nyms.value();
+//    // TODO Optimize: We COULD just get the NymIDs here, not the map,
+//    // and thus save the time we waste ascertaining the display Name, which here,
+//    // we aren't even using.
+//    //
+//    const bool bGotNyms = MTContactHandler::getInstance()->GetNyms(mapNyms,
+//                                                                   m_pOwner->m_qstrCurrentID.toStdString());
+//    // --------------------------------
+//    if (!bGotNyms)
+//    {
+//        // TODO:
+//        // If bGotNyms is false, we can still potentially download the related Nym based on
+//        // the BIP47 payment code, if we have one. That would occur here, and then we could
+//        // re-try the GetNyms call.
 
-        if (qstrNymID.isEmpty()) // Weird, should never happen.
-        {
-            qDebug() << "MTOpentxsContactDetails::on_pushButtonRefresh_clicked: Unexpected empty NymId, should not happen. (Returning.)";
-            return;
-        }
-        const std::string str_nym_id = qstrNymID.toStdString();
-        // ----------------------------------------------
-        const bool bGotServers = MTContactHandler::getInstance()->GetServers(mapServers, qstrNymID);
+//        QMessageBox::warning(this, tr(MONEYCHANGER_APP_NAME),
+//                             QString("%1").arg(tr("Sorry but there are no Nyms associated with this contact yet. "
+//                                                  "(This is where we will, in the future, just download those from the DHT.)")));
+//        return;
+//    }
+//    // --------------------------------
+//    bTimerFired_ = false; //reset it here just in case.
+//    // --------------------------------
+//    for (mapIDName::iterator it_nyms = mapNyms.begin(); it_nyms != mapNyms.end(); ++it_nyms)
+//    {
+//        QString qstrNymID   = it_nyms.key();
+////      QString qstrNymName = it_nyms.value();
 
-        if (!bGotServers)
-        {
-            // Try the default server, then, since there are no known servers for that Nym.
-            const QString qstrDefaultNotaryId = Moneychanger::It()->getDefaultNotaryID();
+//        if (qstrNymID.isEmpty()) // Weird, should never happen.
+//        {
+//            qDebug() << "MTOpentxsContactDetails::on_pushButtonRefresh_clicked: Unexpected empty NymId, should not happen. (Returning.)";
+//            return;
+//        }
+//        const std::string str_nym_id = qstrNymID.toStdString();
+//        // ----------------------------------------------
+//        const bool bGotServers = MTContactHandler::getInstance()->GetServers(mapServers, qstrNymID);
 
-            if (!qstrDefaultNotaryId.isEmpty())
-                mapServers.insert(qstrDefaultNotaryId, "(Leaving server name empty since it's unused.)");
-        }
-        // -------------------------------
-        for (mapIDName::iterator it_servers = mapServers.begin(); it_servers != mapServers.end(); ++it_servers)
-        {
-            QString qstrNotaryID   = it_servers.key();
-//          QString qstrNotaryName = it_servers.value();
+//        if (!bGotServers)
+//        {
+//            // Try the default server, then, since there are no known servers for that Nym.
+//            const QString qstrDefaultNotaryId = Moneychanger::It()->getDefaultNotaryID();
 
-            if (qstrNotaryID.isEmpty()) // Weird, should never happen.
-            {
-                qDebug() << "MTOpentxsContactDetails::on_pushButtonRefresh_clicked: Unexpected empty NotaryID, should not happen. (Returning.)";
-                return;
-            }
-            const std::string notary_id = qstrNotaryID.toStdString();
+//            if (!qstrDefaultNotaryId.isEmpty())
+//                mapServers.insert(qstrDefaultNotaryId, "(Leaving server name empty since it's unused.)");
+//        }
+//        // -------------------------------
+//        for (mapIDName::iterator it_servers = mapServers.begin(); it_servers != mapServers.end(); ++it_servers)
+//        {
+//            QString qstrNotaryID   = it_servers.key();
+////          QString qstrNotaryName = it_servers.value();
 
-            // Todo note: May need to verify that I'M registered at this server, before I
-            // try to download some guy's credentials from a "server he's known to use."
-            // I may not even be registered there, in which case the check_nym call would fail.
-            //
-            // ------------------------------
+//            if (qstrNotaryID.isEmpty()) // Weird, should never happen.
+//            {
+//                qDebug() << "MTOpentxsContactDetails::on_pushButtonRefresh_clicked: Unexpected empty NotaryID, should not happen. (Returning.)";
+//                return;
+//            }
+//            const std::string notary_id = qstrNotaryID.toStdString();
 
-            std::string response;
-            {
-                MTSpinner theSpinner;
+//            // Todo note: May need to verify that I'M registered at this server, before I
+//            // try to download some guy's credentials from a "server he's known to use."
+//            // I may not even be registered there, in which case the check_nym call would fail.
+//            //
+//            // ------------------------------
 
-                 auto action = Moneychanger::It()->OT().ServerAction().DownloadNym(
-                        opentxs::Identifier::Factory(my_nym_id),
-                        opentxs::Identifier::Factory(notary_id),
-                        opentxs::Identifier::Factory(str_nym_id));
-                 response = action->Run();
-            }
+//            std::string response;
+//            {
+//                MTSpinner theSpinner;
 
-            int32_t nReturnVal = opentxs::VerifyMessageSuccess(Moneychanger::It()->OT(), response);
+//                 auto action = ot.ServerAction().DownloadNym(
+//                        opentxs::Identifier::Factory(my_nym_id),
+//                        opentxs::Identifier::Factory(notary_id),
+//                        opentxs::Identifier::Factory(str_nym_id));
+//                 response = action->Run();
+//            }
 
-            if (1 == nReturnVal)
-            {
-                emit nymWasJustChecked(qstrNymID);
-                break;
-            }
-        } // for (servers)
-    }
+//            int32_t nReturnVal = 1;
+////            int32_t nReturnVal = opentxs::VerifyMessageSuccess(Moneychanger::It()->OT(), response);
+
+//            if (1 == nReturnVal)
+//            {
+//                emit nymWasJustChecked(qstrNymID);
+//                break;
+//            }
+//        } // for (servers)
+//    }
 }
 
 void MTOpentxsContactDetails::onClaimsUpdatedTimer()
@@ -1232,14 +1240,14 @@ void MTOpentxsContactDetails::RefreshTree(QString qstrContactId, QStringList & q
 //            continue;
 //        // ---------------------------------------
 //        const std::string str_nym_id   = qstrNymID.toStdString();
-//        const std::string str_nym_name = Moneychanger::It()->OT().Exec().GetNym_Name(str_nym_id);
+//        const std::string str_nym_name = ot.Exec().GetNym_Name(str_nym_id);
 //        const auto id_nym = opentxs::Identifier::Factory(str_nym_id);
 
 //        if (!str_nym_id.empty())
 //        {
-//            auto pCurrentNym = Moneychanger::It()->OT().Wallet().Nym(id_nym);
+//            auto pCurrentNym = ot.Wallet().Nym(id_nym);
 ////          const opentxs::Nym * pCurrentNym =
-////                Moneychanger::It()->OT().OTAPI().GetOrLoadNym(id_nym);
+////                ot.OTAPI().GetOrLoadNym(id_nym);
 
 //            // check_nym if not already downloaded.
 //            if (!pCurrentNym)
@@ -1257,7 +1265,7 @@ void MTOpentxsContactDetails::RefreshTree(QString qstrContactId, QStringList & q
 //                    {
 //                        MTSpinner theSpinner;
 
-//                        auto action = Moneychanger::It()->OT().ServerAction().DownloadNym(
+//                        auto action = ot.ServerAction().DownloadNym(
 //                                opentxs::Identifier::Factory(my_nym_id),
 //                                opentxs::Identifier::Factory(notary_id),
 //                                opentxs::Identifier::Factory(str_nym_id));
@@ -1268,8 +1276,8 @@ void MTOpentxsContactDetails::RefreshTree(QString qstrContactId, QStringList & q
 
 //                    if (1 == nReturnVal)
 //                    {
-//                        pCurrentNym = Moneychanger::It()->OT().Wallet().Nym(id_nym);
-////                      pCurrentNym = Moneychanger::It()->OT().OTAPI().reloadAndGetNym(id_nym);
+//                        pCurrentNym = ot.Wallet().Nym(id_nym);
+////                      pCurrentNym = ot.OTAPI().reloadAndGetNym(id_nym);
 //                        bANymWasChecked = true;
 //                        emit nymWasJustChecked(qstrNymID);
 //                    }
@@ -1389,15 +1397,15 @@ void MTOpentxsContactDetails::RefreshTree(QString qstrContactId, QStringList & q
 //        QMap<uint32_t, QString> mapTypeNames;
 //        // ----------------------------------------
 //        const std::string sectionName =
-//            Moneychanger::It()->OT().Exec().ContactSectionName(
+//            ot.Exec().ContactSectionName(
 //                opentxs::proto::CONTACTSECTION_RELATIONSHIP);
 //        const auto sectionTypes =
-//            Moneychanger::It()->OT().Exec().ContactSectionTypeList(
+//            ot.Exec().ContactSectionTypeList(
 //                opentxs::proto::CONTACTSECTION_RELATIONSHIP);
 
 //        for (const auto& indexSectionType: sectionTypes) {
 //            const std::string typeName =
-//                Moneychanger::It()->OT().Exec().ContactTypeName(indexSectionType);
+//                ot.Exec().ContactTypeName(indexSectionType);
 //            mapTypeNames.insert(
 //                indexSectionType,
 //                QString::fromStdString(typeName));
@@ -1455,7 +1463,7 @@ void MTOpentxsContactDetails::RefreshTree(QString qstrContactId, QStringList & q
 //            if (it_typeNames != mapTypeNames.end())
 //                qstrTypeName = it_typeNames.value();
 //            // ---------------------------------------
-//            const std::string str_claimant_name = Moneychanger::It()->OT().Exec().GetNym_Name(claim_nym_id);
+//            const std::string str_claimant_name = ot.Exec().GetNym_Name(claim_nym_id);
 
 //            // Add the claim to the tree.
 //            //
@@ -1595,7 +1603,7 @@ void MTOpentxsContactDetails::RefreshTree(QString qstrContactId, QStringList & q
 ////        }
 ////    }
 ////    // ------------------------------------------------
-////    if (!Moneychanger::It()->OT().OTAPI().SetContactData(*pCurrentNym, contactData))
+////    if (!ot.OTAPI().SetContactData(*pCurrentNym, contactData))
 ////        qDebug() << __FUNCTION__ << ": ERROR: Failed trying to Set Contact Data!";
 //////      else
 //////          qDebug() << __FUNCTION__ << "SetContactData SUCCESS. items.size(): " << items.size();
@@ -1608,7 +1616,7 @@ void MTOpentxsContactDetails::RefreshTree(QString qstrContactId, QStringList & q
 //    // Now we loop through the sections, and for each, we populate its
 //    // itemwidgets by looping through the nym_claims we got above.
 //    //
-//    const auto sections = Moneychanger::It()->OT().Exec().ContactSectionList();
+//    const auto sections = ot.Exec().ContactSectionList();
 
 //    for (const auto& indexSection: sections) {
 //        if (opentxs::proto::CONTACTSECTION_RELATIONSHIP == indexSection) {
@@ -1618,13 +1626,13 @@ void MTOpentxsContactDetails::RefreshTree(QString qstrContactId, QStringList & q
 //        QMap<uint32_t, QString> mapTypeNames;
 
 //        const std::string sectionName =
-//            Moneychanger::It()->OT().Exec().ContactSectionName(indexSection);
+//            ot.Exec().ContactSectionName(indexSection);
 //        const auto sectionTypes =
-//            Moneychanger::It()->OT().Exec().ContactSectionTypeList(indexSection);
+//            ot.Exec().ContactSectionTypeList(indexSection);
 
 //        for (const auto& indexSectionType: sectionTypes) {
 //            const std::string typeName =
-//                Moneychanger::It()->OT().Exec().ContactTypeName(indexSectionType);
+//                ot.Exec().ContactTypeName(indexSectionType);
 //            mapTypeNames.insert(
 //                indexSectionType,
 //                QString::fromStdString(typeName));
@@ -1862,7 +1870,7 @@ void MTOpentxsContactDetails::RefreshTree(QString qstrContactId, QStringList & q
 //                if (nym_names.end() != it_names)
 //                    str_verifier_name =  it_names->second;
 //                else
-//                    str_verifier_name = Moneychanger::It()->OT().Exec().GetNym_Name(verifier_id);
+//                    str_verifier_name = ot.Exec().GetNym_Name(verifier_id);
 
 ////              const QString qstrClaimIdLabel = QString("%1: %2").arg(tr("Claim Id")).arg(qstrVerificationClaimId);
 //                const QString qstrClaimantIdLabel = QString("%1: %2").arg(tr("Claimant")).arg(qstrClaimantId);
@@ -1992,6 +2000,9 @@ void MTOpentxsContactDetails::on_pushButtonPay_clicked()
 
 void MTOpentxsContactDetails::on_pushButtonMsg_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     QVariant varContactID = ui->pushButtonMsg->property("contactid");
     QString  qstrContactID = varContactID.isValid() ? varContactID.toString() : QString("");
 
@@ -2011,9 +2022,10 @@ void MTOpentxsContactDetails::on_pushButtonMsg_clicked()
         {
             compose_window->setInitialSenderNym(qstrDefaultNym);
 
+            const auto defaultNymId = ot.Factory().NymID(qstrDefaultNym.toStdString());
+
             bCanMessage = (opentxs::Messagability::READY ==
-                Moneychanger::It()->OT().Sync().CanMessage(opentxs::Identifier::Factory(qstrDefaultNym.toStdString()),
-                                                           opentxs::Identifier::Factory(qstrContactID.toStdString())));
+                ot.OTX().CanMessage(defaultNymId, opentxs::Identifier::Factory(qstrContactID.toStdString())));
         }
         compose_window->setInitialRecipientContactID(qstrContactID); // We definitely know this, since we're on the Contacts page.
         // --------------------------------------------------
@@ -2109,217 +2121,223 @@ static void blah()
 //virtual
 void MTOpentxsContactDetails::refresh(QString strID, QString strName)
 {
-    if ((nullptr == ui) || strID.isEmpty())
-    {
-        ui->pushButtonMsg->setEnabled(false);
-        ui->pushButtonPay->setEnabled(false);
-        ui->pushButtonMsg->setProperty("contactid", QString(""));
-        ui->pushButtonPay->setProperty("contactid", QString(""));
+//    const auto & ot = Moneychanger::It()->OT();
+//    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
 
-        if (m_pPlainTextEdit)
-            m_pPlainTextEdit->setPlainText("");
+//    if ((nullptr == ui) || strID.isEmpty())
+//    {
+//        ui->pushButtonMsg->setEnabled(false);
+//        ui->pushButtonPay->setEnabled(false);
+//        ui->pushButtonMsg->setProperty("contactid", QString(""));
+//        ui->pushButtonPay->setProperty("contactid", QString(""));
 
-        if (m_pPlainTextEditNotes)
-            m_pPlainTextEditNotes->setPlainText("");
+//        if (m_pPlainTextEdit)
+//            m_pPlainTextEdit->setPlainText("");
 
-        treeWidgetClaims_->setVisible(false);
-        if (treeWidgetClaims_)
-            ClearTree();
+//        if (m_pPlainTextEditNotes)
+//            m_pPlainTextEditNotes->setPlainText("");
 
-        return;
-    }
-    bool bCanMessage = false;
-    // -----------------------------
-    QString qstrDefaultNym = Moneychanger::It()->get_default_nym_id();
+//        treeWidgetClaims_->setVisible(false);
+//        if (treeWidgetClaims_)
+//            ClearTree();
 
-    if (!qstrDefaultNym.isEmpty())
-    {
-        bCanMessage = (opentxs::Messagability::READY ==
-                       Moneychanger::It()->OT().Sync().CanMessage(opentxs::Identifier::Factory(qstrDefaultNym.toStdString()),
-                                                                  opentxs::Identifier::Factory(strID.toStdString())));
-    }
-    // -----------------------------
-    if (bCanMessage)
-    {
-        ui->pushButtonMsg->setProperty("contactid", strID);
-        ui->pushButtonPay->setProperty("contactid", strID);
-        ui->pushButtonMsg->setEnabled(true);
-        ui->pushButtonPay->setEnabled(true);
-    }
-    else
-    {
-        ui->pushButtonMsg->setProperty("contactid", QString(""));
-        ui->pushButtonPay->setProperty("contactid", QString(""));
-        ui->pushButtonMsg->setEnabled(false);
-        ui->pushButtonPay->setEnabled(false);
-    }
-    // -----------------------------
-    QWidget * pHeaderWidget  = MTEditDetails::CreateDetailHeaderWidget(m_Type, strID, strName, "", "", ":/icons/icons/rolodex_small", false);
+//        return;
+//    }
+//    bool bCanMessage = false;
+//    // -----------------------------
+//    QString qstrDefaultNym = Moneychanger::It()->get_default_nym_id();
 
-    pHeaderWidget->setObjectName(QString("DetailHeader")); // So the stylesheet doesn't get applied to all its sub-widgets.
+//    if (!qstrDefaultNym.isEmpty())
+//    {
+//        bCanMessage = (opentxs::Messagability::READY ==
+//                      ot.OTX().CanMessage(opentxs::Identifier::Factory(qstrDefaultNym.toStdString()),
+//                                                                  opentxs::Identifier::Factory(strID.toStdString())));
+//    }
+//    // -----------------------------
+//    if (bCanMessage)
+//    {
+//        ui->pushButtonMsg->setProperty("contactid", strID);
+//        ui->pushButtonPay->setProperty("contactid", strID);
+//        ui->pushButtonMsg->setEnabled(true);
+//        ui->pushButtonPay->setEnabled(true);
+//    }
+//    else
+//    {
+//        ui->pushButtonMsg->setProperty("contactid", QString(""));
+//        ui->pushButtonPay->setProperty("contactid", QString(""));
+//        ui->pushButtonMsg->setEnabled(false);
+//        ui->pushButtonPay->setEnabled(false);
+//    }
+//    // -----------------------------
+//    QWidget * pHeaderWidget  = MTEditDetails::CreateDetailHeaderWidget(m_Type, strID, strName, "", "", ":/icons/icons/rolodex_small", false);
 
-    if (m_pHeaderWidget)
-    {
-        ui->verticalLayout->removeWidget(m_pHeaderWidget);
+//    pHeaderWidget->setObjectName(QString("DetailHeader")); // So the stylesheet doesn't get applied to all its sub-widgets.
 
-        m_pHeaderWidget->setParent(nullptr);
-        m_pHeaderWidget->disconnect();
-        m_pHeaderWidget->deleteLater();
+//    if (m_pHeaderWidget)
+//    {
+//        ui->verticalLayout->removeWidget(m_pHeaderWidget);
 
-        m_pHeaderWidget = nullptr;
-    }
-    ui->verticalLayout->insertWidget(0, pHeaderWidget);
-    m_pHeaderWidget = pHeaderWidget;
-    // ----------------------------------
-    ui->lineEditID  ->setText(strID);
-    ui->lineEditName->setText(strName);
-    // --------------------------------------------
-    QString     strDetails;
-    QStringList qstrlistNymIDs;
-    // ------------------------------------------
-    if (m_pPlainTextEdit)
-        m_pPlainTextEdit->setPlainText("");
+//        m_pHeaderWidget->setParent(nullptr);
+//        m_pHeaderWidget->disconnect();
+//        m_pHeaderWidget->deleteLater();
 
-    if (m_pPlainTextEditNotes)
-        m_pPlainTextEditNotes->setPlainText("");
+//        m_pHeaderWidget = nullptr;
+//    }
+//    ui->verticalLayout->insertWidget(0, pHeaderWidget);
+//    m_pHeaderWidget = pHeaderWidget;
+//    // ----------------------------------
+//    ui->lineEditID  ->setText(strID);
+//    ui->lineEditName->setText(strName);
+//    // --------------------------------------------
+//    QString     strDetails;
+//    QStringList qstrlistNymIDs;
+//    // ------------------------------------------
+//    if (m_pPlainTextEdit)
+//        m_pPlainTextEdit->setPlainText("");
 
-    if (treeWidgetClaims_)
-        ClearTree();
-    // ------------------------------------------
-    {
-        mapIDName theNymMap;
+//    if (m_pPlainTextEditNotes)
+//        m_pPlainTextEditNotes->setPlainText("");
 
-        if (MTContactHandler::getInstance()->GetNyms(theNymMap, strID.toStdString()))
-        {
-            strDetails += tr("Nyms:\n");
+//    if (treeWidgetClaims_)
+//        ClearTree();
+//    // ------------------------------------------
+//    {
+//        mapIDName theNymMap;
 
-            for (mapIDName::iterator ii = theNymMap.begin(); ii != theNymMap.end(); ii++)
-            {
-                QString qstrNymID    = ii.key();
-                QString qstrNymValue = ii.value();
-                // -------------------------------------
-                qstrlistNymIDs.append(qstrNymID);
-                // -------------------------------------
-                strDetails += QString("%1\n").arg(qstrNymID);
-                // -------------------------------------
-                mapIDName theServerMap;
+//        if (MTContactHandler::getInstance()->GetNyms(theNymMap, strID.toStdString()))
+//        {
+//            strDetails += tr("Nyms:\n");
 
-                if (MTContactHandler::getInstance()->GetServers(theServerMap, qstrNymID))
-                {
-                    strDetails += tr("Found on servers:\n");
+//            for (mapIDName::iterator ii = theNymMap.begin(); ii != theNymMap.end(); ii++)
+//            {
+//                QString qstrNymID    = ii.key();
+//                QString qstrNymValue = ii.value();
+//                // -------------------------------------
+//                qstrlistNymIDs.append(qstrNymID);
+//                // -------------------------------------
+//                strDetails += QString("%1\n").arg(qstrNymID);
+//                // -------------------------------------
+//                mapIDName theServerMap;
 
-                    for (mapIDName::iterator iii = theServerMap.begin(); iii != theServerMap.end(); iii++)
-                    {
-                        QString qstrNotaryID    = iii.key();
-                        QString qstrServerValue = iii.value();
-                        // -------------------------------------
-                        strDetails += QString("%1\n").arg(qstrNotaryID);
-                        // -------------------------------------
-                        mapIDName theAccountMap;
+//                if (MTContactHandler::getInstance()->GetServers(theServerMap, qstrNymID))
+//                {
+//                    strDetails += tr("Found on servers:\n");
 
-                        if (MTContactHandler::getInstance()->GetAccounts(theAccountMap, qstrNymID, qstrNotaryID, QString("")))
-                        {
-                            strDetails += tr("Where he owns the accounts:\n");
+//                    for (mapIDName::iterator iii = theServerMap.begin(); iii != theServerMap.end(); iii++)
+//                    {
+//                        QString qstrNotaryID    = iii.key();
+//                        QString qstrServerValue = iii.value();
+//                        // -------------------------------------
+//                        strDetails += QString("%1\n").arg(qstrNotaryID);
+//                        // -------------------------------------
+//                        mapIDName theAccountMap;
 
-                            for (mapIDName::iterator iiii = theAccountMap.begin(); iiii != theAccountMap.end(); iiii++)
-                            {
-                                QString qstrAcctID    = iiii.key();
-                                QString qstrAcctValue = iiii.value();
-                                // -------------------------------------
-                                strDetails += QString("%1\n").arg(qstrAcctID);
-                                // -------------------------------------
-                            } // for (accounts)
-                        } // got accounts
-                    } // for (servers)
-                    strDetails += QString("\n");
-                } // got servers
-            } // for (nyms)
-            strDetails += QString("\n");
-        } // got nyms
-    }
-    // --------------------------------------------
-    // TAB: "Profile"
-    //
-    RefreshTree(strID, qstrlistNymIDs);
-    // --------------------------------------------
-    // TAB: "Known IDs"
-    //
-    if (m_pPlainTextEdit)
-        m_pPlainTextEdit->setPlainText(strDetails);
-    // --------------------------------------------
-    // TAB: "Notes"
-    //
-    if (m_pPlainTextEditNotes)
-    {
-        QString qstrOutput;
-        auto contactID = opentxs::Identifier::Factory(strID.toStdString());
-        auto& contact = Moneychanger::It()->OT().UI().Contact(contactID);
-        qstrOutput += QString("%1: %2 \n").arg(tr("Display Name")).arg(QString::fromStdString(contact.DisplayName()));
-        qstrOutput += QString("%1: %2 \n").arg(tr("ContactID")).arg(QString::fromStdString(contact.ContactID()));
-        qstrOutput += QString("%1: %2 \n").arg(tr("PaymentCode")).arg(QString::fromStdString(contact.PaymentCode()));
+//                        if (MTContactHandler::getInstance()->GetAccounts(theAccountMap, qstrNymID, qstrNotaryID, QString("")))
+//                        {
+//                            strDetails += tr("Where he owns the accounts:\n");
 
-        auto section = contact.First();
+//                            for (mapIDName::iterator iiii = theAccountMap.begin(); iiii != theAccountMap.end(); iiii++)
+//                            {
+//                                QString qstrAcctID    = iiii.key();
+//                                QString qstrAcctValue = iiii.value();
+//                                // -------------------------------------
+//                                strDetails += QString("%1\n").arg(qstrAcctID);
+//                                // -------------------------------------
+//                            } // for (accounts)
+//                        } // got accounts
+//                    } // for (servers)
+//                    strDetails += QString("\n");
+//                } // got servers
+//            } // for (nyms)
+//            strDetails += QString("\n");
+//        } // got nyms
+//    }
+//    // --------------------------------------------
+//    // TAB: "Profile"
+//    //
+//    RefreshTree(strID, qstrlistNymIDs);
+//    // --------------------------------------------
+//    // TAB: "Known IDs"
+//    //
+//    if (m_pPlainTextEdit)
+//        m_pPlainTextEdit->setPlainText(strDetails);
+//    // --------------------------------------------
+//    // TAB: "Notes"
+//    //
+//    if (m_pPlainTextEditNotes)
+//    {
+//        QString qstrOutput;
+//        auto contactID = opentxs::Identifier::Factory(strID.toStdString());
+//        auto& contact = ot.UI().Contact(contactID);
+//        qstrOutput += QString("%1: %2 \n").arg(tr("Display Name")).arg(QString::fromStdString(contact.DisplayName()));
+//        qstrOutput += QString("%1: %2 \n").arg(tr("ContactID")).arg(QString::fromStdString(contact.ContactID()));
+//        qstrOutput += QString("%1: %2 \n").arg(tr("PaymentCode")).arg(QString::fromStdString(contact.PaymentCode()));
 
-        if (section->Valid()) {
-            auto lastSection = section->Last();
+//        auto section = contact.First();
 
-            qstrOutput += QString("%1: %2 \n").arg(tr("Contact Section Name")).arg(QString::fromStdString(section->Name("en")));
+//        if (section->Valid()) {
+//            auto lastSection = section->Last();
 
-            const std::string sectionName =
-                Moneychanger::It()->OT().Exec().ContactSectionName(section->Type());
-            qstrOutput += QString("%1: %2 \n").arg(tr("Section Type")).arg(QString::fromStdString(sectionName));
+//            qstrOutput += QString("%1: %2 \n").arg(tr("Contact Section Name")).arg(QString::fromStdString(section->Name("en")));
 
-            display_groups(qstrOutput, section);
+//            const std::string sectionName =
+//                ot.Exec().ContactSectionName(section->Type());
+//            qstrOutput += QString("%1: %2 \n").arg(tr("Section Type")).arg(QString::fromStdString(sectionName));
 
-            while (false == lastSection) {
-                section = contact.Next();
-                lastSection = section->Last();
+//            display_groups(qstrOutput, section);
 
-                qstrOutput += QString("%1: %2 \n").arg(tr("Contact Section Name")).arg(QString::fromStdString(section->Name("en")));
+//            while (false == lastSection) {
+//                section = contact.Next();
+//                lastSection = section->Last();
 
-                const std::string sectionName =
-                    Moneychanger::It()->OT().Exec().ContactSectionName(section->Type());
-                qstrOutput += QString("%1: %2 \n").arg(tr("Section Type")).arg(QString::fromStdString(sectionName));
+//                qstrOutput += QString("%1: %2 \n").arg(tr("Contact Section Name")).arg(QString::fromStdString(section->Name("en")));
 
-                display_groups(qstrOutput, section);
-            }
-        }
+//                const std::string sectionName =
+//                    ot.Exec().ContactSectionName(section->Type());
+//                qstrOutput += QString("%1: %2 \n").arg(tr("Section Type")).arg(QString::fromStdString(sectionName));
 
-        m_pPlainTextEditNotes->setPlainText(qstrOutput);
-    }
-    // -----------------------------------
-    // TAB: "CREDENTIALS"
-    //
-    if (m_pCredentials)
-        m_pCredentials->refresh(qstrlistNymIDs);
-    // -----------------------------------------------------------------------
+//                display_groups(qstrOutput, section);
+//            }
+//        }
+
+//        m_pPlainTextEditNotes->setPlainText(qstrOutput);
+//    }
+//    // -----------------------------------
+//    // TAB: "CREDENTIALS"
+//    //
+//    if (m_pCredentials)
+//        m_pCredentials->refresh(qstrlistNymIDs);
+//    // -----------------------------------------------------------------------
 }
 
 
 void MTOpentxsContactDetails::display_groups(QString& qstrOutput, const opentxs::ui::ContactSection& section) const
 {
-    auto group = section.First();
+//    const auto & ot = Moneychanger::It()->OT();
+//    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
 
-    if (false == group->Valid()) { return; }
+//    auto group = section.First();
 
-    auto lastGroup = group->Last();
+//    if (false == group->Valid()) { return; }
 
-    qstrOutput += QString("%1: %2 \n").arg(tr("Group Name")).arg(QString::fromStdString(group->Name("en")));
+//    auto lastGroup = group->Last();
 
-    std::string str_group_type = Moneychanger::It()->OT().Exec().ContactTypeName(group->Type());
-    qstrOutput += QString("%1: %2 \n").arg(tr("Group Type")).arg(QString::fromStdString(str_group_type));
+//    qstrOutput += QString("%1: %2 \n").arg(tr("Group Name")).arg(QString::fromStdString(group->Name("en")));
 
-    display_items(qstrOutput, group);
+//    std::string str_group_type = ot.Exec().ContactTypeName(group->Type());
+//    qstrOutput += QString("%1: %2 \n").arg(tr("Group Type")).arg(QString::fromStdString(str_group_type));
 
-    while (false == lastGroup) {
-        group = section.Next();
-        lastGroup = group->Last();
-        qstrOutput += QString("%1: %2 \n").arg(tr("Group Name")).arg(QString::fromStdString(group->Name("en")));
+//    display_items(qstrOutput, group);
 
-        std::string str_group_type = Moneychanger::It()->OT().Exec().ContactTypeName(group->Type());
-        qstrOutput += QString("%1: %2 \n").arg(tr("Group Type")).arg(QString::fromStdString(str_group_type));
-        display_items(qstrOutput, group);
-    }
+//    while (false == lastGroup) {
+//        group = section.Next();
+//        lastGroup = group->Last();
+//        qstrOutput += QString("%1: %2 \n").arg(tr("Group Name")).arg(QString::fromStdString(group->Name("en")));
+
+//        std::string str_group_type = ot.Exec().ContactTypeName(group->Type());
+//        qstrOutput += QString("%1: %2 \n").arg(tr("Group Type")).arg(QString::fromStdString(str_group_type));
+//        display_items(qstrOutput, group);
+//    }
 }
 
 void MTOpentxsContactDetails::display_items(QString& qstrOutput, const opentxs::ui::ContactSubsection& group) const
@@ -2354,6 +2372,9 @@ void MTOpentxsContactDetails::display_items(QString& qstrOutput, const opentxs::
 
 void MTOpentxsContactDetails::on_lineEditName_editingFinished()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (!m_pOwner->m_qstrCurrentID.isEmpty())
     {
         //bool bSuccess{false}; // TODO
@@ -2363,10 +2384,10 @@ void MTOpentxsContactDetails::on_lineEditName_editingFinished()
         const std::string str_contact_id{m_pOwner->m_qstrCurrentID.toStdString()};
         const auto strContactId = opentxs::String::Factory(str_contact_id);
         // -------------------------------
-        auto mutableContactEditor{Moneychanger::It()->OT().Contacts().mutable_Contact(opentxs::Identifier::Factory(strContactId))};
+        auto mutableContactEditor{ot.Contacts().mutable_Contact(opentxs::Identifier::Factory(strContactId), reason)};
 
         if (mutableContactEditor) {
-            auto & mutableContact = mutableContactEditor->It();
+            auto & mutableContact = mutableContactEditor->get();
             mutableContact.SetLabel(ui->lineEditName->text().toStdString());
         }
 

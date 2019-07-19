@@ -24,8 +24,11 @@
 // Therefore the "from" account is payee's account where funds will
 // flow in the event that the invoice is processed by its recipient.
 //
-bool MTRequestDlg::sendInvoice(int64_t amount, QString toNymId, QString toContactId, QString fromAcctId, QString note)
+bool MTRequestDlg::sendInvoice(int64_t amount, QString toNymId, QString toContactId, QString qstrFromAcctId, QString note)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     // This is already verified by the calling function.
 //    if (fromAcctId.isEmpty())
 //    {
@@ -33,8 +36,12 @@ bool MTRequestDlg::sendInvoice(int64_t amount, QString toNymId, QString toContac
 //            tr("You must choose which of your accounts will receive the funds."));
 //        return false;
 //    }
-    std::string str_fromAcctId(fromAcctId.toStdString());
-    std::string str_fromNymId(Moneychanger::It()->OT().Exec().GetAccountWallet_NymID(str_fromAcctId));
+    std::string str_fromAcctId(qstrFromAcctId.toStdString());
+    const auto fromAcctId = ot.Factory().Identifier(str_fromAcctId);
+    const auto fromAccount = ot.Wallet().Account(fromAcctId, reason);
+    const auto fromNymId = ot.Factory().NymID(fromAccount.get().GetNymID().str());
+
+    std::string str_fromNymId(fromNymId->str());
     // ------------------------------------------------------------
     // If there's a contact ID for recipient but no Nym ID, then we need to find
     // out the Nym ID, so we can WRITE him the cheque (invoice). (Unless we deliberately
@@ -55,7 +62,7 @@ bool MTRequestDlg::sendInvoice(int64_t amount, QString toNymId, QString toContac
 //    {
 //        if (!toNymId.isEmpty())
 //        {
-//            const opentxs::Identifier toContact_Id = Moneychanger::It()->OT().Contacts()
+//            const opentxs::Identifier toContact_Id = ot.Contacts()
 //                    .ContactID(opentxs::Identifier{toNymId.toStdString()});
 //            const opentxs::String strToContactId(toContact_Id);
 //            toContactId = toContact_Id.empty() ? QString("") : QString::fromStdString(std::string(strToContactId.Get()));
@@ -130,8 +137,8 @@ bool MTRequestDlg::sendInvoice(int64_t amount, QString toNymId, QString toContac
     if (   toContactId.isEmpty()
         || str_fromNymId.empty()
         ||  (opentxs::Messagability::READY !=
-             Moneychanger::It()->OT().Sync()
-             .CanMessage(opentxs::Identifier::Factory(str_fromNymId),
+             ot.OTX()
+             .CanMessage(fromNymId,
                          opentxs::Identifier::Factory(toContactId.toStdString()))))
     {
         QMessageBox::warning(this, tr("Not yet messageable"),
@@ -143,7 +150,7 @@ bool MTRequestDlg::sendInvoice(int64_t amount, QString toNymId, QString toContac
     else
         canMessage_ = true;
     // --------------------------------
-    return sendChequeLowLevel(amount, toNymId, toContactId, fromAcctId, note,
+    return sendChequeLowLevel(amount, toNymId, toContactId, qstrFromAcctId, note,
                               true, //isInvoice = true
                               toNymId.isEmpty()); // payerNymIsBlank
 }
@@ -159,6 +166,9 @@ bool MTRequestDlg::sendChequeLowLevel(
     bool isInvoice,
     bool payerNymIsBlank)  // Meaning ANY Nym can pay this invoice.
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     QString nsChequeType = isInvoice ? QString("invoice") : QString("cheque");
     // ------------------------------------------------------------
     if (toNymId.isEmpty() && !payerNymIsBlank)
@@ -194,11 +204,18 @@ bool MTRequestDlg::sendChequeLowLevel(
     if (note.isEmpty())
         note = QString("Request for payment.");
     // ------------------------------------------------------------
-    std::string str_toNymId   (toNymId   .toStdString());
     std::string str_fromAcctId(fromAcctId.toStdString());
+    const auto fromAcctID = ot.Factory().Identifier(str_fromAcctId);
+    const auto fromAccount = ot.Wallet().Account(fromAcctID, reason);
+    const auto fromNymId = ot.Factory().NymID(fromAccount.get().GetNymID().str());
+    const auto fromNotaryId = ot.Factory().ServerID(fromAccount.get().GetPurportedNotaryID().str());
+
+    std::string str_fromNymId(fromNymId->str());
+    std::string str_toNymId   (toNymId   .toStdString());
+
+    const auto toNymID = ot.Factory().NymID(str_toNymId);
     // ------------------------------------------------------------
-    std::string str_fromNymId(Moneychanger::It()->OT().Exec().GetAccountWallet_NymID   (str_fromAcctId));
-    std::string str_NotaryID (Moneychanger::It()->OT().Exec().GetAccountWallet_NotaryID(str_fromAcctId));
+    std::string str_NotaryID (fromNotaryId->str());
     // ------------------------------------------------------------
     int64_t SignedAmount = amount;
     int64_t trueAmount   = isInvoice ? (SignedAmount*(-1)) : SignedAmount;
@@ -207,12 +224,10 @@ bool MTRequestDlg::sendChequeLowLevel(
 //                arg(nsChequeType).arg(QString::fromStdString(str_NotaryID)).arg(QString::fromStdString(str_fromNymId)).
 //                arg(fromAcctId).arg(toNymId).arg(SignedAmount).arg(note);
     // ------------------------------------------------------------
-    time64_t tFrom = Moneychanger::It()->OT().Exec().GetTime();
+    time64_t tFrom = std::chrono::system_clock::to_time_t(opentxs::Clock::now());
     time64_t tTo   = tFrom + DEFAULT_CHEQUE_EXPIRATION;
     // ------------------------------------------------------------
-    const auto notaryID = opentxs::Identifier::Factory(str_NotaryID),
-               nymID    = opentxs::Identifier::Factory(str_fromNymId);
-    if (!Moneychanger::It()->OT().ServerAction().GetTransactionNumbers(nymID, notaryID, 1)) {
+    if (!ot.OTX().CheckTransactionNumbers(fromNymId, fromNotaryId, 1)) {
         qDebug() << QString("Failed trying to acquire a transaction number to write the %1 with.").arg(nsChequeType);
         return false;
     }
@@ -221,11 +236,17 @@ bool MTRequestDlg::sendChequeLowLevel(
     // to be sent...
     //
     if (canMessage_)
-    {
-        std::string strCheque = Moneychanger::It()->OT().Exec().WriteCheque(
-                                    str_NotaryID, trueAmount, tFrom, tTo,
-                                    str_fromAcctId, str_fromNymId, note.toStdString(),
-                                    str_toNymId);
+    {        
+        std::unique_ptr<const opentxs::Cheque> cheque {ot.OTAPI().WriteCheque(
+                                    fromNotaryId, trueAmount, tFrom, tTo,
+                                    fromAcctID, fromNymId, opentxs::String::Factory(note.toStdString()),
+                                    toNymID)};
+
+        std::string strCheque;
+        if (cheque) {
+            const auto str_cheque = opentxs::String::Factory(*(cheque.get()));
+            strCheque = str_cheque->Get();
+        }
         if (strCheque.empty())
         {
             qDebug() << QString("Failed creating %1.").arg(nsChequeType);
@@ -239,13 +260,13 @@ bool MTRequestDlg::sendChequeLowLevel(
 
         const auto otstrCheque = opentxs::String::Factory(strCheque.c_str());
 
-        std::shared_ptr<const opentxs::OTPayment> pPayment{Moneychanger::It()->OT().Factory().Payment(  otstrCheque).release()};
+        std::shared_ptr<const opentxs::OTPayment> pPayment{ot.Factory().Payment(otstrCheque).release()};
 
         OT_ASSERT(false != bool(pPayment));
 
         const auto bgthreadId
-            {Moneychanger::It()->OT().Sync().
-                PayContact(opentxs::Identifier::Factory(str_fromNymId),
+            {ot.OTX().
+                PayContact(ot.Factory().NymID(str_fromNymId),
                            opentxs::Identifier::Factory(toContactId.toStdString()),
                            pPayment
                            )};
@@ -253,7 +274,7 @@ bool MTRequestDlg::sendChequeLowLevel(
         // Instead of MessageContact we use PayContact, so that it does
         // a send_user_instrument instead of a send_user_message.
         //
-        const auto status = Moneychanger::It()->OT().Sync().Status(bgthreadId);
+        const auto status = ot.OTX().Status(bgthreadId.first);
 
         const bool bAddToGUI = (opentxs::ThreadStatus::FINISHED_SUCCESS == status) ||
                                (opentxs::ThreadStatus::RUNNING == status);
@@ -279,9 +300,15 @@ bool MTRequestDlg::sendChequeLowLevel(
 
 void MTRequestDlg::on_amountEdit_editingFinished()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (!m_myAcctId.isEmpty() && !m_bSent)
     {
-        std::string str_InstrumentDefinitionID(Moneychanger::It()->OT().Exec().GetAccountWallet_InstrumentDefinitionID(m_myAcctId.toStdString()));
+        const auto myAcctId = ot.Factory().Identifier(m_myAcctId.toStdString());
+        const auto myAccount = ot.Wallet().Account(myAcctId, reason);
+        const auto myAcctUnitTypeId = ot.Factory().UnitID(myAccount.get().GetInstrumentDefinitionID().str());
+        std::string str_InstrumentDefinitionID(myAcctUnitTypeId->str());
         QString     amt = ui->amountEdit->text();
 
         if (!amt.isEmpty() && !str_InstrumentDefinitionID.empty())
@@ -291,8 +318,8 @@ void MTRequestDlg::on_amountEdit_editingFinished()
             if (std::string::npos == str_temp.find(".")) // not found
                 str_temp += '.';
 
-            int64_t     amount               = Moneychanger::It()->OT().Exec().StringToAmount(str_InstrumentDefinitionID, str_temp);
-            std::string str_formatted_amount = Moneychanger::It()->OT().Exec().FormatAmount(str_InstrumentDefinitionID, static_cast<int64_t>(amount));
+            int64_t     amount               = Moneychanger::stringToAmount(myAcctUnitTypeId, str_temp);
+            std::string str_formatted_amount = Moneychanger::formatAmount(myAcctUnitTypeId, static_cast<int64_t>(amount));
             QString     qstr_FinalAmount     = QString::fromStdString(str_formatted_amount);
 
             ui->amountEdit->setText(qstr_FinalAmount);
@@ -304,6 +331,9 @@ void MTRequestDlg::on_amountEdit_editingFinished()
 
 void MTRequestDlg::setInitialHisContact (QString contactId, bool bUsedInternally/*=false*/) // Payment From: (contact)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     canMessage_ = false;
 
     if (!lockInvoicee_)
@@ -319,12 +349,16 @@ void MTRequestDlg::setInitialHisContact (QString contactId, bool bUsedInternally
 
     if (!m_myAcctId.isEmpty() && !m_hisContactId.isEmpty())
     {
-        const std::string str_my_nym_id = Moneychanger::It()->OT().Exec()
-            .GetAccountWallet_NymID(m_myAcctId.toStdString());
+        const auto myAcctId = ot.Factory().Identifier(m_myAcctId.toStdString());
+        const auto myAccount = ot.Wallet().Account(myAcctId, reason);
+        const auto myAcctUnitTypeId = ot.Factory().UnitID(myAccount.get().GetInstrumentDefinitionID().str());
+        const auto myAcctNymId = ot.Factory().NymID(myAccount.get().GetNymID().str());
+
+        const std::string str_my_nym_id = myAcctNymId->str();
 
         if (   !str_my_nym_id.empty()
-            && (opentxs::Messagability::READY == Moneychanger::It()->OT().Sync()
-                .CanMessage(opentxs::Identifier::Factory(str_my_nym_id),
+            && (opentxs::Messagability::READY == ot.OTX()
+                .CanMessage(myAcctNymId,
                             opentxs::Identifier::Factory(m_hisContactId.toStdString()))))
         {
             canMessage_ = true;
@@ -348,6 +382,9 @@ void MTRequestDlg::setInitialHisContact (QString contactId, bool bUsedInternally
 
 bool MTRequestDlg::requestFunds(QString memo, QString qstr_amount)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     // Send invoice TO Contact, drawn on MY account.
     //
     QString & toNymId     = m_hisNymId;
@@ -361,7 +398,7 @@ bool MTRequestDlg::requestFunds(QString memo, QString qstr_amount)
 //    {
 //        if (!toNymId.isEmpty())
 //        {
-//            const opentxs::Identifier toContact_Id = Moneychanger::It()->OT().Contacts()
+//            const opentxs::Identifier toContact_Id = ot.Contacts()
 //            .ContactID(opentxs::Identifier{toNymId.toStdString()});
 //            const opentxs::String strToContactId(toContact_Id);
 //            toContactId = toContact_Id.empty() ? QString("") : QString::fromStdString(std::string(strToContactId.Get()));
@@ -389,9 +426,13 @@ bool MTRequestDlg::requestFunds(QString memo, QString qstr_amount)
     if (qstr_amount.isEmpty())
         qstr_amount = QString("0");
     // ----------------------------------------------------
+    const auto myAcctId = ot.Factory().Identifier(fromAcctId.toStdString());
+    const auto myAccount = ot.Wallet().Account(myAcctId, reason);
+    const auto myAcctUnitTypeId = ot.Factory().UnitID(myAccount.get().GetInstrumentDefinitionID().str());
+    const auto myAcctNymId = ot.Factory().NymID(myAccount.get().GetNymID().str());
+
     int64_t     amount = 0;
-    std::string str_InstrumentDefinitionID(Moneychanger::It()->OT().Exec()
-        .GetAccountWallet_InstrumentDefinitionID(fromAcctId.toStdString()));
+    std::string str_InstrumentDefinitionID(myAcctUnitTypeId->str());
 
     if (!str_InstrumentDefinitionID.empty())
     {
@@ -400,8 +441,7 @@ bool MTRequestDlg::requestFunds(QString memo, QString qstr_amount)
         if (std::string::npos == str_amount.find(".")) // not found
             str_amount += '.';
 
-        amount = Moneychanger::It()->OT().Exec()
-            .StringToAmount(str_InstrumentDefinitionID, str_amount);
+        amount = Moneychanger::stringToAmount(myAcctUnitTypeId, str_amount);
     }
     // ----------------------------------------------------
     if (amount <= 0)
@@ -429,6 +469,9 @@ bool MTRequestDlg::requestFunds(QString memo, QString qstr_amount)
 
 void MTRequestDlg::on_requestButton_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     // Send invoice and then close dialog. Use progress bar.
     // -----------------------------------------------------------------
     // If the Contact ID is empty, but the NYM is set, we try to retrieve
@@ -438,8 +481,8 @@ void MTRequestDlg::on_requestButton_clicked()
     {
         if (!m_hisNymId.isEmpty())
         {
-            const auto toContact_Id = Moneychanger::It()->OT().Contacts()
-                .ContactID(opentxs::Identifier::Factory(m_hisNymId.toStdString()));
+            const auto hisNymId = ot.Factory().NymID(m_hisNymId.toStdString());
+            const auto toContact_Id = ot.Contacts().ContactID(hisNymId);
             const auto strToContactId = opentxs::String::Factory(toContact_Id);
             m_hisContactId = toContact_Id->empty()
                 ? QString("")
@@ -510,9 +553,15 @@ void MTRequestDlg::on_requestButton_clicked()
     // -----------------------------------------------------------------
     // Make sure I'm not sending to myself (since that will fail...)
     //
-    std::string str_fromAcctId(m_myAcctId.toStdString());
-    QString     qstr_fromNymId(QString::fromStdString(
-        Moneychanger::It()->OT().Exec().GetAccountWallet_NymID(str_fromAcctId)));
+
+    const auto myAcctId = ot.Factory().Identifier(m_myAcctId.toStdString());
+    const auto myAccount = ot.Wallet().Account(myAcctId, reason);
+    const auto myAcctUnitTypeId = ot.Factory().UnitID(myAccount.get().GetInstrumentDefinitionID().str());
+    const auto myAcctNymId = ot.Factory().NymID(myAccount.get().GetNymID().str());
+
+    std::string str_fromAcctId(myAcctId->str());
+
+    QString     qstr_fromNymId(QString::fromStdString(myAcctNymId->str()));
 
     if (0 == qstr_fromNymId.compare(m_hisNymId))
     {
@@ -568,6 +617,9 @@ void MTRequestDlg::onBalancesChanged()
 
 void MTRequestDlg::on_toButton_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     // Select from Accounts in local wallet.
     //
     DlgChooser theChooser(this);
@@ -577,18 +629,16 @@ void MTRequestDlg::on_toButton_clicked()
 
     bool bFoundDefault = false;
 
-    for (const auto& [accountID, alias] : Moneychanger::It()->OT().Storage().AccountList())
+    for (const auto& [accountID, alias] : ot.Storage().AccountList())
     {
         //Get OT Acct ID
         QString OT_acct_id = QString::fromStdString(accountID);
-        QString OT_acct_name("");
+        QString OT_acct_name = QString::fromStdString(alias);
         // -----------------------------------------------
         if (!OT_acct_id.isEmpty())
         {
             if (!m_myAcctId.isEmpty() && (OT_acct_id == m_myAcctId))
                 bFoundDefault = true;
-            // -----------------------------------------------
-            OT_acct_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAccountWallet_Name(OT_acct_id.toStdString()));
             // -----------------------------------------------
             the_map.insert(OT_acct_id, OT_acct_name);
         }
@@ -660,6 +710,9 @@ void MTRequestDlg::on_toolButtonManageAccts_clicked()
 
 void MTRequestDlg::on_toolButton_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     if (!m_hisContactId.isEmpty())
     {
         emit ShowContact(m_hisContactId);
@@ -668,10 +721,9 @@ void MTRequestDlg::on_toolButton_clicked()
     // ------------------------------------------------
     if (!m_hisNymId.isEmpty())
     {
-        const auto toContact_Id = Moneychanger::It()->OT().Contacts()
-                .ContactID(opentxs::Identifier::Factory(m_hisNymId.toStdString()));
-        const auto     strToContactId = opentxs::String::Factory(toContact_Id);
-        m_hisContactId = toContact_Id->empty() ? QString("") : QString::fromStdString(std::string(strToContactId->Get()));
+        const auto toNymId = ot.Factory().NymID(m_hisNymId.toStdString());
+        const auto toContact_Id = ot.Contacts().ContactID(toNymId);
+        m_hisContactId = QString::fromStdString(toContact_Id->str());
 
         if (!m_hisContactId.isEmpty())
             emit ShowContact(m_hisContactId);
@@ -680,6 +732,9 @@ void MTRequestDlg::on_toolButton_clicked()
 
 void MTRequestDlg::on_fromButton_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     // Select recipient from the address book and convert to Nym ID.
     // -----------------------------------------------
     DlgChooser theChooser(this);
@@ -696,12 +751,9 @@ void MTRequestDlg::on_fromButton_clicked()
     }
     else if (!m_hisNymId.isEmpty())
     {
-        const auto toContact_Id = Moneychanger::It()->OT().Contacts()
-                .ContactID(opentxs::Identifier::Factory(m_hisNymId.toStdString()));
-        const auto     strToContactId = opentxs::String::Factory(toContact_Id);
-        m_hisContactId = toContact_Id->empty()
-            ? QString("")
-            : QString::fromStdString(std::string(strToContactId->Get()));
+        const auto toNymId = ot.Factory().NymID(m_hisNymId.toStdString());
+        const auto toContact_Id = ot.Contacts().ContactID(toNymId);
+        m_hisContactId = QString::fromStdString(toContact_Id->str());
         if (!m_hisContactId.isEmpty())
             theChooser.SetPreSelected(m_hisContactId);
     }
@@ -814,6 +866,9 @@ void MTRequestDlg::on_fromButton_clicked()
 
 void MTRequestDlg::dialog()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
 /** Request Funds Dialog **/
 
     if (!already_init)
@@ -844,7 +899,9 @@ void MTRequestDlg::dialog()
         // -------------------------------------------
         if (!m_myAcctId.isEmpty()) // myAcct was provided.
         {
-            str_my_name = Moneychanger::It()->OT().Exec().GetAccountWallet_Name(m_myAcctId.toStdString());
+            const auto myAcctId = ot.Factory().Identifier(m_myAcctId.toStdString());
+            const auto myAccount = ot.Wallet().Account(myAcctId, reason);
+            str_my_name = myAccount.get().Alias();
             if (str_my_name.empty())
                 str_my_name = m_myAcctId.toStdString();
         }
@@ -866,7 +923,10 @@ void MTRequestDlg::dialog()
         // -------------------------------------------
         if (!m_hisNymId.isEmpty()) // hisNym was provided.
         {
-            str_his_name = Moneychanger::It()->OT().Exec().GetNym_Name(m_hisNymId.toStdString());
+            const auto hisNymId = ot.Factory().NymID(m_hisNymId.toStdString());
+            const auto hisNym = ot.Wallet().Nym(hisNymId, reason);
+
+            str_his_name = hisNym->Alias();
 
             if (str_his_name.empty())
                 str_his_name = m_hisNymId.toStdString();

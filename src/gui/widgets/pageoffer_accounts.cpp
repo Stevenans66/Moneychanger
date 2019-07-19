@@ -69,6 +69,10 @@ PageOffer_Accounts::PageOffer_Accounts(QWidget *parent) :
 
 void PageOffer_Accounts::on_pushButtonManageServer_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+    const auto servers = ot.Wallet().ServerList();
+
     MTDetailEdit * pWindow = new MTDetailEdit(this);
 
     pWindow->setAttribute(Qt::WA_DeleteOnClose);
@@ -80,12 +84,12 @@ void PageOffer_Accounts::on_pushButtonManageServer_clicked()
     QString qstrPreselected   = field("NotaryID").toString();
     bool    bFoundPreselected = false;
     // -------------------------------------
-    int32_t the_count = Moneychanger::It()->OT().Exec().GetServerCount();
+    int32_t the_count = servers.size();
 
-    for (int32_t ii = 0; ii < the_count; ii++)
+    for (const auto & [id, name] : servers)
     {
-        QString OT_id   = QString::fromStdString(Moneychanger::It()->OT().Exec().GetServer_ID(ii));
-        QString OT_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetServer_Name(OT_id.toStdString()));
+        QString OT_id   = QString::fromStdString(id);
+        QString OT_name = QString::fromStdString(name);
 
         the_map.insert(OT_id, OT_name);
 
@@ -103,6 +107,10 @@ void PageOffer_Accounts::on_pushButtonManageServer_clicked()
 
 void PageOffer_Accounts::on_pushButtonManageNym_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+    const auto nyms = ot.Wallet().LocalNyms();
+
     MTDetailEdit * pWindow = new MTDetailEdit(this);
 
     pWindow->setAttribute(Qt::WA_DeleteOnClose);
@@ -114,12 +122,13 @@ void PageOffer_Accounts::on_pushButtonManageNym_clicked()
     QString qstrPreselected   = field("NymID").toString();
     bool    bFoundPreselected = false;
     // -------------------------------------
-    int32_t the_count = Moneychanger::It()->OT().Exec().GetNymCount();
+    int32_t the_count = nyms.size();
 
-    for (int32_t ii = 0; ii < the_count; ii++)
+    for (const auto nymId : nyms)
     {
-        QString OT_id   = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_ID(ii));
-        QString OT_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_Name(OT_id.toStdString()));
+        QString OT_id   = QString::fromStdString(nymId->str());
+        const auto nym = ot.Wallet().Nym(nymId, reason);
+        QString OT_name = QString::fromStdString(nym->Alias());
 
         the_map.insert(OT_id, OT_name);
 
@@ -137,6 +146,9 @@ void PageOffer_Accounts::on_pushButtonManageNym_clicked()
 
 void PageOffer_Accounts::on_pushButtonManageAssetAcct_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     MTDetailEdit * pWindow = new MTDetailEdit(this);
 
     pWindow->setAttribute(Qt::WA_DeleteOnClose);
@@ -148,7 +160,7 @@ void PageOffer_Accounts::on_pushButtonManageAssetAcct_clicked()
     QString qstrPreselected   = field("AssetAcctID").toString();
     bool    bFoundPreselected = false;
 
-    for (const auto& [accountID, alias] : Moneychanger::It()->OT().Storage().AccountList())
+    for (const auto& [accountID, alias] : ot.Storage().AccountList())
     {
         QString OT_id   = QString::fromStdString(accountID);
         QString OT_name = QString::fromStdString(alias);
@@ -169,6 +181,9 @@ void PageOffer_Accounts::on_pushButtonManageAssetAcct_clicked()
 
 void PageOffer_Accounts::on_pushButtonManageCurrencyAcct_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     MTDetailEdit * pWindow = new MTDetailEdit(this);
 
     pWindow->setAttribute(Qt::WA_DeleteOnClose);
@@ -180,7 +195,7 @@ void PageOffer_Accounts::on_pushButtonManageCurrencyAcct_clicked()
     QString qstrPreselected   = field("CurrencyAcctID").toString();
     bool    bFoundPreselected = false;
 
-    for (const auto& [accountID, alias] : Moneychanger::It()->OT().Storage().AccountList())
+    for (const auto& [accountID, alias] : ot.Storage().AccountList())
     {
         QString OT_id   = QString::fromStdString(accountID);
         QString OT_name = QString::fromStdString(alias);
@@ -207,6 +222,9 @@ void PageOffer_Accounts::on_pushButtonManageCurrencyAcct_clicked()
 //
 bool PageOffer_Accounts::setupMapOfAccounts(mapIDName & accountMap, bool bIsAsset_or_currency)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     QString qstrNymID       = field("NymID")      .toString();
     QString qstrNotaryID    = field("NotaryID")   .toString();
     QString qstrAssetID;
@@ -222,18 +240,24 @@ bool PageOffer_Accounts::setupMapOfAccounts(mapIDName & accountMap, bool bIsAsse
     // -------------------------------------------
     bool bFoundDefault = false;
 
-    for (const auto& [accountID, alias] : Moneychanger::It()->OT().Storage().AccountList())
+    for (const auto& [accountID, alias] : ot.Storage().AccountList())
     {
-        QString OT_id = QString::fromStdString(accountID);
-        QString OT_name("");
+        QString OT_id   = QString::fromStdString(accountID);
+        QString OT_name = QString::fromStdString(alias);
         // -----------------------------------------------
         if (!OT_id.isEmpty())
         {
+            const auto accountId = ot.Factory().Identifier(accountID);
+            const auto account = ot.Wallet().Account(accountId, reason);
+            const auto acctNymId = ot.Factory().NymID(account.get().GetNymID().str());
+            const auto acctNotaryId = ot.Factory().ServerID(account.get().GetPurportedNotaryID().str());
+            const auto acctUnitId = ot.Factory().UnitID(account.get().GetInstrumentDefinitionID().str());
+
             // Filter the accounts shown based on asset type, server ID, and Nym ID.
             //
-            QString qstrAcctNymID    = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAccountWallet_NymID(OT_id.toStdString()));
-            QString qstrAcctInstrumentDefinitionID  = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAccountWallet_InstrumentDefinitionID (OT_id.toStdString()));
-            QString qstrAcctNotaryID = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAccountWallet_NotaryID(OT_id.toStdString()));
+            QString qstrAcctNymID    = QString::fromStdString(acctNymId->str());
+            QString qstrAcctInstrumentDefinitionID  = QString::fromStdString(acctNotaryId->str());
+            QString qstrAcctNotaryID = QString::fromStdString(acctUnitId->str());
             // -----------------------------------------------
             if ((qstrAcctNymID    != qstrNymID)   ||
                 (qstrAcctInstrumentDefinitionID  != qstrInstrumentDefinitionID) ||
@@ -242,8 +266,6 @@ bool PageOffer_Accounts::setupMapOfAccounts(mapIDName & accountMap, bool bIsAsse
             // -----------------------------------------------
             if (!qstr_current_id.isEmpty() && (0 == qstr_current_id.compare(OT_id)))
                 bFoundDefault = true;
-            // -----------------------------------------------
-            OT_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAccountWallet_Name(OT_id.toStdString()));
             // -----------------------------------------------
             accountMap.insert(OT_id, OT_name);
         }
@@ -255,12 +277,15 @@ bool PageOffer_Accounts::setupMapOfAccounts(mapIDName & accountMap, bool bIsAsse
 
 void PageOffer_Accounts::on_pushButtonSelectAssetAcct_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     QString qstrNymID    = field("NymID")   .toString();
     QString qstrInstrumentDefinitionID  = field("InstrumentDefinitionID") .toString();
     QString qstrNotaryID = field("NotaryID").toString();
     // -------------------------------------------
     QString qstr_current_id = field("AssetAcctID").toString();
-    const auto accounts = Moneychanger::It()->OT().Storage().AccountList();
+    const auto accounts = ot.Storage().AccountList();
 
     if (qstr_current_id.isEmpty() && (accounts.size() > 0))
         qstr_current_id = QString::fromStdString(std::get<0>(accounts.front()));
@@ -288,8 +313,12 @@ void PageOffer_Accounts::on_pushButtonSelectAssetAcct_clicked()
             // -----------------------------------------
             ui->lineEditAssetAcctID->home(false);
             // -----------------------------------------
-            int64_t     lBalance      = Moneychanger::It()->OT().Exec().GetAccountWallet_Balance(theChooser.m_qstrCurrentID.toStdString());
-            std::string str_formatted = Moneychanger::It()->OT().Exec().FormatAmount(qstrInstrumentDefinitionID.toStdString(), lBalance);
+            const auto accountId = ot.Factory().Identifier(theChooser.m_qstrCurrentID.toStdString());
+            const auto account = ot.Wallet().Account(accountId, reason);
+            const auto unitTypeId = ot.Factory().UnitID(qstrInstrumentDefinitionID.toStdString());
+
+            int64_t     lBalance      = account.get().GetBalance();
+            std::string str_formatted = Moneychanger::formatAmount(unitTypeId, lBalance);
             QString     qstrBalance   = QString::fromStdString(str_formatted);
 
             setField("AssetAcctBalance", qstrBalance);
@@ -299,12 +328,15 @@ void PageOffer_Accounts::on_pushButtonSelectAssetAcct_clicked()
 
 void PageOffer_Accounts::on_pushButtonSelectCurrencyAcct_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     QString qstrNymID                   = field("NymID")      .toString();
     QString qstrInstrumentDefinitionID  = field("CurrencyID") .toString();
     QString qstrNotaryID                = field("NotaryID")   .toString();
     // -------------------------------------------
     QString qstr_current_id = field("CurrencyAcctID").toString();
-    const auto accounts = Moneychanger::It()->OT().Storage().AccountList();
+    const auto accounts = ot.Storage().AccountList();
 
     if (qstr_current_id.isEmpty() && (accounts.size() > 0))
         qstr_current_id = QString::fromStdString(std::get<0>(accounts.front()));
@@ -332,8 +364,12 @@ void PageOffer_Accounts::on_pushButtonSelectCurrencyAcct_clicked()
             // -----------------------------------------
             ui->lineEditCurrencyAcctID->home(false);
             // -----------------------------------------
-            int64_t     lBalance      = Moneychanger::It()->OT().Exec().GetAccountWallet_Balance(theChooser.m_qstrCurrentID.toStdString());
-            std::string str_formatted = Moneychanger::It()->OT().Exec().FormatAmount(qstrInstrumentDefinitionID.toStdString(), lBalance);
+            const auto accountId = ot.Factory().Identifier(theChooser.m_qstrCurrentID.toStdString());
+            const auto account = ot.Wallet().Account(accountId, reason);
+            const auto unitTypeId = ot.Factory().UnitID(qstrInstrumentDefinitionID.toStdString());
+
+            int64_t     lBalance      = account.get().GetBalance();
+            std::string str_formatted = Moneychanger::formatAmount(unitTypeId, lBalance);
             QString     qstrBalance   = QString::fromStdString(str_formatted);
 
             setField("CurrencyAcctBalance", qstrBalance);
@@ -344,6 +380,8 @@ void PageOffer_Accounts::on_pushButtonSelectCurrencyAcct_clicked()
 
 void PageOffer_Accounts::initializePage()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
     // -------------------------------------------
     if (!Moneychanger::It()->expertMode())
     {
@@ -480,8 +518,12 @@ void PageOffer_Accounts::initializePage()
     {
         ui->lineEditAssetAcctID->home(false);
         // -----------------------------------------
-        int64_t     lBalance      = Moneychanger::It()->OT().Exec().GetAccountWallet_Balance(qstrAssetAccountID.toStdString());
-        std::string str_formatted = Moneychanger::It()->OT().Exec().FormatAmount(qstrAssetID.toStdString(), lBalance);
+        const auto accountId = ot.Factory().Identifier(qstrAssetAccountID.toStdString());
+        const auto account = ot.Wallet().Account(accountId, reason);
+        const auto unitTypeId = ot.Factory().UnitID(qstrAssetID.toStdString());
+
+        int64_t     lBalance      = account.get().GetBalance();
+        std::string str_formatted = Moneychanger::formatAmount(unitTypeId, lBalance);
         QString     qstrBalance   = QString::fromStdString(str_formatted);
 
         setField("AssetAcctBalance", qstrBalance);
@@ -490,8 +532,12 @@ void PageOffer_Accounts::initializePage()
     {
         ui->lineEditCurrencyAcctID->home(false);
         // -----------------------------------------
-        int64_t     lBalance      = Moneychanger::It()->OT().Exec().GetAccountWallet_Balance(qstrCurrencyAccountID.toStdString());
-        std::string str_formatted = Moneychanger::It()->OT().Exec().FormatAmount(qstrCurrencyID.toStdString(), lBalance);
+        const auto accountId = ot.Factory().Identifier(qstrCurrencyAccountID.toStdString());
+        const auto account = ot.Wallet().Account(accountId, reason);
+        const auto unitTypeId = ot.Factory().UnitID(qstrCurrencyID.toStdString());
+
+        int64_t     lBalance      = account.get().GetBalance();
+        std::string str_formatted = Moneychanger::formatAmount(unitTypeId, lBalance);
         QString     qstrBalance   = QString::fromStdString(str_formatted);
 
         setField("CurrencyAcctBalance", qstrBalance);

@@ -79,11 +79,11 @@ unix: {
 ##  LIBS += -lcurl
 
     mac:{
-        QMAKE_MAC_SDK = macosx10.13
+        QMAKE_MAC_SDK = macosx10.14
 
         QMAKE_LFLAGS_SONAME  = -Wl,-install_name,@executable_path/../Frameworks/
 
-        !contains(MAC_OS_VERSION, 10.9):!contains(MAC_OS_VERSION, 10.10):!contains(MAC_OS_VERSION, 10.11):!contains(MAC_OS_VERSION, 10.12):!contains(MAC_OS_VERSION, 10.13):{
+        !contains(MAC_OS_VERSION, 10.9):!contains(MAC_OS_VERSION, 10.10):!contains(MAC_OS_VERSION, 10.11):!contains(MAC_OS_VERSION, 10.12):!contains(MAC_OS_VERSION, 10.13):!contains(MAC_OS_VERSION, 10.14):{
             # if not on Mavericks
             LIBS += -lboost_system-mt
             LIBS += -lboost_thread-mt

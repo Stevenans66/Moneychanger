@@ -232,24 +232,24 @@ void Payments::RefreshUserBar()
 //    {
 //        // -----------------------------------
 //        std::string str_acct_id     = qstr_acct_id.toStdString();
-//        std::string str_acct_nym    = Moneychanger::It()->OT().Exec().GetAccountWallet_NymID(str_acct_id);
-//        std::string str_acct_server = Moneychanger::It()->OT().Exec().GetAccountWallet_NotaryID(str_acct_id);
-//        std::string str_acct_asset  = Moneychanger::It()->OT().Exec().GetAccountWallet_InstrumentDefinitionID(str_acct_id);
+//        std::string str_acct_nym    = ot.Exec().GetAccountWallet_NymID(str_acct_id);
+//        std::string str_acct_server = ot.Exec().GetAccountWallet_NotaryID(str_acct_id);
+//        std::string str_acct_asset  = ot.Exec().GetAccountWallet_InstrumentDefinitionID(str_acct_id);
 //        // -----------------------------------
 //        qstr_acct_nym    = QString::fromStdString(str_acct_nym);
 //        qstr_acct_server = QString::fromStdString(str_acct_server);
 //        qstr_acct_asset  = QString::fromStdString(str_acct_asset);
 //        // -----------------------------------
-//        std::string str_tla = Moneychanger::It()->OT().Exec().GetCurrencyTLA(str_acct_asset);
+//        std::string str_tla = ot.Exec().GetCurrencyTLA(str_acct_asset);
 //        qstr_tla = QString("<font color=grey>%1</font>").arg(QString::fromStdString(str_tla));
 
 //        qstr_balance = MTHome::shortAcctBalance(qstr_acct_id, qstr_acct_asset, false);
 //        // -----------------------------------
-//        std::string str_acct_name  = Moneychanger::It()->OT().Exec().GetAccountWallet_Name(str_acct_id);
+//        std::string str_acct_name  = ot.Exec().GetAccountWallet_Name(str_acct_id);
 //        // -----------------------------------
 //        if (!str_acct_asset.empty())
 //        {
-//            std::string str_asset_name = Moneychanger::It()->OT().Exec().GetAssetType_Name(str_acct_asset);
+//            std::string str_asset_name = ot.Exec().GetAssetType_Name(str_acct_asset);
 //            qstr_acct_asset_name = QString::fromStdString(str_asset_name);
 //        }
 //        // -----------------------------------
@@ -348,11 +348,11 @@ void Payments::RefreshUserBar()
 
 //    if (!qstr_acct_nym.isEmpty())
 //    {
-//        auto pNym = Moneychanger::It()->OT().Wallet().Nym(opentxs::Identifier::Factory(qstr_acct_nym.toStdString()));
+//        auto pNym = ot.Wallet().Nym(opentxs::Identifier::Factory(qstr_acct_nym.toStdString()));
 //        payment_code = pNym->PaymentCode();
 //        qstrPaymentCode = QString::fromStdString(payment_code);
 //        // ----------------------------
-//        QString qstr_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_Name(qstr_acct_nym.toStdString()));
+//        QString qstr_name = QString::fromStdString(ot.Exec().GetNym_Name(qstr_acct_nym.toStdString()));
 
 //        if (!qstr_name.isEmpty())
 //            nym_label_string = qstr_name;
@@ -429,202 +429,206 @@ void Payments::RefreshUserBar()
 
 QWidget * Payments::CreateUserBarWidget()
 {
-    QWidget     * pUserBar        = new QWidget;
-    QGridLayout * pUserBar_layout = new QGridLayout;
+    return nullptr;
+//    const auto & ot = Moneychanger::It()->OT();
+//    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
 
-    pUserBar_layout->setSpacing(12);
-    pUserBar_layout->setContentsMargins(0,0,0,0); // left top right bottom
-//  pUserBar_layout->setContentsMargins(12, 3, 8, 10); // left top right bottom
+//    QWidget     * pUserBar        = new QWidget;
+//    QGridLayout * pUserBar_layout = new QGridLayout;
 
-    pUserBar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+//    pUserBar_layout->setSpacing(12);
+//    pUserBar_layout->setContentsMargins(0,0,0,0); // left top right bottom
+////  pUserBar_layout->setContentsMargins(12, 3, 8, 10); // left top right bottom
 
-    pUserBar->setLayout(pUserBar_layout);
-    pUserBar->setStyleSheet("QWidget{background-color:#c0cad4;selection-background-color:#a0aac4;}");  // todo hardcoding.
-    // -------------------------------------------
-    QString qstr_acct_nym,
-            qstr_acct_server,
-            qstr_acct_asset, qstr_acct_asset_name("");
-    // -------------------------------------------
-    QString qstr_acct_name("");
-    QString qstr_balance(""), qstr_tla("");
-    QString qstr_acct_id = Moneychanger::It()->get_default_account_id();
-    // -------------------------------------------
-    if (qstr_acct_id.isEmpty())
-    {
-        qstr_balance     = tr("0.00");
-        qstr_acct_name = QString("");
-        // -----------------------------------
-        qstr_acct_nym    = Moneychanger::It()->get_default_nym_id();
-        qstr_acct_server = Moneychanger::It()->get_default_notary_id();
-        qstr_acct_asset  = Moneychanger::It()->get_default_asset_id();
-    }
-    else
-    {
-        // -----------------------------------
-        std::string str_acct_id     = qstr_acct_id.toStdString();
-        std::string str_acct_nym    = Moneychanger::It()->OT().Exec().GetAccountWallet_NymID(str_acct_id);
-        std::string str_acct_server = Moneychanger::It()->OT().Exec().GetAccountWallet_NotaryID(str_acct_id);
-        std::string str_acct_asset  = Moneychanger::It()->OT().Exec().GetAccountWallet_InstrumentDefinitionID(str_acct_id);
-        // -----------------------------------
-        qstr_acct_nym    = QString::fromStdString(str_acct_nym);
-        qstr_acct_server = QString::fromStdString(str_acct_server);
-        qstr_acct_asset  = QString::fromStdString(str_acct_asset);
-        // -----------------------------------
-        std::string str_tla = Moneychanger::It()->OT().Exec().GetCurrencyTLA(str_acct_asset);
-        qstr_tla = QString("<font color=grey>%1</font>").arg(QString::fromStdString(str_tla));
+//    pUserBar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
-        qstr_balance = Moneychanger::shortAcctBalance(qstr_acct_id, qstr_acct_asset, false);
-        // -----------------------------------
-        std::string str_acct_name  = Moneychanger::It()->OT().Exec().GetAccountWallet_Name(str_acct_id);
-        // -----------------------------------
-        if (!str_acct_asset.empty())
-        {
-            std::string str_asset_name = Moneychanger::It()->OT().Exec().GetAssetType_Name(str_acct_asset);
-            qstr_acct_asset_name = QString::fromStdString(str_asset_name);
-        }
-        // -----------------------------------
-        if (!str_acct_name.empty())
-        {
-            qstr_acct_name = QString("%1").arg(QString::fromStdString(str_acct_name));
-        }
-    }
-    // ---------------------------------------------
-    QToolButton * buttonAccount = new QToolButton;
+//    pUserBar->setLayout(pUserBar_layout);
+//    pUserBar->setStyleSheet("QWidget{background-color:#c0cad4;selection-background-color:#a0aac4;}");  // todo hardcoding.
+//    // -------------------------------------------
+//    QString qstr_acct_nym,
+//            qstr_acct_server,
+//            qstr_acct_asset, qstr_acct_asset_name("");
+//    // -------------------------------------------
+//    QString qstr_acct_name("");
+//    QString qstr_balance(""), qstr_tla("");
+//    QString qstr_acct_id = Moneychanger::It()->get_default_account_id();
+//    // -------------------------------------------
+//    if (qstr_acct_id.isEmpty())
+//    {
+//        qstr_balance     = tr("0.00");
+//        qstr_acct_name = QString("");
+//        // -----------------------------------
+//        qstr_acct_nym    = Moneychanger::It()->get_default_nym_id();
+//        qstr_acct_server = Moneychanger::It()->get_default_notary_id();
+//        qstr_acct_asset  = Moneychanger::It()->get_default_asset_id();
+//    }
+//    else
+//    {
+//        // -----------------------------------
+//        std::string str_acct_id     = qstr_acct_id.toStdString();
+//        std::string str_acct_nym    = ot.Exec().GetAccountWallet_NymID(str_acct_id);
+//        std::string str_acct_server = ot.Exec().GetAccountWallet_NotaryID(str_acct_id);
+//        std::string str_acct_asset  = ot.Exec().GetAccountWallet_InstrumentDefinitionID(str_acct_id);
+//        // -----------------------------------
+//        qstr_acct_nym    = QString::fromStdString(str_acct_nym);
+//        qstr_acct_server = QString::fromStdString(str_acct_server);
+//        qstr_acct_asset  = QString::fromStdString(str_acct_asset);
+//        // -----------------------------------
+//        std::string str_tla = ot.Exec().GetCurrencyTLA(str_acct_asset);
+//        qstr_tla = QString("<font color=grey>%1</font>").arg(QString::fromStdString(str_tla));
 
-    buttonAccount->setAutoRaise(true);
-    buttonAccount->setStyleSheet("QToolButton { margin-left: 0; font-size:30pt;  font-weight:lighter; }");
+//        qstr_balance = Moneychanger::shortAcctBalance(qstr_acct_id, qstr_acct_asset, false);
+//        // -----------------------------------
+//        std::string str_acct_name  = ot.Exec().GetAccountWallet_Name(str_acct_id);
+//        // -----------------------------------
+//        if (!str_acct_asset.empty())
+//        {
+//            std::string str_asset_name = ot.Exec().GetAssetType_Name(str_acct_asset);
+//            qstr_acct_asset_name = QString::fromStdString(str_asset_name);
+//        }
+//        // -----------------------------------
+//        if (!str_acct_name.empty())
+//        {
+//            qstr_acct_name = QString("%1").arg(QString::fromStdString(str_acct_name));
+//        }
+//    }
+//    // ---------------------------------------------
+//    QToolButton * buttonAccount = new QToolButton;
 
-    QLabel * tla_label = new QLabel(qstr_tla);
-    tla_label->setAlignment(Qt::AlignRight|Qt::AlignBottom);
-    tla_label->setStyleSheet("QLabel { margin-right: 0; font-size:20pt;  font-weight:lighter; }");
+//    buttonAccount->setAutoRaise(true);
+//    buttonAccount->setStyleSheet("QToolButton { margin-left: 0; font-size:30pt;  font-weight:lighter; }");
 
-    buttonAccount->setText(qstr_balance);
-    // -------------------------------------------
-    connect(buttonAccount, SIGNAL(clicked()), Moneychanger::It(), SLOT(mc_show_account_manager_slot()));
-    // ----------------------------------------------------------------
-    QString  cash_label_string = QString("");
-    QString  qstrCash = qstr_acct_name;
+//    QLabel * tla_label = new QLabel(qstr_tla);
+//    tla_label->setAlignment(Qt::AlignRight|Qt::AlignBottom);
+//    tla_label->setStyleSheet("QLabel { margin-right: 0; font-size:20pt;  font-weight:lighter; }");
 
-    if (!qstr_acct_nym.isEmpty() && !qstr_acct_server.isEmpty() && !qstr_acct_asset.isEmpty())
-    {
-        int64_t  raw_cash_balance = Moneychanger::rawCashBalance(qstr_acct_server, qstr_acct_asset, qstr_acct_nym);
+//    buttonAccount->setText(qstr_balance);
+//    // -------------------------------------------
+//    connect(buttonAccount, SIGNAL(clicked()), Moneychanger::It(), SLOT(mc_show_account_manager_slot()));
+//    // ----------------------------------------------------------------
+//    QString  cash_label_string = QString("");
+//    QString  qstrCash = qstr_acct_name;
 
-        if (raw_cash_balance > 0)
-        {
-            cash_label_string = Moneychanger::cashBalance(qstr_acct_server, qstr_acct_asset, qstr_acct_nym);
-            qstrCash += QString(" <small><font color=grey>(%2 %3 %4)</font></small>").arg(tr("plus")).arg(cash_label_string).arg(tr("in cash"));
-        }
-    }
-    else
-        qstrCash = tr("");
-//      qstrCash = tr("(no account selected)");
-    // -------------------------------------------
-    QLabel * pCashLabel = new QLabel(qstrCash);
-    // ---------------------------------------------------------------
-    //pCashLabel->setText(qstrCash);
-    pCashLabel->setIndent(13);
-    // ---------------------------------------------------------------
-    QWidget * balanceWidget = new QWidget;
-    QHBoxLayout * balanceLayout = new QHBoxLayout;
+//    if (!qstr_acct_nym.isEmpty() && !qstr_acct_server.isEmpty() && !qstr_acct_asset.isEmpty())
+//    {
+//        int64_t  raw_cash_balance = Moneychanger::rawCashBalance(qstr_acct_server, qstr_acct_asset, qstr_acct_nym);
 
-    tla_label->setContentsMargins(12, 0, 0, 5);
-    tla_label->setAlignment(Qt::AlignRight|Qt::AlignBottom);
-    balanceLayout->setSpacing(0);
-    balanceLayout->addWidget(tla_label);
-    balanceLayout->addWidget(buttonAccount);
+//        if (raw_cash_balance > 0)
+//        {
+//            cash_label_string = Moneychanger::cashBalance(qstr_acct_server, qstr_acct_asset, qstr_acct_nym);
+//            qstrCash += QString(" <small><font color=grey>(%2 %3 %4)</font></small>").arg(tr("plus")).arg(cash_label_string).arg(tr("in cash"));
+//        }
+//    }
+//    else
+//        qstrCash = tr("");
+////      qstrCash = tr("(no account selected)");
+//    // -------------------------------------------
+//    QLabel * pCashLabel = new QLabel(qstrCash);
+//    // ---------------------------------------------------------------
+//    //pCashLabel->setText(qstrCash);
+//    pCashLabel->setIndent(13);
+//    // ---------------------------------------------------------------
+//    QWidget * balanceWidget = new QWidget;
+//    QHBoxLayout * balanceLayout = new QHBoxLayout;
 
-    balanceLayout->setMargin(0);
-    balanceLayout->setContentsMargins(0, 0, 0, 0);
-//  balanceLayout->setContentsMargins(0, 20, 0, 0);
-    balanceWidget->setContentsMargins(0, 0, 0, 0);
+//    tla_label->setContentsMargins(12, 0, 0, 5);
+//    tla_label->setAlignment(Qt::AlignRight|Qt::AlignBottom);
+//    balanceLayout->setSpacing(0);
+//    balanceLayout->addWidget(tla_label);
+//    balanceLayout->addWidget(buttonAccount);
 
-    balanceWidget->setLayout(balanceLayout);
-    // ----------------------------------------------------------------
-    QVBoxLayout * pAccountLayout = new QVBoxLayout;
+//    balanceLayout->setMargin(0);
+//    balanceLayout->setContentsMargins(0, 0, 0, 0);
+////  balanceLayout->setContentsMargins(0, 20, 0, 0);
+//    balanceWidget->setContentsMargins(0, 0, 0, 0);
 
-    pAccountLayout->setMargin(0);
-    pAccountLayout->setContentsMargins(0, 0, 0, 0);
-    pAccountLayout->setSpacing(3);
+//    balanceWidget->setLayout(balanceLayout);
+//    // ----------------------------------------------------------------
+//    QVBoxLayout * pAccountLayout = new QVBoxLayout;
 
-    pAccountLayout->addWidget(balanceWidget);
-    pAccountLayout->addWidget(pCashLabel);
-    pAccountLayout->addStretch();
-    // ----------------------------------------------------------------
-    QString  identity_label_string = QString("<font color=grey>%1:</font> ").arg(tr("My Identity"));
-    QLabel * pIdentityLabel = new QLabel(identity_label_string);
-    pIdentityLabel->setIndent(2);
-//  pIdentityLabel->setContentsMargins(12, 0, 0, 5);
-    pIdentityLabel->setAlignment(Qt::AlignRight|Qt::AlignVCenter);
-//  pIdentityLabel->setStyleSheet("QLabel { margin-right: 0; font-size:20pt;  font-weight:lighter; }");
-    // --------------------------------------------
-    QString  nym_label_string = QString("");
-    // --------------------------------------------
-    QString qstrPaymentCode("");
-    std::string payment_code("");
+//    pAccountLayout->setMargin(0);
+//    pAccountLayout->setContentsMargins(0, 0, 0, 0);
+//    pAccountLayout->setSpacing(3);
 
-    if (!qstr_acct_nym.isEmpty())
-    {
-        auto pNym = Moneychanger::It()->OT().Wallet().Nym(opentxs::Identifier::Factory(qstr_acct_nym.toStdString()));
-        payment_code = pNym->PaymentCode();
-        qstrPaymentCode = QString::fromStdString(payment_code);
-        // ----------------------------
-        QString qstr_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_Name(qstr_acct_nym.toStdString()));
+//    pAccountLayout->addWidget(balanceWidget);
+//    pAccountLayout->addWidget(pCashLabel);
+//    pAccountLayout->addStretch();
+//    // ----------------------------------------------------------------
+//    QString  identity_label_string = QString("<font color=grey>%1:</font> ").arg(tr("My Identity"));
+//    QLabel * pIdentityLabel = new QLabel(identity_label_string);
+//    pIdentityLabel->setIndent(2);
+////  pIdentityLabel->setContentsMargins(12, 0, 0, 5);
+//    pIdentityLabel->setAlignment(Qt::AlignRight|Qt::AlignVCenter);
+////  pIdentityLabel->setStyleSheet("QLabel { margin-right: 0; font-size:20pt;  font-weight:lighter; }");
+//    // --------------------------------------------
+//    QString  nym_label_string = QString("");
+//    // --------------------------------------------
+//    QString qstrPaymentCode("");
+//    std::string payment_code("");
 
-        if (!qstr_name.isEmpty())
-            nym_label_string = qstr_name;
-        else
-            nym_label_string = QString("(name is blank)");
-    }
-    else
-        nym_label_string += tr("(none selected)");
-    // ---------------------------------------------------------------
-    QToolButton * buttonNym = new QToolButton;
+//    if (!qstr_acct_nym.isEmpty())
+//    {
+//        auto pNym = ot.Wallet().Nym(opentxs::Identifier::Factory(qstr_acct_nym.toStdString()));
+//        payment_code = pNym->PaymentCode();
+//        qstrPaymentCode = QString::fromStdString(payment_code);
+//        // ----------------------------
+//        QString qstr_name = QString::fromStdString(ot.Exec().GetNym_Name(qstr_acct_nym.toStdString()));
 
-    buttonNym->setText(nym_label_string);
-    buttonNym->setAutoRaise(true);
-    buttonNym->setStyleSheet("QToolButton { margin-left: 0; font-size:15pt;  font-weight:lighter; }");
-//  buttonNym->setStyleSheet("QToolButton { margin-left: 0; font-size:20pt;  font-weight:lighter; }");
-    // -------------------------------------------
-    connect(buttonNym, SIGNAL(clicked()), Moneychanger::It(), SLOT(mc_defaultnym_slot()));
-    // ----------------------------------------------------------------
-    QToolButton * buttonPaymentCode = nullptr;
-    if (!qstrPaymentCode.isEmpty())
-    {
-        QrWidget qrWidget;
-        qrWidget.setString(qstrPaymentCode);
+//        if (!qstr_name.isEmpty())
+//            nym_label_string = qstr_name;
+//        else
+//            nym_label_string = QString("(name is blank)");
+//    }
+//    else
+//        nym_label_string += tr("(none selected)");
+//    // ---------------------------------------------------------------
+//    QToolButton * buttonNym = new QToolButton;
 
-        QImage image;
-        qrWidget.asImage(image, 100);
+//    buttonNym->setText(nym_label_string);
+//    buttonNym->setAutoRaise(true);
+//    buttonNym->setStyleSheet("QToolButton { margin-left: 0; font-size:15pt;  font-weight:lighter; }");
+////  buttonNym->setStyleSheet("QToolButton { margin-left: 0; font-size:20pt;  font-weight:lighter; }");
+//    // -------------------------------------------
+//    connect(buttonNym, SIGNAL(clicked()), Moneychanger::It(), SLOT(mc_defaultnym_slot()));
+//    // ----------------------------------------------------------------
+//    QToolButton * buttonPaymentCode = nullptr;
+//    if (!qstrPaymentCode.isEmpty())
+//    {
+//        QrWidget qrWidget;
+//        qrWidget.setString(qstrPaymentCode);
 
-        QPixmap pixmapQR = QPixmap::fromImage(image);
-        // ----------------------------------------------------------------
-        QIcon qrButtonIcon  (pixmapQR);
-        // ----------------------------------------------------------------
-        buttonPaymentCode = new QToolButton;
+//        QImage image;
+//        qrWidget.asImage(image, 100);
 
-        buttonPaymentCode->setAutoRaise(true);
-        buttonPaymentCode->setStyleSheet("QToolButton { margin-left: 0; font-size:15pt;  font-weight:lighter; }");
-        buttonPaymentCode->setIcon(qrButtonIcon);
-        buttonPaymentCode->setIconSize(pixmapQR.rect().size());
-//      buttonPaymentCode->setString(qstrPaymentCode);
-        // -------------------------------------------
-        connect(buttonPaymentCode, SIGNAL(clicked()), Moneychanger::It(), SLOT(mc_defaultnym_slot()));
-    }
-    // -------------------------------------------
-    QGridLayout * pIdentityLayout = new QGridLayout;
+//        QPixmap pixmapQR = QPixmap::fromImage(image);
+//        // ----------------------------------------------------------------
+//        QIcon qrButtonIcon  (pixmapQR);
+//        // ----------------------------------------------------------------
+//        buttonPaymentCode = new QToolButton;
 
-    pIdentityLayout->setMargin(0);
-    pIdentityLayout->setContentsMargins(0, 0, 0, 0); // new
-    pIdentityLayout->setSpacing(0);
-    if (nullptr != buttonPaymentCode)
-        pIdentityLayout->addWidget(buttonPaymentCode, 0,0,2,2, Qt::AlignCenter);
-    pIdentityLayout->addWidget(pIdentityLabel, 2, 0, 1, 1);
-    pIdentityLayout->addWidget(buttonNym, 2, 1, 1, 1);
-    // ---------------------------------------------------------------
-    pUserBar_layout->addLayout(pAccountLayout,  0, 2, 2,2, Qt::AlignLeft);
-    pUserBar_layout->addLayout(pIdentityLayout, 0, 0, 2,2, Qt::AlignLeft);
+//        buttonPaymentCode->setAutoRaise(true);
+//        buttonPaymentCode->setStyleSheet("QToolButton { margin-left: 0; font-size:15pt;  font-weight:lighter; }");
+//        buttonPaymentCode->setIcon(qrButtonIcon);
+//        buttonPaymentCode->setIconSize(pixmapQR.rect().size());
+////      buttonPaymentCode->setString(qstrPaymentCode);
+//        // -------------------------------------------
+//        connect(buttonPaymentCode, SIGNAL(clicked()), Moneychanger::It(), SLOT(mc_defaultnym_slot()));
+//    }
+//    // -------------------------------------------
+//    QGridLayout * pIdentityLayout = new QGridLayout;
 
-    return pUserBar;
+//    pIdentityLayout->setMargin(0);
+//    pIdentityLayout->setContentsMargins(0, 0, 0, 0); // new
+//    pIdentityLayout->setSpacing(0);
+//    if (nullptr != buttonPaymentCode)
+//        pIdentityLayout->addWidget(buttonPaymentCode, 0,0,2,2, Qt::AlignCenter);
+//    pIdentityLayout->addWidget(pIdentityLabel, 2, 0, 1, 1);
+//    pIdentityLayout->addWidget(buttonNym, 2, 1, 1, 1);
+//    // ---------------------------------------------------------------
+//    pUserBar_layout->addLayout(pAccountLayout,  0, 2, 2,2, Qt::AlignLeft);
+//    pUserBar_layout->addLayout(pIdentityLayout, 0, 0, 2,2, Qt::AlignLeft);
+
+//    return pUserBar;
 }
 
 
@@ -1452,7 +1456,7 @@ void Payments::RefreshTree()
 //                        {
 //                            qstrMethodName = tr("Notary");
 //                            // ------------------------------
-//                            QString qstrTemp = QString::fromStdString(Moneychanger::It()->OT().Exec().GetServer_Name(qstrViaTransport.toStdString()));
+//                            QString qstrTemp = QString::fromStdString(ot.Exec().GetServer_Name(qstrViaTransport.toStdString()));
 //                            if (!qstrTemp.isEmpty())
 //                                qstrTransportName = qstrTemp;
 //                        }

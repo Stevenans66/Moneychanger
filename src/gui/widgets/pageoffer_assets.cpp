@@ -41,6 +41,9 @@ PageOffer_Assets::PageOffer_Assets(QWidget *parent) :
 
 void PageOffer_Assets::on_pushButtonManageAsset_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     MTDetailEdit * pWindow = new MTDetailEdit(this);
 
     pWindow->setAttribute(Qt::WA_DeleteOnClose);
@@ -52,13 +55,15 @@ void PageOffer_Assets::on_pushButtonManageAsset_clicked()
     QString qstrPreselected   = field("InstrumentDefinitionID").toString();
     bool    bFoundPreselected = false;
     // -------------------------------------
-    int32_t the_count = Moneychanger::It()->OT().Exec().GetAssetTypeCount();
+    const auto units = ot.Wallet().UnitDefinitionList();
+
+    int32_t the_count = units.size();
     bool    bStartingWithNone = (the_count < 1);
 
-    for (int32_t ii = 0; ii < the_count; ii++)
+    for (const auto & [id, name] : units)
     {
-        QString OT_id   = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_ID(ii));
-        QString OT_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_Name(OT_id.toStdString()));
+        QString OT_id   = QString::fromStdString(id);
+        QString OT_name = QString::fromStdString(name);
 
         the_map.insert(OT_id, OT_name);
 
@@ -73,13 +78,13 @@ void PageOffer_Assets::on_pushButtonManageAsset_clicked()
     // -------------------------------------
     pWindow->dialog(MTDetailEdit::DetailEditTypeAsset, true);
     // -------------------------------------
-    if (bStartingWithNone && (Moneychanger::It()->OT().Exec().GetAssetTypeCount() > 0))
+    if (bStartingWithNone && (units.size() > 0))
     {
-        std::string str_id = Moneychanger::It()->OT().Exec().GetAssetType_ID(0);
+        std::string str_id = units.front().first;
 
         if (!str_id.empty())
         {
-            std::string str_name = Moneychanger::It()->OT().Exec().GetAssetType_Name(str_id);
+            std::string str_name = units.front().second;
 
             if (str_name.empty())
                 str_name = str_id;
@@ -91,12 +96,15 @@ void PageOffer_Assets::on_pushButtonManageAsset_clicked()
         }
     }
     // -------------------------------------
-    else if (Moneychanger::It()->OT().Exec().GetAssetTypeCount() < 1)
+    else if (units.size() < 1)
         SetAssetBlank();
 }
 
 void PageOffer_Assets::on_pushButtonManageCurrency_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     MTDetailEdit * pWindow = new MTDetailEdit(this);
 
     pWindow->setAttribute(Qt::WA_DeleteOnClose);
@@ -108,13 +116,14 @@ void PageOffer_Assets::on_pushButtonManageCurrency_clicked()
     QString qstrPreselected   = field("CurrencyID").toString();
     bool    bFoundPreselected = false;
     // -------------------------------------
-    int32_t the_count = Moneychanger::It()->OT().Exec().GetAssetTypeCount();
+    const auto units = ot.Wallet().UnitDefinitionList();
+    int32_t the_count = units.size();
     bool    bStartingWithNone = (the_count < 1);
 
-    for (int32_t ii = 0; ii < the_count; ii++)
+    for (const auto& [id, name] : units)
     {
-        QString OT_id   = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_ID(ii));
-        QString OT_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_Name(OT_id.toStdString()));
+        QString OT_id   = QString::fromStdString(id);
+        QString OT_name = QString::fromStdString(name);
 
         the_map.insert(OT_id, OT_name);
 
@@ -129,13 +138,13 @@ void PageOffer_Assets::on_pushButtonManageCurrency_clicked()
     // -------------------------------------
     pWindow->dialog(MTDetailEdit::DetailEditTypeAsset, true);
     // -------------------------------------
-    if (bStartingWithNone && (Moneychanger::It()->OT().Exec().GetAssetTypeCount() > 0))
+    if (bStartingWithNone && units.size() > 0)
     {
-        std::string str_id = Moneychanger::It()->OT().Exec().GetAssetType_ID(0);
+        std::string str_id = units.front().first;
 
         if (!str_id.empty())
         {
-            std::string str_name = Moneychanger::It()->OT().Exec().GetAssetType_Name(str_id);
+            std::string str_name = units.front().second;
 
             if (str_name.empty())
                 str_name = str_id;
@@ -147,17 +156,20 @@ void PageOffer_Assets::on_pushButtonManageCurrency_clicked()
         }
     }
     // -------------------------------------
-    else if (Moneychanger::It()->OT().Exec().GetAssetTypeCount() < 1)
+    else if (units.size() < 1)
         SetCurrencyBlank();
 }
 
 void PageOffer_Assets::on_pushButtonSelectAsset_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+    const auto units = ot.Wallet().UnitDefinitionList();
     // -------------------------------------------
     QString qstr_current_id = field("InstrumentDefinitionID").toString();
     // -------------------------------------------
-    if (qstr_current_id.isEmpty() && (Moneychanger::It()->OT().Exec().GetAssetTypeCount() > 0))
-        qstr_current_id = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_ID(0));
+    if (qstr_current_id.isEmpty() && (units.size() > 0))
+        qstr_current_id = QString::fromStdString(units.front().first);
     // -------------------------------------------
     // Select from Asset Types in local wallet.
     //
@@ -167,19 +179,21 @@ void PageOffer_Assets::on_pushButtonSelectAsset_clicked()
 
     bool bFoundDefault = false;
     // -----------------------------------------------
-    const int32_t the_count = Moneychanger::It()->OT().Exec().GetAssetTypeCount();
+    const int32_t the_count = units.size();
     // -----------------------------------------------
-    for (int32_t ii = 0; ii < the_count; ++ii)
+    for (const auto [id, name] : units)
     {
-        QString OT_id = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_ID(ii));
-        QString OT_name("");
+        QString OT_id = QString::fromStdString(id);
+        QString OT_name = QString::fromStdString(name);
+        const auto unitId = ot.Factory().UnitID(id);
+        const auto unit = ot.Wallet().UnitDefinition(unitId, reason);
         // -----------------------------------------------
         if (!OT_id.isEmpty())
         {
             if (!qstr_current_id.isEmpty() && (0 == qstr_current_id.compare(OT_id)))
                 bFoundDefault = true;
             // -----------------------------------------------
-            OT_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_Name(OT_id.toStdString()));
+            OT_name = QString::fromStdString(unit->Alias());
             // -----------------------------------------------
             the_map.insert(OT_id, OT_name);
         }
@@ -206,11 +220,14 @@ void PageOffer_Assets::on_pushButtonSelectAsset_clicked()
 
 void PageOffer_Assets::on_pushButtonSelectCurrency_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+    const auto units = ot.Wallet().UnitDefinitionList();
     // -------------------------------------------
     QString qstr_current_id = field("CurrencyID").toString();
     // -------------------------------------------
-    if (qstr_current_id.isEmpty() && (Moneychanger::It()->OT().Exec().GetAssetTypeCount() > 0))
-        qstr_current_id = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_ID(0));
+    if (qstr_current_id.isEmpty() && (units.size() > 0))
+        qstr_current_id = QString::fromStdString(units.front().first);
     // -------------------------------------------
     // Select from Asset Types in local wallet.
     //
@@ -220,19 +237,21 @@ void PageOffer_Assets::on_pushButtonSelectCurrency_clicked()
 
     bool bFoundDefault = false;
     // -----------------------------------------------
-    const int32_t the_count = Moneychanger::It()->OT().Exec().GetAssetTypeCount();
+    const int32_t the_count = units.size();
     // -----------------------------------------------
-    for (int32_t ii = 0; ii < the_count; ++ii)
+    for (const auto & [id, name] : units)
     {
-        QString OT_id = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_ID(ii));
-        QString OT_name("");
+        QString OT_id = QString::fromStdString(id);
+        QString OT_name = QString::fromStdString(name);
+        const auto unitId = ot.Factory().UnitID(id);
+        const auto unit = ot.Wallet().UnitDefinition(unitId, reason);
         // -----------------------------------------------
         if (!OT_id.isEmpty())
         {
             if (!qstr_current_id.isEmpty() && (0 == qstr_current_id.compare(OT_id)))
                 bFoundDefault = true;
             // -----------------------------------------------
-            OT_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAssetType_Name(OT_id.toStdString()));
+            OT_name = QString::fromStdString(unit->Alias());
             // -----------------------------------------------
             the_map.insert(OT_id, OT_name);
         }

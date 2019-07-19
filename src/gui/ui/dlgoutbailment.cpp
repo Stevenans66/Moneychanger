@@ -22,6 +22,9 @@ DlgOutbailment::DlgOutbailment(QWidget *parent, std::int64_t & AMOUNT, std::stri
     issuer_nym_(issuer_nym),
     notary_(notary)
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     ui->setupUi(this);
 
     this->installEventFilter(this);
@@ -41,8 +44,8 @@ DlgOutbailment::DlgOutbailment(QWidget *parent, std::int64_t & AMOUNT, std::stri
     ui->lineEditIssuerNymId ->setText(issuer_nym);
     ui->lineEditNotaryId    ->setText(notary);
 
-    const auto asset_id = opentxs::Identifier::Factory(asset_type_.toStdString());
-    auto unit_definition = Moneychanger::It()->OT().Wallet().UnitDefinition(asset_id);
+    const auto assetId = ot.Factory().UnitID(asset_type_.toStdString());
+    auto unit_definition = ot.Wallet().UnitDefinition(assetId, reason);
     const QString qstrAssetAlias = QString::fromStdString(unit_definition->Alias());
 
     ui->labelAsset->setText(qstrAssetAlias);
@@ -110,6 +113,9 @@ void DlgOutbailment::on_lineEditBlockchain_editingFinished()
 
 void DlgOutbailment::on_lineEditAmount_editingFinished()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     OT_ASSERT(!asset_type_.isEmpty());
 
     if (!withdrawalPerformed_)
@@ -121,10 +127,10 @@ void DlgOutbailment::on_lineEditAmount_editingFinished()
             if (std::string::npos == str_temp.find(".")) // not found
                 str_temp += '.';
 
-            AMOUNT_ = Moneychanger::It()->OT().Exec().StringToAmount(asset_type_.toStdString(), str_temp);
+            const auto unitId = ot.Factory().UnitID(asset_type_.toStdString());
+            AMOUNT_ = Moneychanger::stringToAmount(unitId, str_temp);
 
-            std::string  str_formatted_amount = Moneychanger::It()->OT().Exec().FormatAmount(
-                         asset_type_.toStdString(),
+            std::string  str_formatted_amount = Moneychanger::formatAmount(unitId,
                          static_cast<int64_t>(AMOUNT_));
 
             QString      qstr_FinalAmount     = QString::fromStdString(str_formatted_amount);

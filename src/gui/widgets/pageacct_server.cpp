@@ -37,6 +37,9 @@ MTPageAcct_Server::MTPageAcct_Server(QWidget *parent) :
 
 void MTPageAcct_Server::on_pushButtonSelect_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     QString qstr_default_id = Moneychanger::It()->get_default_notary_id();
     // -------------------------------------------
     QString qstr_current_id = field("NotaryID").toString();
@@ -44,8 +47,12 @@ void MTPageAcct_Server::on_pushButtonSelect_clicked()
     if (qstr_current_id.isEmpty())
         qstr_current_id = qstr_default_id;
     // -------------------------------------------
-    if (qstr_current_id.isEmpty() && (Moneychanger::It()->OT().Exec().GetServerCount() > 0))
-        qstr_current_id = QString::fromStdString(Moneychanger::It()->OT().Exec().GetServer_ID(0));
+    const auto servers = ot.Wallet().ServerList();
+
+    if (qstr_current_id.isEmpty() && (servers.size() > 0))
+        qstr_current_id = QString::fromStdString(servers.front().first);
+
+    const auto notaryId = ot.Factory().ServerID(qstr_current_id.toStdString());
     // -------------------------------------------
     // Select from Servers in local wallet.
     //
@@ -55,19 +62,17 @@ void MTPageAcct_Server::on_pushButtonSelect_clicked()
 
     bool bFoundDefault = false;
     // -----------------------------------------------
-    const int32_t the_count = Moneychanger::It()->OT().Exec().GetServerCount();
+//    const int32_t the_count = ot.Exec().GetServerCount();
     // -----------------------------------------------
-    for (int32_t ii = 0; ii < the_count; ++ii)
+    for (const auto & [id, name] : servers)
     {
-        QString OT_id = QString::fromStdString(Moneychanger::It()->OT().Exec().GetServer_ID(ii));
-        QString OT_name("");
+        QString OT_id = QString::fromStdString(id);
+        QString OT_name = QString::fromStdString(name);
         // -----------------------------------------------
         if (!OT_id.isEmpty())
         {
             if (!qstr_current_id.isEmpty() && (0 == qstr_current_id.compare(OT_id)))
                 bFoundDefault = true;
-            // -----------------------------------------------
-            OT_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetServer_Name(OT_id.toStdString()));
             // -----------------------------------------------
             the_map.insert(OT_id, OT_name);
         }
@@ -96,6 +101,10 @@ void MTPageAcct_Server::on_pushButtonSelect_clicked()
 
 void MTPageAcct_Server::initializePage() //virtual
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+    const auto servers = ot.Wallet().ServerList();
+
     if (!Moneychanger::It()->expertMode())
     {
         ui->pushButtonManage->setVisible(false);
@@ -110,11 +119,15 @@ void MTPageAcct_Server::initializePage() //virtual
     // -------------------------------------------
     qstr_id = qstr_current_id.isEmpty() ? qstr_default_id : qstr_current_id;
     // -------------------------------------------
-    if (qstr_id.isEmpty() && (Moneychanger::It()->OT().Exec().GetServerCount() > 0))
-        qstr_id = QString::fromStdString(Moneychanger::It()->OT().Exec().GetServer_ID(0));
+    if (qstr_id.isEmpty() && (servers.size() > 0))
+        qstr_id = QString::fromStdString(servers.front().first);
     // -------------------------------------------
     if (!qstr_id.isEmpty())
-        str_name = Moneychanger::It()->OT().Exec().GetServer_Name(qstr_id.toStdString());
+    {
+        const auto notaryId = ot.Factory().ServerID(qstr_id.toStdString());
+        const auto notary = ot.Wallet().Server(notaryId, reason);
+        str_name = notary->Alias();
+    }
     // -------------------------------------------
     if (str_name.empty() || qstr_id.isEmpty())
         SetFieldsBlank();
@@ -135,6 +148,10 @@ void MTPageAcct_Server::initializePage() //virtual
 
 void MTPageAcct_Server::on_pushButtonManage_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+    const auto servers = ot.Wallet().ServerList();
+
     MTDetailEdit * pWindow = new MTDetailEdit(this);
 
     pWindow->setAttribute(Qt::WA_DeleteOnClose);
@@ -146,13 +163,13 @@ void MTPageAcct_Server::on_pushButtonManage_clicked()
     QString qstrPreSelected   = field("NotaryID").toString();
     bool    bFoundPreselected = false;
     // -------------------------------------
-    int32_t the_count = Moneychanger::It()->OT().Exec().GetServerCount();
+    int32_t the_count = servers.size();
     bool    bStartingWithNone = (the_count < 1);
 
-    for (int32_t ii = 0; ii < the_count; ii++)
+    for (const auto& [id, name] : servers)
     {
-        QString OT_id   = QString::fromStdString(Moneychanger::It()->OT().Exec().GetServer_ID(ii));
-        QString OT_name = QString::fromStdString(Moneychanger::It()->OT().Exec().GetServer_Name(OT_id.toStdString()));
+        QString OT_id   = QString::fromStdString(id);
+        QString OT_name = QString::fromStdString(name);
 
         the_map.insert(OT_id, OT_name);
 
@@ -167,13 +184,15 @@ void MTPageAcct_Server::on_pushButtonManage_clicked()
     // -------------------------------------
     pWindow->dialog(MTDetailEdit::DetailEditTypeServer, true);
     // -------------------------------------
-    if (bStartingWithNone && (Moneychanger::It()->OT().Exec().GetServerCount() > 0))
+    if (bStartingWithNone && (servers.size() > 0))
     {
-        std::string str_id = Moneychanger::It()->OT().Exec().GetServer_ID(0);
+        std::string str_id = servers.front().first;
 
         if (!str_id.empty())
         {
-            std::string str_name = Moneychanger::It()->OT().Exec().GetServer_Name(str_id);
+            const auto notaryId = ot.Factory().ServerID(str_id);
+            const auto notary = ot.Wallet().Server(notaryId, reason);
+            std::string str_name = notary->Alias();
 
             if (str_name.empty())
                 str_name = str_id;
@@ -185,7 +204,7 @@ void MTPageAcct_Server::on_pushButtonManage_clicked()
         }
     }
     // -------------------------------------
-    else if (Moneychanger::It()->OT().Exec().GetServerCount() < 1)
+    else if (servers.size() < 1)
         SetFieldsBlank();
 }
 

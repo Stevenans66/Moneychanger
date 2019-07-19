@@ -45,6 +45,9 @@ PageSmart_NymAcct::~PageSmart_NymAcct()
 
 void PageSmart_NymAcct::on_pushButtonManageAcct_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     MTDetailEdit * pWindow = new MTDetailEdit(this);
 
     pWindow->setAttribute(Qt::WA_DeleteOnClose);
@@ -57,7 +60,7 @@ void PageSmart_NymAcct::on_pushButtonManageAcct_clicked()
     bool    bFoundPreselected = false;
     // -------------------------------------
 
-    for (const auto& [accountID, alias] : Moneychanger::It()->OT().Storage().AccountList())
+    for (const auto& [accountID, alias] : ot.Storage().AccountList())
     {
         QString OT_id   = QString::fromStdString(accountID);
         QString OT_name = QString::fromStdString(alias);
@@ -90,6 +93,9 @@ void PageSmart_NymAcct::SetFieldsBlank()
 
 void PageSmart_NymAcct::on_pushButtonSelect_clicked()
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     QWizard * pWizard = wizard();
 
     if (NULL == pWizard)
@@ -118,7 +124,7 @@ void PageSmart_NymAcct::on_pushButtonSelect_clicked()
     std::string str_acct_name = qstrAcctName.toStdString();
     // -------------------------------------------
     std::string templateInstrumentDefinitionID =
-        Moneychanger::It()->OT().Exec().Party_GetAcctInstrumentDefinitionID(str_template, str_party, str_acct_name);
+        ot.Exec().Party_GetAcctInstrumentDefinitionID(str_template, str_party, str_acct_name);
     bool foundTemplateInstrumentDefinitionID = "" != templateInstrumentDefinitionID;
     // -------------------------------------------
     QString qstr_current_id = field("AcctID").toString();
@@ -129,7 +135,7 @@ void PageSmart_NymAcct::on_pushButtonSelect_clicked()
 
     bool bFoundDefault = false;
 
-    for (const auto& [acctID, alias] : Moneychanger::It()->OT().Storage().AccountList())
+    for (const auto& [acctID, alias] : ot.Storage().AccountList())
     {
         if ("" == acctID) {
             QMessageBox::information(this, tr(MONEYCHANGER_APP_NAME),
@@ -150,10 +156,16 @@ void PageSmart_NymAcct::on_pushButtonSelect_clicked()
         if (alreadyConfirmed)
             continue;
         // --------------------------------------
-        std::string acctNotaryID = Moneychanger::It()->OT().Exec().GetAccountWallet_NotaryID(acctID);
-        std::string acctNymID = Moneychanger::It()->OT().Exec().GetAccountWallet_NymID(acctID);
-        std::string acctInstrumentDefinitionID =
-            Moneychanger::It()->OT().Exec().GetAccountWallet_InstrumentDefinitionID(acctID);
+        const auto  accountId = ot.Factory().Identifier(acctID);
+        const auto  account = ot.Wallet().Account(accountId, reason);
+        const auto& accountNotaryId = account.get().GetPurportedNotaryID();
+        const auto& accountNymId = account.get().GetNymID();
+        const auto& accountUnitId = account.get().GetInstrumentDefinitionID();
+
+        std::string acctName = account.get().Alias();
+        std::string acctNotaryID = accountNotaryId.str();
+        std::string acctNymID = accountNymId.str();
+        std::string acctInstrumentDefinitionID = accountUnitId.str();
 
         if (str_notary_id != acctNotaryID || str_nym_id != acctNymID)
             continue;
@@ -173,7 +185,7 @@ void PageSmart_NymAcct::on_pushButtonSelect_clicked()
                 if (!qstr_current_id.isEmpty() && (0 == qstr_current_id.compare(OT_id)))
                     bFoundDefault = true;
                 // -----------------------------------------------
-                QString qstrTemp = QString::fromStdString(Moneychanger::It()->OT().Exec().GetAccountWallet_Name(OT_id.toStdString()));
+                QString qstrTemp = QString::fromStdString(acctName);
 
                 if (!qstrTemp.isEmpty())
                     OT_name = qstrTemp;

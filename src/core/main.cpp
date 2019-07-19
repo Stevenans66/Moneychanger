@@ -17,7 +17,7 @@
 #include <QDebug>
 
 
-
+namespace ot = opentxs;
 
 void shutdown_app()
 {
@@ -39,8 +39,6 @@ void shutdown_app()
 //    return true;
 //}
 
-
-
 class __OTclient_RAII
 {
 public:
@@ -48,23 +46,36 @@ public:
 #ifndef OT_NO_PASSWORD
         : password_callback_{new MTPasswordCallback}
         , password_caller_{new opentxs::OTCaller}
+        , ot_(ot::InitContext({},
+                              std::chrono::seconds(0),
+                              password_caller_.get()))
+#else
+        : ot_(ot::InitContext())
 #endif
     {
 #ifndef OT_NO_PASSWORD
         assert(password_callback_);
         assert(password_caller_);
-        password_caller_->setCallback(password_callback_.get());
-        assert(password_caller_->isCallbackSet());
-        // ----------------------------------------
-        const opentxs::api::client::Manager& manager = opentxs::OT::ClientFactory({}, {}, password_caller_.get());
-#else
-        const opentxs::api::client::Manager& manager = opentxs::OT::ClientFactory({}, {});
+        password_caller_->SetCallback(password_callback_.get());
 #endif
+        /*
+        //Create
+        EXPORT virtual const api::client::Manager& StartClient(
+            const ArgList& args,
+            const int instance) const = 0;
+        // Restore
+        EXPORT virtual const api::client::Manager& StartClient(
+            const ArgList& args,
+            const int instance,
+            const std::string& recoverWords,
+            const std::string& recoverPassphrase) const = 0;
+         */
+        const auto& manager = ot_.StartClient({}, 0);
         pManager_ = &manager;
     }
     ~__OTclient_RAII()
     {
-        opentxs::OT::Cleanup();
+        opentxs::Cleanup();
 
 #ifndef OT_NO_PASSWORD
         password_caller_.reset();
@@ -82,6 +93,7 @@ private:
     std::unique_ptr<MTPasswordCallback> password_callback_{nullptr};
     std::unique_ptr<opentxs::OTCaller> password_caller_{nullptr};
 #endif
+    const opentxs::api::Context& ot_;
 };
 
 // ----------------------------------------
@@ -161,8 +173,10 @@ int main(int argc, char *argv[])
         int nIndexClang = qstrAppDirPath.indexOf("clang", 0);
         int nIndexBuild = qstrAppDirPath.indexOf("build", 0);
 
-        if ((-1 == nIndexClang) && (-1 == nIndexBuild))
-            opentxs::OTPaths::SetAppBinaryFolder(qstrAppDirPath.toStdString().c_str());
+        if ((-1 == nIndexClang) && (-1 == nIndexBuild)) {
+            const auto path = opentxs::String::Factory(qstrAppDirPath.toStdString().c_str());
+            opentxs::OTPaths::SetAppBinaryFolder(path);
+        }
     }
 //  QMessageBox::information(NULL, "", QString::fromStdString(std::string(opentxs::OTPaths::ScriptsFolder().Get())));
 #endif

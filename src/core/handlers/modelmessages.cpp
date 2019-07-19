@@ -255,6 +255,9 @@ QVariant ConvMsgsProxyModel::rawData ( const QModelIndex & index, int role/* = Q
 
 QVariant ConvMsgsProxyModel::data ( const QModelIndex & index, int role/* = Qt::DisplayRole */) const
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
 //    if (role == Qt::TextAlignmentRole)
 //        return QVariant(Qt::AlignCenter | Qt::AlignVCenter);
     // ----------------------------------------
@@ -329,7 +332,8 @@ QVariant ConvMsgsProxyModel::data ( const QModelIndex & index, int role/* = Qt::
             if (!qstrID.isEmpty())
             {
                 const std::string str_id = qstrID.trimmed().toStdString();
-                str_name = str_id.empty() ? "" : Moneychanger::It()->OT().Exec().GetNym_Name(str_id);
+                const auto nymId = ot.Factory().NymID(str_id);
+                str_name = str_id.empty() ? "" : ot.Wallet().Nym(nymId, reason)->Alias();
             }
             // ------------------------
             if (str_name.empty() && !qstrID.isEmpty())
@@ -882,6 +886,9 @@ void MessagesProxyModel::clearFilterType()
 
 QVariant MessagesProxyModel::data ( const QModelIndex & index, int role/* = Qt::DisplayRole */) const
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
 //    if (role == Qt::TextAlignmentRole)
 //        return QVariant(Qt::AlignCenter | Qt::AlignVCenter);
     // ----------------------------------------
@@ -919,7 +926,8 @@ QVariant MessagesProxyModel::data ( const QModelIndex & index, int role/* = Qt::
             if (!qstrID.isEmpty())
             {
                 const std::string str_id = qstrID.trimmed().toStdString();
-                str_name = str_id.empty() ? "" : Moneychanger::It()->OT().Exec().GetNym_Name(str_id);
+                const auto nymId = ot.Factory().NymID(str_id);
+                str_name = str_id.empty() ? "" : ot.Wallet().Nym(nymId, reason)->Alias();
             }
             // ------------------------
             if (str_name.empty() && !qstrID.isEmpty())
@@ -945,7 +953,8 @@ QVariant MessagesProxyModel::data ( const QModelIndex & index, int role/* = Qt::
         {
             QString qstrID = sourceData.isValid() ? sourceData.toString().trimmed() : "";
             const std::string str_id = qstrID.isEmpty() ? "" : qstrID.toStdString();
-            const std::string str_name = str_id.empty() ? "" : Moneychanger::It()->OT().Exec().GetNym_Name(str_id);
+            const auto nymId = ot.Factory().NymID(str_id);
+            const std::string str_name = str_id.empty() ? "" : ot.Wallet().Nym(nymId, reason)->Alias();
             // ------------------------
             if (!str_name.empty())
                 return QVariant(QString::fromStdString(str_name));
@@ -978,7 +987,8 @@ QVariant MessagesProxyModel::data ( const QModelIndex & index, int role/* = Qt::
         {
             QString qstrID = sourceData.isValid() ? sourceData.toString().trimmed() : "";
             const std::string str_id = qstrID.isEmpty() ? "" : qstrID.toStdString();
-            const std::string str_name = str_id.empty() ? "" : Moneychanger::It()->OT().Exec().GetNym_Name(str_id);
+            const auto nymId = ot.Factory().NymID(str_id);
+            const std::string str_name = str_id.empty() ? "" : ot.Wallet().Nym(nymId, reason)->Alias();
             // ------------------------
             if (!str_name.empty())
                 return QVariant(QString::fromStdString(str_name));
@@ -1013,7 +1023,8 @@ QVariant MessagesProxyModel::data ( const QModelIndex & index, int role/* = Qt::
             // Else if the method t
             QString qstrID = sourceData.isValid() ? sourceData.toString() : "";
             const std::string str_id = qstrID.toStdString();
-            const std::string str_name = str_id.empty() ? "" : Moneychanger::It()->OT().Exec().GetServer_Name(str_id);
+            const auto serverId = ot.Factory().ServerID(str_id);
+            const std::string str_name = str_id.empty() ? "" : ot.Wallet().Server(serverId, reason)->Alias();
             // ------------------------
             if (!str_name.empty())
                 return QVariant(QString::fromStdString(str_name));
@@ -1242,6 +1253,9 @@ QString create_message_body_table = "CREATE TABLE IF NOT EXISTS message_body"
 //
 bool MessagesProxyModel::filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const
 {
+    const auto & ot = Moneychanger::It()->OT();
+    const auto reason = ot.Factory().PasswordPrompt(__FUNCTION__);
+
     QModelIndex indexSenderNym  = sourceModel()->index(sourceRow, MSG_SOURCE_COL_SENDER_NYM,  sourceParent); // sender_nym_id
     QModelIndex indexSenderAddr = sourceModel()->index(sourceRow, MSG_SOURCE_COL_SENDER_ADDR, sourceParent); // sender_address
     QModelIndex indexRecipNym   = sourceModel()->index(sourceRow, MSG_SOURCE_COL_RECIP_NYM,   sourceParent); // recipient_nym_id
@@ -1310,13 +1324,25 @@ bool MessagesProxyModel::filterAcceptsRow(int sourceRow, const QModelIndex &sour
         //
         if (!filterString_.isEmpty())
         {
+            QString  qstrNotaryName;
+
+            if (!qstrNotaryID.isEmpty()) {
+                const auto serverId = ot.Factory().ServerID(qstrNotaryID.toStdString());
+                const auto server = ot.Wallet().Server(serverId, reason);
+                const std::string str_name = server->Alias();
+                qstrNotaryName = QString::fromStdString(server->Alias());
+            }
+
             QModelIndex    indexSubject   = sourceModel()->index(sourceRow, MSG_SOURCE_COL_SUBJECT, sourceParent); // subject
             const QVariant dataSubject    = pMsgModel->data(indexSubject);
             const QString  qstrSubject    = dataSubject.isValid()  ? dataSubject.toString() : "";
-            const QString  qstrNotaryName = qstrNotaryID.isEmpty() ? QString("") :
-                                                QString::fromStdString(Moneychanger::It()->OT().Exec().GetServer_Name(qstrNotaryID.toStdString()));
-            QString qstrSenderName    = qstrSenderNym   .isEmpty() ? "" : QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_Name(qstrSenderNym   .toStdString()));
-            QString qstrRecipientName = qstrRecipientNym.isEmpty() ? "" : QString::fromStdString(Moneychanger::It()->OT().Exec().GetNym_Name(qstrRecipientNym.toStdString()));
+
+            const auto senderNymId = ot.Factory().NymID(qstrSenderNym.toStdString());
+            const auto recipientNymId = ot.Factory().NymID(qstrRecipientNym.toStdString());
+            const auto senderNym = ot.Wallet().Nym(senderNymId, reason);
+            const auto recipientNym = ot.Wallet().Nym(recipientNymId, reason);
+            QString qstrSenderName    = qstrSenderNym   .isEmpty() ? "" : QString::fromStdString(senderNym->Alias());
+            QString qstrRecipientName = qstrRecipientNym.isEmpty() ? "" : QString::fromStdString(recipientNym->Alias());
 
             if (qstrSenderName.isEmpty() && !qstrSenderAddress.isEmpty())
                 qstrSenderName = qstrSenderAddress;

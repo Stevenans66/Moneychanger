@@ -50,11 +50,16 @@ class Moneychanger : public QWidget
     Q_OBJECT
 
 private:
+    static std::string thousands_sep_s;
+    static std::string decimal_point_s;
+
+    static std::string thousandsSep();
+    static std::string decimalPoint();
     // ------------------------------------------------
 //    opentxs::OTRecordList   m_list;
     // ------------------------------------------------
     /** Constructor & Destructor **/
-    Moneychanger(const opentxs::api::client::Manager& manager, QWidget *parent = 0);
+    Moneychanger(const opentxs::api::client::Manager& manager, QWidget *parent = nullptr);
 
     const opentxs::api::client::Manager& ot_;
     std::atomic<std::uint64_t> refresh_count_;
@@ -76,8 +81,13 @@ private:
         const std::string& strNotaryID,
         const std::string& strMyNymID) const;
 public:
-    const opentxs::api::client::Manager& OT() { return ot_; }
+    const opentxs::api::client::Manager& OT() const { return ot_; }
     
+    static std::string formatAmount(const opentxs::identifier::UnitDefinition& unitTypeId, const opentxs::Amount amount);
+    static std::string formatAmountWithoutSymbol(const opentxs::identifier::UnitDefinition& unitTypeId, const opentxs::Amount amount);
+
+    static opentxs::Amount stringToAmount(const opentxs::identifier::UnitDefinition& unitTypeId, const std::string& in);
+
     // Note: These are callback functions needed by OT.
     // Specifically, whenever the DHT downloads a contract, it notifies interested parties
     // using this contract.
